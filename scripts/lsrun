@@ -1,0 +1,8 @@
+#!/bin/sh
+
+export DP="_$1"
+shift
+ansysargs="$@"
+eval "${LSEXEDIR}/lsdyna ${ansysargs}"
+stat="$?"
+exit ${stat}

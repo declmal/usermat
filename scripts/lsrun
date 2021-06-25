@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export DP="_$1"
+export DYNAEXE="lsdyna_$1"
 shift
 ansysargs="$@"
 eval "${LSEXEDIR}/lsdyna ${ansysargs}"

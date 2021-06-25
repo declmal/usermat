@@ -1,0 +1,22 @@
+      integer nscflg,
+     & ns17,ns18,ns19,ns20,ns21,ns22,
+     & nh17,nh18,nh19,nh20,nh21,nh22,
+     & nt17,nt18,nt19,nt20,nt21,nt22,
+     & nb17,nb18,nb19,nb20,nb21,nb22,
+     & nu17,nu18,nu19,nu20,nu21,nu22,
+     & ny01,ny02,ny03,ny04,ny05,ny06,
+     & ny07,ny08,ny09,ny10,ny101,ny11,ny12,
+     & ny13,ny14,ny15,ny16,ny17,ny18,
+     & hsc_sh,hsc_hx,hsc_ts,hsc_bm,hsc_nd
+      real tmastr
+      real*8 dtmstr,dtmxsc,dtxtsc
+      common/subcyc/nscflg,tmastr,dtmstr,dtmxsc,dtxtsc,
+     & ns17,ns18,ns19,ns20,ns21,ns22,
+     & nh17,nh18,nh19,nh20,nh21,nh22,
+     & nt17,nt18,nt19,nt20,nt21,nt22,
+     & nb17,nb18,nb19,nb20,nb21,nb22,
+     & nu17,nu18,nu19,nu20,nu21,nu22,
+     & ny01,ny02,ny03,ny04,ny05,ny06,
+     & ny07,ny08,ny09,ny10,ny101,ny11,ny12,
+     & ny13,ny14,ny15,ny16,ny17,ny18,
+     & hsc_sh,hsc_hx,hsc_ts,hsc_bm,hsc_nd

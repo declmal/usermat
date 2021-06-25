@@ -1,0 +1,4 @@
+      integer nlq
+      parameter (nlq=192)
+      integer nnlq,lq9,lq0,lq1
+      common/newnlq/nnlq,lq9,lq0,lq1

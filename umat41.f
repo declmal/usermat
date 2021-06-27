@@ -134,62 +134,65 @@ c Updating The Yield Stress
 c
 c Begin strain rate effect
 c
-          if (cm(8).ne.0) then
-            d1d=eps(1)+davg
-            d2d=eps(2)+davg
-            d3d=eps(3)+davg
-            d4d=eps(4)
-            d5d=eps(5)
-            d6d=eps(6)
-            ds=d4d*d4d+d5d*d5d+d6d*d6d
+            if (cm(8).ne.0) then
+              d1d=eps(1)+davg
+              d2d=eps(2)+davg
+              d3d=eps(3)+davg
+              d4d=eps(4)
+              d5d=eps(5)
+              d6d=eps(6)
+              ds=d4d*d4d+d5d*d5d+d6d*d6d
 c Computing Effective Strain
-            effs=sqrt(2.*(d1d*d1d+d2d*d2d+d3d*d3d+2.*ds)/3.)
+              effs=sqrt(2.*(d1d*d1d+d2d*d2d+d3d*d3d+2.*ds)/3.)
 c Computing Strain Rate
-            if (tt.ne.0) then
-              effs=effs/dt1
-            endif
+              if (tt.ne.0) then
+                effs=effs/dt1
+              endif
 c Computing the Strain rate Sensitivity using Cowper-Symond
-            powp=1/cm(9)
-            bas=effs/cm(8)
-            mult1=bas**powp
-            mult=1.+bas**powp
-          endif
-          ak=mult*ak
+              powp=1/cm(9)
+              bas=effs/cm(8)
+              mult1=bas**powp
+              mult=1.+bas**powp
+            endif
+            ak=mult*ak
 c
 c End strain rate effect
 c
 c
 c Computing Deviatoric Stress
 c
-          q1=hsv(2)+sig(1)
-          q2=hsv(2)+sig(2)
-          q3=hsv(2)+sig(3)
-          q4=sig(4)
-          q5=sig(5)
-          q6=sig(6)
-          aj2=q4*q4+q5*q5+q6*q6+(q1*q1+q2*q2+q3*q3)/2
+            q1=hsv(2)+sig(1)
+            q2=hsv(2)+sig(2)
+            q3=hsv(2)+sig(3)
+            q4=sig(4)
+            q5=sig(5)
+            q6=sig(6)
+            aj2=q4*q4+q5*q5+q6*q6+(q1*q1+q2*q2+q3*q3)/2
 c Computing Yield Function
-          ak2=3*aj2-ak*ak
-          scle=0
+            ak2=3*aj2-ak*ak
+            scle=0
 c Checking Yield
-          if (ak2.gt.0) then
-            scle=1
-          endif
-          fac1=1/(3.0*g+qh)
-          fac2=3.0*g
-          aj1=sqrt(3*abs(aj2))+1-scle
+            if (ak2.gt.0) then
+              scle=1
+            endif
+            fac1=1/(3.0*g+qh)
+            fac2=3.0*g
+            aj1=sqrt(3*abs(aj2))+1-scle
 c Computing plastic strain Increment
-          depi=scle*fac1*(aj1-ak)
+            depi=scle*fac1*(aj1-ak)
 c Computing Total Plastic Strain
-          hsv(1)=hsv(1)+depi
-          deps=scle*fac2*depi/aj1
+            hsv(1)=hsv(1)+depi
+            deps=scle*fac2*depi/aj1
 c Stress Update
-          sig(1)=sig(1)-deps*q1
-          sig(2)=sig(2)-deps*q2
-          sig(3)=sig(3)-deps*q3
-          sig(4)=sig(4)-deps*q4
-          sig(5)=sig(5)-deps*q5
-          sig(6)=sig(6)-deps*q6
+            sig(1)=sig(1)-deps*q1
+            sig(2)=sig(2)-deps*q2
+            sig(3)=sig(3)-deps*q3
+            sig(4)=sig(4)-deps*q4
+            sig(5)=sig(5)-deps*q5
+            sig(6)=sig(6)-deps*q6
+          endif
+        endif
+      endif
 c
 c10   format(/
 c    1 ' *** Error element type ',a,' can not be',

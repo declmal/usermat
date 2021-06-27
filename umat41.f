@@ -142,7 +142,7 @@ c
               d5d=eps(5)
               d6d=eps(6)
               ds=d4d*d4d+d5d*d5d+d6d*d6d
-c Computing Effective Strain
+c Computing Effective Strain of Current Time Step
               effs=sqrt(2.*(d1d*d1d+d2d*d2d+d3d*d3d+2.*ds)/3.)
 c Computing Strain Rate
               if (tt.ne.0) then

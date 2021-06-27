@@ -92,10 +92,10 @@ c
       include 'nlqparm'
       include 'bk06.inc'
       include 'iounits.inc'
-      dimension cm(*),eps(*),sig(*),hsv(*),crv(lq1,2,*),cma(*),qmat(3,3)
+      dimension cm(*),eps(*),sig(*),hsv(*),crv(lq1,2,*),cma(*)
       logical failel
       character*5 etype
-      integer idele
+      double precision mult, bas, powp, effs
 c
       if (ncycle.eq.1) then
         if (cm(16).ne.1234567) then
@@ -105,93 +105,93 @@ c
 c
 c     compute shear modulus, g
 c
+      mult=1.0
       g2 =abs(cm(1))/(1.+cm(2))
       g  =.5*g2
 c
       if (etype.eq.'solid'.or.etype.eq.'shl_t'.or.
-     1     etype.eq.'sld2d'.or.etype.eq.'tshel'.or.
-     2     etype.eq.'sph  '.or.etype.eq.'sldax') then
+     1     etype.eq.'sld2d') then
         if (cm(16).eq.1234567) then
           call mitfail3d(cm,eps,sig,epsp,hsv,dt1,capa,failel,tt,crv)
         else
           if (.not.failel) then
-          davg=(-eps(1)-eps(2)-eps(3))/3.
-          p=-davg*abs(cm(1))/(1.-2.*cm(2))
-          sig(1)=sig(1)+p+g2*(eps(1)+davg)
-          sig(2)=sig(2)+p+g2*(eps(2)+davg)
-          sig(3)=sig(3)+p+g2*(eps(3)+davg)
-          sig(4)=sig(4)+g*eps(4)
-          sig(5)=sig(5)+g*eps(5)
-          sig(6)=sig(6)+g*eps(6)
-          if (cm(1).lt.0.) then            
-            if (sig(1).gt.cm(5)) failel=.true.
-          endif
-          endif
-        end if
+            davg=(-eps(1)-eps(2)-eps(3))/3.
+c Computing Hydrostatic Stress(Incremental)
+            p=-davg*cm(1)/(1.-2.*cm(2))
+c Computing Total Hydrostatic Stress
+            hsv(2)=hsv(2)-p
+c Computing Trial Stress
+            sig(1)=sig(1)+p+g2*(eps(1)+davg)
+            sig(2)=sig(2)+p+g2*(eps(2)+davg)
+            sig(3)=sig(3)+p+g2*(eps(3)+davg)
+            sig(4)=sig(4)+g*eps(4)
+            sig(5)=sig(5)+g*eps(5)
+            sig(6)=sig(6)+g*eps(6)
+c Computing Plastic Hardening Modulus
+            qh=cm(5)*cm(1)/(cm(1)-cm(5))
+c Updating The Yield Stress
+            ak=cm(6)+qh*hsv(1)
 c
-      else if (etype.eq.'shell') then
-        if (cm(16).eq.1234567) then
-          call mitfailure(cm,eps,sig,epsp,hsv,dt1,capa,failel,tt,crv)
-        else
-          if (.not.failel) then
-          gc    =capa*g
-          q1    =abs(cm(1))*cm(2)/((1.0+cm(2))*(1.0-2.0*cm(2)))
-          q3    =1./(q1+g2)
-          eps(3)=-q1*(eps(1)+eps(2))*q3
-          davg  =(-eps(1)-eps(2)-eps(3))/3.
-          p     =-davg*abs(cm(1))/(1.-2.*cm(2))
-          sig(1)=sig(1)+p+g2*(eps(1)+davg)
-          sig(2)=sig(2)+p+g2*(eps(2)+davg)
-          sig(3)=0.0
-          sig(4)=sig(4)+g *eps(4)
-          sig(5)=sig(5)+gc*eps(5)
-          sig(6)=sig(6)+gc*eps(6)
-          if (cm(1).lt.0.) then
-            if (sig(1).gt.cm(5)) failel=.true.
-          endif
-          endif
-        end if
-      elseif (etype.eq.'beam ' ) then
-          q1    =cm(1)*cm(2)/((1.0+cm(2))*(1.0-2.0*cm(2)))
-          q3    =q1+2.0*g
-          gc    =capa*g
-          deti  =1./(q3*q3-q1*q1)
-          c22i  = q3*deti
-          c23i  =-q1*deti
-          fac   =(c22i+c23i)*q1
-          eps(2)=-eps(1)*fac-sig(2)*c22i-sig(3)*c23i
-          eps(3)=-eps(1)*fac-sig(2)*c23i-sig(3)*c22i
-          davg  =(-eps(1)-eps(2)-eps(3))/3.
-          p     =-davg*cm(1)/(1.-2.*cm(2))
-          sig(1)=sig(1)+p+g2*(eps(1)+davg)
-          sig(2)=0.0
-          sig(3)=0.0
-          sig(4)=sig(4)+gc*eps(4)
-          sig(5)=0.0
-          sig(6)=sig(6)+gc*eps(6)
+c Begin strain rate effect
 c
-      elseif (etype.eq.'tbeam') then
-        q1    =cm(1)*cm(2)/((1.0+cm(2))*(1.0-2.0*cm(2)))
-        q3    =q1+2.0*g
-        deti  =1./(q3*q3-q1*q1)
-        c22i  = q3*deti
-        c23i  =-q1*deti
-        fac   =(c22i+c23i)*q1
-        eps(2)=-eps(1)*fac
-        eps(3)=-eps(1)*fac
-        davg  =(-eps(1)-eps(2)-eps(3))/3.
-        p     =-davg*cm(1)/(1.-2.*cm(2))
-        sig(1)=sig(1)+p+g2*(eps(1)+davg)
-        sig(2)=0.0
-        sig(3)=0.0
+            if (cm(8).ne.0) then
+              d1d=eps(1)+davg
+              d2d=eps(2)+davg
+              d3d=eps(3)+davg
+              d4d=eps(4)
+              d5d=eps(5)
+              d6d=eps(6)
+              ds=d4d*d4d+d5d*d5d+d6d*d6d
+c Computing Effective Strain
+              effs=sqrt(2.*(d1d*d1d+d2d*d2d+d3d*d3d+2.*ds)/3.)
+c Computing Strain Rate
+              if (tt.ne.0) then
+                effs=effs/dt1
+              endif
+c Computing the Strain rate Sensitivity using Cowper-Symond
+              powp=1/cm(9)
+              bas=effs/cm(8)
+              mult1=bas**powp
+              mult=1.+bas**powp
+            endif
+            ak=mult*ak
 c
-      else
-c       write(iotty,10) etype
-c       write(iohsp,10) etype
-c       write(iomsg,10) etype
-c       call adios(2)
-        cerdat(1)=etype
-        call lsmsg(3,MSG_SOL+1150,ioall,ierdat,rerdat,cerdat,0)
+c End strain rate effect
+c
+c
+c Computing Deviatoric Stress
+c
+            q1=hsv(2)+sig(1)
+            q2=hsv(2)+sig(2)
+            q3=hsv(2)+sig(3)
+            q4=sig(4)
+            q5=sig(5)
+            q6=sig(6)
+            aj2=q4*q4+q5*q5+q6*q6+(q1*q1+q2*q2+q3*q3)/2
+c Computing Yield Function
+            ak2=3*aj2-ak*ak
+            scle=0
+c Checking Yield
+            if (ak2.gt.0) then
+              scle=1
+            endif
+            fac1=1/(3.0*g+qh)
+            fac2=3.0*g
+            aj1=sqrt(3*abs(aj2))+1-scle
+c Computing plastic strain Increment
+            depi=scle*fac1*(aj1-ak)
+c Computing Total Plastic Strain
+            hsv(1)=hsv(1)+depi
+            deps=scle*fac2*depi/aj1
+c Stress Update
+            sig(1)=sig(1)-deps*q1
+            sig(2)=sig(2)-deps*q2
+            sig(3)=sig(3)-deps*q3
+            sig(4)=sig(4)-deps*q4
+            sig(5)=sig(5)-deps*q5
+            sig(6)=sig(6)-deps*q6
+          endif
+        endif
       endif
 c
 c10   format(/

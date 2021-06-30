@@ -97,99 +97,42 @@ c
       character*5 etype
       double precision mult, bas, powp, effs
 c
+c     parameter definition
+      parameter (one_third=1./3.)
+c
       if (ncycle.eq.1) then
         if (cm(16).ne.1234567) then
           call usermsg('mat41')
         endif
       endif
 c
-c     compute shear modulus, g
+c     material constants
 c
-      mult=1.0
-      g2 =abs(cm(1))/(1.+cm(2))
-      g  =.5*g2
+      E=cm(1)
+      nu=cm(2)
+      a0=cm(3)
+      a1=cm(4)
+      a2=cm(5)
+      b1=cm(6)
+      a0f=cm(7)
+      a1f=cm(8)
 c
-      if (etype.eq.'solid'.or.etype.eq.'shl_t'.or.
-     1     etype.eq.'sld2d') then
+c     compute shear modulus, G
+c
+      G=.5*E/(1.+nu)
+c
+c     compute bulk modulus, K
+c
+      K=E/(3.*(1.-2.nu))
+
+      if (etype.eq.'solid') then
         if (cm(16).eq.1234567) then
           call mitfail3d(cm,eps,sig,epsp,hsv,dt1,capa,failel,tt,crv)
         else
           if (.not.failel) then
-            davg=(-eps(1)-eps(2)-eps(3))/3.
-c Computing Hydrostatic Stress(Incremental)
-            p=-davg*cm(1)/(1.-2.*cm(2))
-c Computing Total Hydrostatic Stress
-            hsv(2)=hsv(2)-p
-c Computing Trial Stress
-            sig(1)=sig(1)+p+g2*(eps(1)+davg)
-            sig(2)=sig(2)+p+g2*(eps(2)+davg)
-            sig(3)=sig(3)+p+g2*(eps(3)+davg)
-            sig(4)=sig(4)+g*eps(4)
-            sig(5)=sig(5)+g*eps(5)
-            sig(6)=sig(6)+g*eps(6)
-c Computing Plastic Hardening Modulus
-            qh=cm(5)*cm(1)/(cm(1)-cm(5))
-c Updating The Yield Stress
-            ak=cm(6)+qh*hsv(1)
 c
-c Begin strain rate effect
+c     calculate strain rate and volume change
 c
-            if (cm(8).ne.0) then
-              d1d=eps(1)+davg
-              d2d=eps(2)+davg
-              d3d=eps(3)+davg
-              d4d=eps(4)
-              d5d=eps(5)
-              d6d=eps(6)
-              ds=d4d*d4d+d5d*d5d+d6d*d6d
-c Computing Effective Strain of Current Time Step
-              effs=sqrt(2.*(d1d*d1d+d2d*d2d+d3d*d3d+2.*ds)/3.)
-c Computing Strain Rate
-              if (tt.ne.0) then
-                effs=effs/dt1
-              endif
-c Computing the Strain rate Sensitivity using Cowper-Symond
-              powp=1/cm(9)
-              bas=effs/cm(8)
-              mult1=bas**powp
-              mult=1.+bas**powp
-            endif
-            ak=mult*ak
-c
-c End strain rate effect
-c
-c
-c Computing Deviatoric Stress
-c
-            q1=hsv(2)+sig(1)
-            q2=hsv(2)+sig(2)
-            q3=hsv(2)+sig(3)
-            q4=sig(4)
-            q5=sig(5)
-            q6=sig(6)
-            aj2=q4*q4+q5*q5+q6*q6+(q1*q1+q2*q2+q3*q3)/2
-c Computing Yield Function
-            ak2=3*aj2-ak*ak
-            scle=0
-c Checking Yield
-            if (ak2.gt.0) then
-              scle=1
-            endif
-            fac1=1/(3.0*g+qh)
-            fac2=3.0*g
-            aj1=sqrt(3*abs(aj2))+1-scle
-c Computing plastic strain Increment
-            depi=scle*fac1*(aj1-ak)
-c Computing Total Plastic Strain
-            hsv(1)=hsv(1)+depi
-            deps=scle*fac2*depi/aj1
-c Stress Update
-            sig(1)=sig(1)-deps*q1
-            sig(2)=sig(2)-deps*q2
-            sig(3)=sig(3)-deps*q3
-            sig(4)=sig(4)-deps*q4
-            sig(5)=sig(5)-deps*q5
-            sig(6)=sig(6)-deps*q6
           endif
         endif
       endif

@@ -119,17 +119,21 @@ c
 c
 c     compute shear modulus, G
 c
-      G=.5*E/(1.+nu)
+      G=E/(2.+2.*nu)
 c
 c     compute bulk modulus, K
 c
-      K=E/(3.*(1.-2.nu))
-
+      K=E/(3.-6.*nu)
+c
       if (etype.eq.'solid') then
         if (cm(16).eq.1234567) then
           call mitfail3d(cm,eps,sig,epsp,hsv,dt1,capa,failel,tt,crv)
         else
           if (.not.failel) then
+c
+c     calculate new pressure in principal material
+c 
+            sig(1)=sig(1)
 c
 c     calculate strain rate and volume change
 c

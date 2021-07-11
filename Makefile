@@ -9,7 +9,7 @@ all: lsdyna
 	mkdir -p build
 	mv init_dyn21.o build
 	mv dyn21.o build
-	mv umat41.o huild
+	mv umat41.o build
 	mv dyn21b.o build
 	mv couple2other_user.o build
 	mv dynrfn_user.o build

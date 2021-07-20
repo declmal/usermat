@@ -35,3 +35,4 @@ class TestOps(unittest.TestCase):
         g.set_input(1, 2, 3, 4)
         outs1 = g.get_output()
         self.assertEqual(outs1, [np.sin(1.0/2.0+3.0)*4.0])
+        g.get_mx()

@@ -1,6 +1,9 @@
-from typing import Dict, List, Callable, Optional, Union
+from typing import Dict, List, Callable, Optional, Union, Any
+import logging
 
 import numpy as np
+import mxnet as mx
+
 
 Float = Union["int", "float", "np.float32", "np.float64"]
 GradFuncType = Callable[["np.float64"], "np.float64"]
@@ -55,6 +58,7 @@ class Op(object):
         self.data: Optional["Float"] = None
         self.grad: "Float" = cast_float(0)
         self.op_id: Optional[int] = None
+        self.op_sym: Optional["mx.sym.Symbol"] = None
 
     def set_id(self, op_id: int) -> None:
         self.op_id = op_id
@@ -74,6 +78,18 @@ class Op(object):
 
     def reset(self) -> None:
         self.data = None
+        self.op_mx = None
+
+    def info(self, logger=logging.getLogger("op_info")) -> None:
+        logger.info("id: {}, data: {}".format(self.op_id, self.data))
+
+    def to_mx(self) -> None:
+        name = "{},{}".format(self.op_id, self.op_type)
+        dep_syms = [dep.op_sym for dep in self.deps]
+        if not dep_syms:
+            self.op_sym = mx.sym.var(name=name)
+        else:
+            self.op_sym = mx.sym.add_n(*dep_syms, name=name)
 
     def autograph_backward(self) -> "Op":
         raise NotImplementedError

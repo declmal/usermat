@@ -1,8 +1,10 @@
-from typing import List, Set
-import logging
+from typing import List, Set, Dict, Any
+from os import path
+import json
+
+import mxnet as mx
 
 from codegen.base import Float, Op, cast_float
-import utils
 
 def register_dfs(impl):
     def dfs(op: "Op", visited: Set[str])-> None:
@@ -24,10 +26,12 @@ def op_reset(op: "Op") -> None:
     op.reset()
 
 @register_dfs
-def op_info(op: "Op", logger=logging.getLogger("op_info")) -> None:
-    logger.info(
-        "id: {}, data: {}".format(op.op_id, op.data))
+def op_info(op: "Op", ) -> None:
+    op.info()
 
+@register_dfs
+def op_to_mx(op: "Op") -> None:
+    op.to_mx()
 
 class Graph(object):
     def __init__(self, inps: "Op", outs: "Op") -> None:
@@ -54,3 +58,18 @@ class Graph(object):
     def get_info(self) -> None:
         for out in self.outs:
             op_info(out, set())
+
+    def get_mx(self, json_path: str=path.expanduser("~/mx.json")) -> None:
+        for out in self.outs:
+            op_to_mx(out, set())
+        sym_outs = [out.op_sym for out in self.outs]
+        sym = mx.sym.Group(sym_outs)
+        arr: Dict[str, Any] = json.loads(sym.tojson())
+        nodes: List[Dict[str, Any]] = arr["nodes"]
+        for node in nodes:
+            op_type = node["op"]
+            if op_type == "add_n":
+                node["op"] = node["name"]
+        with open(json_path, "w") as f:
+            f.write(json.dumps(arr))
+

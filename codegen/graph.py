@@ -74,3 +74,13 @@ class Graph(object):
                 node["op"] = node["name"]
         with open(json_path, "w") as f:
             f.write(json.dumps(arr))
+
+    def autograph_backward(self) -> "Graph":
+        var_seq: Dict[int, int] = \
+            {self.inps[i].op_id: i for i in range(len(self.inps))}
+        outs = []
+        for out in self.outs:
+            for o in out.autograph_backward(var_seq):
+                outs.append(o)
+        return Graph(self.inps, outs)
+

@@ -74,7 +74,7 @@ class Op(object):
             dep.backward(backward_grad)
 
     def forward(self) -> None:
-        raise NotImplementedError
+        pass
 
     def reset(self) -> None:
         self.data = cast_float(0)
@@ -91,7 +91,8 @@ class Op(object):
         else:
             self.op_sym = mx.sym.add_n(*dep_syms, name=name)
 
-    def autograph_backward(self) -> "Op":
+    def autograph_backward(
+        self, var_seq: Dict[int,int]) -> List[Optional["Op"]]:
         raise NotImplementedError
 
     def autograph_forward(self) -> "Op":

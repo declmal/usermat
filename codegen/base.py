@@ -17,7 +17,7 @@ OpEquivFuncType = Callable[[List["Op"]], List[str]]
 default_equiv_func: "EquivFuncType" = \
     lambda op_type, ops: [
         "{}:[{}]".format(
-            op_type, ",".join([op.op_id for op in ops]))]
+            op_type, ",".join([str(op.op_id) for op in ops]))]
 
 def register_op(
     num_deps: int,

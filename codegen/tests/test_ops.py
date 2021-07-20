@@ -1,5 +1,7 @@
 import unittest
 
+import numpy as np
+
 from codegen.ops import OpDef as od
 from codegen.graph import Graph
 
@@ -19,4 +21,17 @@ class TestOps(unittest.TestCase):
         self.assertEqual(outs2, [2,1])
         c.backward(grad=1)
         self.assertEqual(b.grad, 1)
-        g.get_info()
+
+    def test_2(self):
+        v0 = od.var()
+        v1 = od.var()
+        v2 = od.var()
+        v3 = od.var()
+        v4 = od.divide(v0, v1)
+        v5 = od.add(v4, v2)
+        v6 = od.sin(v5)
+        v7 = od.multiply(v3, v6)
+        g = Graph([v0,v1,v2,v3], [v7])
+        g.set_input(1, 2, 3, 4)
+        outs1 = g.get_output()
+        self.assertEqual(outs1, [np.sin(1.0/2.0+3.0)*4.0])

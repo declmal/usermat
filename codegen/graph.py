@@ -1,7 +1,7 @@
 from typing import List, Set
 import logging
 
-from codegen.base import Float, Op
+from codegen.base import Float, Op, cast_float
 import utils
 
 def register_dfs(impl):
@@ -44,7 +44,7 @@ class Graph(object):
             "invalid number of datas: {}, expected: {}".format(
                 len(datas), len(self.inps))
         for i, inp in enumerate(self.inps):
-            inp.set_data(datas[i])
+            inp.set_data(cast_float(datas[i]))
 
     def get_output(self) -> List["Float"]:
         for out in self.outs:

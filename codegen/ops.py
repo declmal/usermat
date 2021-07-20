@@ -9,9 +9,9 @@ var_equiv_func: "EquivFuncType" = lambda op_type, ops: []
 swappable_equiv_func: "EquivFuncType" = \
     lambda op_type, ops: [
         "{}:[{}]".format(
-            op_type, ",".join([ops[0].op_type, ops[1].op_type])),
+            op_type, ",".join([str(ops[0].op_id), str(ops[1].op_id)])),
         "{}:[{}]".format(
-            op_type, ",".join([ops[1].op_type, ops[0].op_type])),
+            op_type, ",".join([str(ops[1].op_id), str(ops[0].op_id)])),
     ]
 
 
@@ -54,6 +54,12 @@ class Multiply(Op):
 
     def autograph_backward(self) -> "Op":
         pass
+
+
+@register_op(2)
+class Divide(Op):
+    def forward(self) -> None:
+        self.data = self.deps[0].data / self.deps[1].data
 
 
 @register_op(2)

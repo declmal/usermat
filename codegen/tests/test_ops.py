@@ -1,15 +1,12 @@
 import unittest
 
-from codegen.ops import Var, Add
-from codegen.graph import Graph
+from codegen.graph_def import GraphDef as gd
 
 class TestOps(unittest.TestCase):
     def test_add(self):
-        with Graph() as g:
-            a = g.var()
-            b = g.var()
-            c = g.add(a, b)
-            d = g.add(b, c)
-            c.backward(grad=1)
-            self.assertEqual(b.grad, 1)
-            pass
+        a = gd.var()
+        b = gd.var()
+        c = gd.add(a, b)
+        d = gd.add(b, a)
+        c.backward(grad=1)
+        self.assertEqual(b.grad, 1)

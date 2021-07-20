@@ -1,43 +1,39 @@
 from typing import List
-import sys, inspect
 
-from codegen.base import Op, GradFunc, register_op
+from codegen.base import Op, GradFuncType, register_op, EquivFuncType
 
-_clsmembers_base = dict(
-    inspect.getmembers(
-        sys.modules[__name__], inspect.isclass))
+var_equiv_func: "EquivFuncType" = lambda op_type, ops: []
+swappable_equiv_func: "EquivFuncType" = \
+    lambda op_type, ops: [
+        "{}:[{}]".format(
+            op_type, ",".join([ops[0].op_type, ops[1].op_type])),
+        "{}:[{}]".format(
+            op_type, ",".join([ops[1].op_type, ops[0].op_type])),
+    ]
 
 @register_op(0)
 class Scalar(Op):
-    def autograph_backward(self) -> "Op":
-        raise NotImplementedError
+    pass
 
 
-@register_op(0)
+@register_op(0, equiv_func=var_equiv_func)
 class Var(Op):
     def autograph_backward(self) -> "Op":
         pass
 
 
-@register_op(2)
+@register_op(2, equiv_func=swappable_equiv_func)
 class Add(Op):
-    _grad_fns: List['GradFunc'] = [
+    _grad_fns: List["GradFuncType"] = [
         lambda grad: grad,
         lambda grad: grad,
     ]
 
-    def autograph_backward(self) -> 'Op':
-        pass
-
-
-@register_op(2)
-class Multiply(Op):
     def autograph_backward(self) -> "Op":
         pass
 
-available_ops = {
-    name: cls \
-    for name, cls in inspect.getmembers(
-        sys.modules[__name__], inspect.isclass) \
-    if name not in _clsmembers_base
-}
+
+@register_op(2, equiv_func=swappable_equiv_func)
+class Multiply(Op):
+    def autograph_backward(self) -> "Op":
+        pass

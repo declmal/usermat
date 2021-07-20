@@ -27,7 +27,6 @@ def register_op(
         assert op_type not in supported_ops, \
             "duplicate op_type: {}".format(op_type)
         setattr(cls, "op_type", op_type)
-        supported_ops[op_type] = cls
         setattr(cls, "num_deps", num_deps)
 
         def op_equiv_func(ops: List["Op"]) -> List[str]:
@@ -37,6 +36,7 @@ def register_op(
             return equiv_func(op_type, ops)
 
         setattr(cls, "op_equiv_func", op_equiv_func)
+        supported_ops[op_type] = cls
         return cls
     return wrapper
 
@@ -59,6 +59,9 @@ class Op(object):
     def set_id(self, op_id: int) -> None:
         self.op_id = op_id
 
+    def set_data(self, data: 'Float') -> None:
+        self.data = data
+
     def backward(self, grad: "Float"=cast_float(1)) -> None:
         grad = cast_float(grad)
         self.grad += grad
@@ -69,13 +72,11 @@ class Op(object):
     def forward(self) -> None:
         raise NotImplementedError
 
+    def reset(self) -> None:
+        self.data = None
+
     def autograph_backward(self) -> "Op":
         raise NotImplementedError
 
     def autograph_forward(self) -> "Op":
         raise NotImplementedError
-
-
-class OpGroup(object):
-    def __init__(self, *ops: "Op") -> None:
-        self.ops: List["Op"] = ops

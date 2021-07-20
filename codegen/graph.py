@@ -1,4 +1,4 @@
-from typing import List, Set, Dict, Any
+from typing import List, Set, Dict, Any, Optional
 from os import path
 import json
 
@@ -7,7 +7,8 @@ import mxnet as mx
 from codegen.base import Float, Op, cast_float
 
 def register_dfs(impl):
-    def dfs(op: "Op", visited: Set[str])-> None:
+    def dfs(op: "Op", visited: Set[int])-> None:
+        assert op.op_id != -1, "invalid op_id: {}".format(op.op_id)
         if op.op_id in visited:
             return
         visited.add(op.op_id)
@@ -26,15 +27,16 @@ def op_reset(op: "Op") -> None:
     op.reset()
 
 @register_dfs
-def op_info(op: "Op", ) -> None:
+def op_info(op: "Op") -> None:
     op.info()
 
 @register_dfs
 def op_to_mx(op: "Op") -> None:
     op.to_mx()
 
+
 class Graph(object):
-    def __init__(self, inps: "Op", outs: "Op") -> None:
+    def __init__(self, inps: List["Op"], outs: List["Op"]) -> None:
         self.inps: List["Op"] = inps
         self.outs: List["Op"] = outs
         self.reset()
@@ -72,4 +74,3 @@ class Graph(object):
                 node["op"] = node["name"]
         with open(json_path, "w") as f:
             f.write(json.dumps(arr))
-

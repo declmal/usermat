@@ -55,9 +55,9 @@ class Op(object):
             "invalid deps number: {}, ".format(len(deps)) + \
             "expected: {}".format(self.num_deps)
         self.deps: List["Op"] = list(deps)
-        self.data: Optional["Float"] = None
+        self.data: "Float" = cast_float(0)
         self.grad: "Float" = cast_float(0)
-        self.op_id: Optional[int] = None
+        self.op_id: int = -1
         self.op_sym: Optional["mx.sym.Symbol"] = None
 
     def set_id(self, op_id: int) -> None:
@@ -77,7 +77,7 @@ class Op(object):
         raise NotImplementedError
 
     def reset(self) -> None:
-        self.data = None
+        self.data = cast_float(0)
         self.op_mx = None
 
     def info(self, logger=logging.getLogger("op_info")) -> None:

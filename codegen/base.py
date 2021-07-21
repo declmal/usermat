@@ -76,6 +76,10 @@ class Op(object):
             return self.__class__.fwd_func(*vs)
         return None
 
+    @classmethod
+    def degenerate(cls, *deps: "Op") -> Optional["Op"]:
+        return None
+
     def set_id(self, op_id: int) -> None:
         self.id = op_id
 

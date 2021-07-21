@@ -109,6 +109,20 @@ class Subtract(Op):
 class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
 
+    @classmethod
+    def to_scalar(cls, *deps: "Op") -> Optional["Float"]:
+        # TODO
+        return super().to_scalar(*deps)
+
+    @classmethod
+    def degenerate(cls, *deps: "Op") -> Optional["Op"]:
+        x0, x1 = deps
+        if isinstance(x0, Scalar) and x0.data == One:
+            return x1
+        if isinstance(x1, Scalar) and x1.data == One:
+            return x0
+        return None
+
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
         d0, d1 = x0.diff, x1.diff
@@ -139,7 +153,15 @@ class Divide(Op):
             raise ZeroDivisionError(
                 "op_type: {}, denominator: {}".format(
                     cls.__name__, deps[0].info()))
+        # TODO
         return super().to_scalar(*deps)
+
+    @classmethod
+    def degenerate(cls, *deps: "Op") -> Optional["Op"]:
+        x0, x1 = deps
+        if isinstance(x1, Scalar) and x1.data == One:
+            return x0
+        return None
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -178,6 +200,9 @@ def register_op_def(cls):
             data: Optional["Float"] = op_cls.to_scalar(*deps)
             if data is not None:
                 return scalar_func(data)
+            op: Optional["Op"] = op_cls.degenerate(*deps)
+            if op is not None:
+                return op
             equivs: List[str] = op_cls.op_equiv_func(deps)
             for equiv in equivs:
                 if equiv in OpDef.equiv_map:

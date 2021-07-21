@@ -111,16 +111,16 @@ class Multiply(Op):
     def degenerate(
         cls, *deps: "Op") -> (type, List["Op"], Optional["Float"]):
         x0, x1 = deps
-        # if isinstance(x0, Scalar) and x0.data == Zero or \
-            # isinstance(x1, Scalar) and x1.data == Zero:
-            # return Scalar, [], Zero
-        # if isinstance(x0, Scalar) and isinstance(x1, Scalar):
-            # data = self.__class__.fwd_func(x0, x1)
-            # return Scalar, [], data
-        # if isinstance(x0, Scalar) and x0.data == One:
-            # return x1.__class__, x1.deps, None
-        # if isinstance(x1, Scalar) and x1.data == One:
-            # return x0.__class__, x0.deps, None
+        if isinstance(x0, Scalar) and x0.data == Zero or \
+            isinstance(x1, Scalar) and x1.data == Zero:
+            return Scalar, [], Zero
+        if isinstance(x0, Scalar) and isinstance(x1, Scalar):
+            data = self.__class__.fwd_func(x0, x1)
+            return Scalar, [], data
+        if isinstance(x0, Scalar) and x0.data == One:
+            return x1.__class__, x1.deps, None
+        if isinstance(x1, Scalar) and x1.data == One:
+            return x0.__class__, x0.deps, None
         return cls, deps, None
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:

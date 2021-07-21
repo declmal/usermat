@@ -80,7 +80,7 @@ class Graph(object):
         sym_outs = []
         for i, out in enumerate(self.outs):
             assert out is not None and out.sym is not None
-            name = "{}#{}".format(
+            name = "{}##{}".format(
                 out.sym.attr("name"), self.out_appends[i])
             sym = sym_rename(out.sym, name)
             sym_outs.append(sym)

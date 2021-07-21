@@ -19,6 +19,8 @@ swappable_equiv_func: "EquivFuncType" = \
 
 @register_op(0)
 class Scalar(Op):
+    is_scalar: bool = True
+
     def forward(self):
         pass
 
@@ -107,22 +109,6 @@ class Subtract(Op):
 class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
 
-    @classmethod
-    def degenerate(
-        cls, *deps: "Op") -> (type, List["Op"], Optional["Float"]):
-        x0, x1 = deps
-        if isinstance(x0, Scalar) and x0.data == Zero or \
-            isinstance(x1, Scalar) and x1.data == Zero:
-            return Scalar, [], Zero
-        if isinstance(x0, Scalar) and isinstance(x1, Scalar):
-            data = self.__class__.fwd_func(x0, x1)
-            return Scalar, [], data
-        if isinstance(x0, Scalar) and x0.data == One:
-            return x1.__class__, x1.deps, None
-        if isinstance(x1, Scalar) and x1.data == One:
-            return x0.__class__, x0.deps, None
-        return cls, deps, None
-
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
         d0, d1 = x0.diff, x1.diff
@@ -147,6 +133,14 @@ class Multiply(Op):
 class Divide(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 / v1
 
+    @classmethod
+    def to_scalar(cls, *deps: "Op") -> Optional["Float"]:
+        if deps[0].is_scalar and deps[0].data == Zero:
+            raise ZeroDivisionError(
+                "op_type: {}, denominator: {}".format(
+                    cls.__name__, deps[0].info()))
+        return super().to_scalar(*deps)
+
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
         d0, d1 = x0.diff, x1.diff
@@ -169,36 +163,27 @@ class Divide(Op):
             self.diff.append(op)
 
 def register_op_def(cls):
-    def scalar_func(op_cls):
-        def wrapper(data: "Float") -> "Op":
-            nv: "np.float64" = cast_float(data)
-            if nv in OpDef.scalar_map:
-                return OpDef.scalar_map[nv]
-            op: "Op" = op_cls()
-            OpDef.set_id(op)
-            op.set_data(data)
-            OpDef.scalar_map[nv] = op
-            return op
-        return wrapper
+    def scalar_func(data: "Float") -> "Op":
+        nv: "np.float64" = cast_float(data)
+        if nv in OpDef.scalar_map:
+            return OpDef.scalar_map[nv]
+        op: "Op" = Scalar()
+        OpDef.set_id(op)
+        op.set_data(data)
+        OpDef.scalar_map[nv] = op
+        return op
 
     def op_func(op_cls):
         def wrapper(*deps: "Op") -> "Op":
-            # check degenerality
-            nop_cls, ndeps, data = op_cls.degenerate(*deps)
-            # check scalar
+            data: Optional["Float"] = op_cls.to_scalar(*deps)
             if data is not None:
-                assert nop_cls == Scalar, \
-                    "invalid op: {}".format(op.op_type)
-                assert len(ndeps) == 0, \
-                    "invalid number of deps: {}".format(len(ndeps))
-                return scalar_func(Scalar)(data)
-            # check availability
-            equivs: List[str] = nop_cls.op_equiv_func(ndeps)
+                return scalar_func(data)
+            equivs: List[str] = op_cls.op_equiv_func(deps)
             for equiv in equivs:
                 if equiv in OpDef.equiv_map:
                     equiv_op: "Op" = OpDef.equiv_map[equiv]
                     return equiv_op
-            op: "Op" = nop_cls(*ndeps)
+            op: "Op" = op_cls(*deps)
             OpDef.set_id(op)
             for equiv in equivs:
                 OpDef.equiv_map[equiv] = op
@@ -208,7 +193,7 @@ def register_op_def(cls):
     for op_cls in supported_ops.values():
         op_type = getattr(op_cls, "op_type")
         if op_type == "scalar":
-            setattr(cls, op_type, scalar_func(op_cls))
+            setattr(cls, op_type, scalar_func)
         else:
             setattr(cls, op_type, op_func(op_cls))
     return cls

@@ -41,18 +41,6 @@ def register_op(
             return equiv_func(op_type, ops)
 
         setattr(cls, "op_equiv_func", op_equiv_func)
-
-        def check_num_deps_deg(func):
-            def impl(*deps: "Op") -> "Op":
-                assert len(deps) == num_deps, \
-                    "invalid deps number: {}, ".format(len(deps)) + \
-                    "expected: {}".format(num_deps)
-                return func(*deps)
-            return impl
-
-        func = getattr(cls, "degenerate")
-        func = check_num_deps_deg(func)
-        setattr(cls, "degenerate", func)
         supported_ops[op_type] = cls
         return cls
     return wrapper
@@ -64,6 +52,7 @@ class Op(object):
     num_deps: Optional[int] = None
     op_equiv_func: Optional["OpEquivFuncType"] = None
     fwd_func: FwdFuncType
+    is_scalar: bool = False
 
     def __init__(self, *deps: "Op")-> None:
         assert len(deps) == self.num_deps, \
@@ -81,9 +70,11 @@ class Op(object):
         self.data = self.__class__.fwd_func(*vs)
 
     @classmethod
-    def degenerate(
-        cls, *deps: "Op") -> (type, List["Op"], Optional["Float"]):
-        return cls, deps, None
+    def to_scalar(cls, *deps: "Op") -> Optional["Float"]:
+        if deps and all([dep.is_scalar for dep in deps]):
+            vs: List["np.float64"] = [dep.data for dep in deps]
+            return self.__class__.fwd_func(*vs)
+        return None
 
     def set_id(self, op_id: int) -> None:
         self.id = op_id

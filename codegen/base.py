@@ -20,7 +20,7 @@ OpEquivFuncType = Callable[[List["Op"]], List[str]]
 default_equiv_func: "EquivFuncType" = \
     lambda op_type, ops: [
         "{}:[{}]".format(
-            op_type, ",".join([str(op.op_id) for op in ops]))]
+            op_type, ",".join([str(op.id) for op in ops]))]
 
 def register_op(
     num_deps: int,
@@ -57,11 +57,12 @@ class Op(object):
         self.deps: List["Op"] = list(deps)
         self.data: "Float" = cast_float(0)
         self.grad: "Float" = cast_float(0)
-        self.op_id: int = -1
-        self.op_sym: Optional["mx.sym.Symbol"] = None
+        self.id: int = -1
+        self.diff: List["Op"] = []
+        self.sym: Optional["mx.sym.Symbol"] = None
 
     def set_id(self, op_id: int) -> None:
-        self.op_id = op_id
+        self.id = op_id
 
     def set_data(self, data: 'Float') -> None:
         self.data = data
@@ -78,21 +79,22 @@ class Op(object):
 
     def reset(self) -> None:
         self.data = cast_float(0)
-        self.op_mx = None
+        self.diff.clear()
+        self.sym = None
 
     def info(self, logger=logging.getLogger("op_info")) -> None:
-        logger.info("id: {}, data: {}".format(self.op_id, self.data))
+        logger.info("id: {}, data: {}, op_type: {}".format(
+            self.id, self.data, self.op_type))
 
-    def to_mx(self) -> None:
-        name = "{},{}".format(self.op_id, self.op_type)
-        dep_syms = [dep.op_sym for dep in self.deps]
+    def to_sym(self) -> None:
+        name = "{},{}".format(self.id, self.op_type)
+        dep_syms = [dep.sym for dep in self.deps]
         if not dep_syms:
-            self.op_sym = mx.sym.var(name=name)
+            self.sym = mx.sym.var(name=name)
         else:
-            self.op_sym = mx.sym.add_n(*dep_syms, name=name)
+            self.sym = mx.sym.add_n(*dep_syms, name=name)
 
-    def autograph_backward(
-        self, var_seq: Dict[int,int]) -> List[Optional["Op"]]:
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         raise NotImplementedError
 
     def autograph_forward(self) -> "Op":

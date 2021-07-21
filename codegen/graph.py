@@ -1,4 +1,4 @@
-from typing import List, Set, Dict, Any, Optional
+from typing import List, Set, Dict, Any
 from os import path
 import json
 
@@ -7,15 +7,14 @@ import mxnet as mx
 from codegen.base import Float, Op, cast_float
 
 def register_dfs(impl):
-    def dfs(op: "Op", visited: Set[int])-> None:
-        assert op.op_id != -1, "invalid op_id: {}".format(op.op_id)
-        if op.op_id in visited:
+    def dfs(op: "Op", visited: Set[int], **kwargs) -> None:
+        assert op.id != -1, "invalid id: {}".format(op.id)
+        if op.id in visited:
             return
-        visited.add(op.op_id)
+        visited.add(op.id)
         for dep in op.deps:
-            dfs(dep, visited)
-        impl(op)
-
+            dfs(dep, visited, **kwargs)
+        impl(op, **kwargs)
     return dfs
 
 @register_dfs
@@ -31,8 +30,12 @@ def op_info(op: "Op") -> None:
     op.info()
 
 @register_dfs
-def op_to_mx(op: "Op") -> None:
-    op.to_mx()
+def op_to_sym(op: "Op") -> None:
+    op.to_sym()
+
+@register_dfs
+def op_autograph_backward(op: "Op", **kwargs) -> None:
+    op.autograph_backward(kwargs.get("var_seq"))
 
 
 class Graph(object):
@@ -42,8 +45,9 @@ class Graph(object):
         self.reset()
 
     def reset(self) -> None:
+        visited = set()
         for out in self.outs:
-            op_reset(out, set())
+            op_reset(out, visited)
 
     def set_input(self, *datas: "Float") -> None:
         assert len(datas) == len(self.inps), \
@@ -53,18 +57,21 @@ class Graph(object):
             inp.set_data(cast_float(datas[i]))
 
     def get_output(self) -> List["Float"]:
+        visited = set()
         for out in self.outs:
-            op_forward(out, set())
+            op_forward(out, visited)
         return [out.data for out in self.outs]
 
     def get_info(self) -> None:
+        visited = set()
         for out in self.outs:
-            op_info(out, set())
+            op_info(out, visited)
 
-    def get_mx(self, json_path: str=path.expanduser("~/mx.json")) -> None:
+    def to_sym(self, json_path: str=path.expanduser("~/mx.json")) -> None:
+        visited = set()
         for out in self.outs:
-            op_to_mx(out, set())
-        sym_outs = [out.op_sym for out in self.outs]
+            op_to_sym(out, visited)
+        sym_outs = [out.sym for out in self.outs]
         sym = mx.sym.Group(sym_outs)
         arr: Dict[str, Any] = json.loads(sym.tojson())
         nodes: List[Dict[str, Any]] = arr["nodes"]
@@ -73,14 +80,14 @@ class Graph(object):
             if op_type == "add_n":
                 node["op"] = node["name"]
         with open(json_path, "w") as f:
-            f.write(json.dumps(arr))
+            f.write(json.dumps(arr, indent=4))
 
     def autograph_backward(self) -> "Graph":
         var_seq: Dict[int, int] = \
-            {self.inps[i].op_id: i for i in range(len(self.inps))}
-        outs = []
+            {self.inps[i].id: i for i in range(len(self.inps))}
+        visited = set()
         for out in self.outs:
-            for o in out.autograph_backward(var_seq):
-                outs.append(o)
+            op_autograph_backward(out, visited, var_seq=var_seq)
+        outs = [o for o in out.diff for out in self.outs]
         return Graph(self.inps, outs)
 

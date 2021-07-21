@@ -10,24 +10,24 @@ var_equiv_func: "EquivFuncType" = lambda op_type, ops: []
 swappable_equiv_func: "EquivFuncType" = \
     lambda op_type, ops: list(set([
         "{}:[{}]".format(
-            op_type, ",".join([str(ops[0].op_id), str(ops[1].op_id)])),
+            op_type, ",".join([str(ops[0].id), str(ops[1].id)])),
         "{}:[{}]".format(
-            op_type, ",".join([str(ops[1].op_id), str(ops[0].op_id)])),
+            op_type, ",".join([str(ops[1].id), str(ops[0].id)])),
     ]))
 
 
 @register_op(0)
 class Scalar(Op):
-    pass
+    def reset(self) -> None:
+        self.diff.clear()
+        self.sym = None
 
 
 @register_op(0, equiv_func=var_equiv_func)
 class Var(Op):
-    def autograph_backward(
-        self, var_seq: Dict[int,int]) -> List[Optional["Op"]]:
-        ret = [None]*len(var_seq)
-        ret[var_seq[self.op_id]] = OpDef.scalar(1.0)
-        return ret
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
+        self.diff = [None]*len(var_seq)
+        self.diff[var_seq[self.id]] = OpDef.scalar(1.0)
 
 
 @register_op(1)
@@ -41,18 +41,16 @@ class Sin(Op):
     def forward(self) -> None:
         self.data = np.sin(self.deps[0].data)
 
-    def autograph_backward(
-        self, var_seq: Dict[int,int]) -> List[Optional["Op"]]:
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x = self.deps[0]
         y = OpDef.cos(x)
-        ret = []
-        for di in x.autograph_backward(var_seq):
+        self.diff.clear()
+        for di in self.deps[0].diff:
             if di is None:
                 op = None
             else:
                 op = OpDef.multiply(y, di)
-            ret.append(op)
-        return ret
+            self.diff.append(op)
 
 
 @register_op(1)
@@ -71,13 +69,11 @@ class Add(Op):
     def forward(self) -> None:
         self.data = self.deps[0].data + self.deps[1].data
 
-    def autograph_backward(
-        self, var_seq: Dict[int,int]) -> List[Optional["Op"]]:
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
-        d0 = x0.autograph_backward(var_seq)
-        d1 = x1.autograph_backward(var_seq)
-        ret = []
-        for i in range(len(d0)):
+        d0, d1 = x0.diff, x1.diff
+        self.diff.clear()
+        for i in range(len(var_seq)):
             if d0[i] is None:
                 if d1[i] is None:
                     op = None
@@ -88,8 +84,7 @@ class Add(Op):
                     op = d0[i]
                 else:
                     op = OpDef.add(d0[i], d1[i])
-            ret.append(op)
-        return ret
+            self.diff.append(op)
 
 
 @register_op(2)
@@ -109,12 +104,10 @@ class Multiply(Op):
     def forward(self) -> None:
         self.data = self.deps[0].data * self.deps[1].data
 
-    def autograph_backward(
-        self, var_seq: Dict[int,int]) -> List[Optional["Op"]]:
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
-        d0 = x0.autograph_backward(var_seq)
-        d1 = x1.autograph_backward(var_seq)
-        ret = []
+        d0, d1 = x0.diff, x1.diff
+        self.diff.clear()
         for i in range(len(d0)):
             if d0[i] is None:
                 if d1[i] is None:
@@ -128,8 +121,7 @@ class Multiply(Op):
                 else:
                     op2 = OpDef.multiply(x0, d1[i])
                     op = OpDef.add(op1, op2)
-            ret.append(op)
-        return ret
+            self.diff.append(op)
 
 
 @register_op(2)
@@ -137,12 +129,10 @@ class Divide(Op):
     def forward(self) -> None:
         self.data = self.deps[0].data / self.deps[1].data
 
-    def autograph_backward(
-        self, var_seq: Dict[int,int]) -> List[Optional["Op"]]:
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
-        d0 = x0.autograph_backward(var_seq)
-        d1 = x1.autograph_backward(var_seq)
-        ret = []
+        d0, d1 = x0.diff, x1.diff
+        self.diff.clear()
         for i in range(len(d0)):
             if d0[i] is None:
                 if d1[i] is None:
@@ -158,8 +148,7 @@ class Divide(Op):
                     op1 = OpDef.multiply(self, d1[i])
                     op2 = OpDef.subtract(d0[i], op1)
                     op = OpDef.divide(op2, x1)
-            ret.append(op)
-        return ret
+            self.diff.append(op)
 
 def register_op_def(cls):
     def op_func(op_cls):
@@ -170,21 +159,20 @@ def register_op_def(cls):
                     equiv_op: "Op" = OpDef.equiv_map[equiv]
                     return equiv_op
             op: "Op" = op_cls(*deps)
-            op.set_id(OpDef.current_id)
-            OpDef.current_id += 1
+            OpDef.set_id(op)
             for equiv in equivs:
                 OpDef.equiv_map[equiv] = op
             return op
         return wrapper
 
     def scalar_func(op_cls):
-        def wrapper(value: "Float", *deps: "Op") -> "Op":
-            nv: "np.float64" = cast_float(value)
+        def wrapper(data: "Float") -> "Op":
+            nv: "np.float64" = cast_float(data)
             if nv in OpDef.scalar_map:
                 return OpDef.scalar_map[nv]
-            op: "Op" = op_cls(*deps)
-            op.set_id(OpDef.current_id)
-            OpDef.current_id += 1
+            op: "Op" = op_cls()
+            OpDef.set_id(op)
+            op.set_data(data)
             OpDef.scalar_map[nv] = op
             return op
         return wrapper
@@ -203,3 +191,14 @@ class OpDef(object):
     current_id: int = 0
     equiv_map: Dict[str, "Op"] = {}
     scalar_map: Dict["np.float64", "Op"] = {}
+
+    @staticmethod
+    def reset():
+        OpDef.current_id = 0
+        OpDef.equiv_map.clear()
+        OpDef.scalar_map.clear()
+
+    @staticmethod
+    def set_id(op: "Op") -> None:
+        op.set_id(OpDef.current_id)
+        OpDef.current_id += 1

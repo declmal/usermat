@@ -7,6 +7,7 @@ from codegen.graph import Graph
 
 class TestOps(unittest.TestCase):
     def test_add(self):
+        od.reset()
         a = od.var()
         b = od.var()
         c = od.add(a, b)
@@ -23,6 +24,7 @@ class TestOps(unittest.TestCase):
         self.assertEqual(b.grad, 1)
 
     def test_2(self):
+        od.reset()
         v0 = od.var()
         v1 = od.var()
         v2 = od.var()
@@ -37,9 +39,10 @@ class TestOps(unittest.TestCase):
         g.set_input(1, 2, 3, 4)
         outs1 = g.get_output()
         self.assertEqual(outs1, [np.sin(1.0/2.0+3.0)*4.0*4.0*4.0])
-        # g.get_mx()
+        # g.to_sym()
         ng = g.autograph_backward()
-        # ng.get_mx()
+        # ng.to_sym()
         ng.set_input(1, 2, 3, 4)
         outs2 = ng.get_output()
-        print(outs2)
+        self.assertEqual(outs2, [])
+

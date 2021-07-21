@@ -36,13 +36,20 @@ class TestOps(unittest.TestCase):
         v8 = od.multiply(v7, v3)
         v9 = od.multiply(v6, v8)
         g = Graph([v0,v1,v2,v3], [v9])
-        g.set_input(1, 2, 3, 4)
+        a, b, c, d = [float(v) for v in [1, 2, 3, 4]]
+        g.set_input(a,b,c,d)
         outs1 = g.get_output()
-        self.assertEqual(outs1, [np.sin(1.0/2.0+3.0)*4.0*4.0*4.0])
+        self.assertEqual(outs1, [np.sin(a/b+c)*d*d*d])
         # g.to_sym()
         ng = g.autograph_backward()
         # ng.to_sym()
-        ng.set_input(1, 2, 3, 4)
+        ng.set_input(a,b,c,d)
         outs2 = ng.get_output()
-        self.assertEqual(outs2, [])
+        self.assertEqual(
+            outs2, [
+                d*d*d*np.cos(a/b+c)/b,
+                -d*d*d*np.cos(a/b+c)*a/b/b,
+                d*d*d*np.cos(a/b+c),
+                3*d*d*np.sin(a/b+c),
+            ])
 

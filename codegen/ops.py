@@ -29,7 +29,7 @@ class Scalar(Op):
         self.sym = None
 
     def to_sym(self) -> None:
-        name = "{},{},{}".format(self.id, self.op_type, self.data)
+        name = self.info()
         self.sym = mx.sym.var(name=name)
 
 

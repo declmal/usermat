@@ -98,15 +98,22 @@ class Op(object):
         self.diff.clear()
         self.sym = None
 
-    def info(self) -> str:
-        return "id: {}, op_type: {}, data: {}".format(
-            self.id, self.op_type, self.data)
+    def info(self, with_data=True) -> str:
+        deps_info = ""
+        if self.deps:
+            deps_info = "deps:" + \
+                ",".join([str(dep.id) for dep in self.deps])
+        data_info = ""
+        if with_data:
+            data_info = "data:{}".format(self.data)
+        s = "id:{},op_type:{}".format(self.id, self.op_type)
+        return ",".join([s, data_info, deps_info])
 
     def display(self, logger=logging.getLogger("op_info")) -> None:
         logger.info(self.info())
 
     def to_sym(self) -> None:
-        name = "{},{}".format(self.id, self.op_type)
+        name = self.info(with_data=False)
         dep_syms = [dep.sym for dep in self.deps]
         if not dep_syms:
             self.sym = mx.sym.var(name=name)

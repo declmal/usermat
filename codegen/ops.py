@@ -1,6 +1,7 @@
 from typing import List, Dict, Optional
 
 import numpy as np
+import mxnet as mx
 
 from codegen.base import Op, GradFuncType, \
     register_op, EquivFuncType, supported_ops, \
@@ -21,6 +22,10 @@ class Scalar(Op):
     def reset(self) -> None:
         self.diff.clear()
         self.sym = None
+
+    def to_sym(self) -> None:
+        name = "{},{},{}".format(self.id, self.op_type, self.data)
+        self.sym = mx.sym.var(name=name)
 
 
 @register_op(0, equiv_func=var_equiv_func)

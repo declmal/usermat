@@ -82,9 +82,10 @@ class Op(object):
         self.diff.clear()
         self.sym = None
 
-    def info(self, logger=logging.getLogger("op_info")) -> None:
-        logger.info("id: {}, data: {}, op_type: {}".format(
-            self.id, self.data, self.op_type))
+    def display(self, logger=logging.getLogger("op_info")) -> None:
+        info = "id: {}, op_type: {}, data: {}".format(
+            self.id, self.op_type, self.data)
+        logger.info(info)
 
     def to_sym(self) -> None:
         name = "{},{}".format(self.id, self.op_type)

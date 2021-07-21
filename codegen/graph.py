@@ -26,8 +26,8 @@ def op_reset(op: "Op") -> None:
     op.reset()
 
 @register_dfs
-def op_info(op: "Op") -> None:
-    op.info()
+def op_display(op: "Op") -> None:
+    op.display()
 
 @register_dfs
 def op_to_sym(op: "Op") -> None:
@@ -56,16 +56,16 @@ class Graph(object):
         for i, inp in enumerate(self.inps):
             inp.set_data(cast_float(datas[i]))
 
-    def get_output(self) -> List["Float"]:
+    def forward(self) -> List["Float"]:
         visited = set()
         for out in self.outs:
             op_forward(out, visited)
         return [out.data for out in self.outs]
 
-    def get_info(self) -> None:
+    def display(self) -> None:
         visited = set()
         for out in self.outs:
-            op_info(out, visited)
+            op_display(out, visited)
 
     def to_sym(self, json_path: str=path.expanduser("~/mx.json")) -> None:
         visited = set()

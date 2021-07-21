@@ -5,7 +5,7 @@ import mxnet as mx
 
 from codegen.base import Op, GradFuncType, \
     register_op, EquivFuncType, supported_ops, \
-    cast_float, Float
+    cast_float, Float, FwdFuncType, Zero, One
 
 var_equiv_func: "EquivFuncType" = lambda op_type, ops: []
 swappable_equiv_func: "EquivFuncType" = \
@@ -19,6 +19,9 @@ swappable_equiv_func: "EquivFuncType" = \
 
 @register_op(0)
 class Scalar(Op):
+    def forward(self):
+        pass
+
     def reset(self) -> None:
         self.diff.clear()
         self.sym = None
@@ -30,6 +33,9 @@ class Scalar(Op):
 
 @register_op(0, equiv_func=var_equiv_func)
 class Var(Op):
+    def forward(self):
+        pass
+
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         self.diff = [None]*len(var_seq)
         self.diff[var_seq[self.id]] = OpDef.scalar(1.0)
@@ -37,14 +43,12 @@ class Var(Op):
 
 @register_op(1)
 class Negative(Op):
-    def forward(self) -> None:
-        self.data = -self.deps[0].data
+    fwd_func: FwdFuncType = lambda v: -v
 
 
 @register_op(1)
 class Sin(Op):
-    def forward(self) -> None:
-        self.data = np.sin(self.deps[0].data)
+    fwd_func: FwdFuncType = lambda v: np.sin(v)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x = self.deps[0]
@@ -60,8 +64,7 @@ class Sin(Op):
 
 @register_op(1)
 class Cos(Op):
-    def forward(self) -> None:
-        self.data = np.cos(self.deps[0].data)
+    fwd_func: FwdFuncType = lambda v: np.cos(v)
 
 
 @register_op(2, equiv_func=swappable_equiv_func)
@@ -70,9 +73,7 @@ class Add(Op):
         lambda grad: grad,
         lambda grad: grad,
     ]
-
-    def forward(self) -> None:
-        self.data = self.deps[0].data + self.deps[1].data
+    fwd_func: FwdFuncType = lambda v0, v1: v0 + v1
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -94,20 +95,33 @@ class Add(Op):
 
 @register_op(2)
 class PlusScalar(Op):
-    def forward(self) -> None:
-        self.data = self.deps[0].data + self.deps[1].data
+    fwd_func: FwdFuncType = lambda v0, v1: v0 + v1
 
 
 @register_op(2)
 class Subtract(Op):
-    def forward(self) -> None:
-        self.data = self.deps[0].data - self.deps[1].data
+    fwd_func: FwdFuncType = lambda v0, v1: v0 - v1
 
 
 @register_op(2, equiv_func=swappable_equiv_func)
 class Multiply(Op):
-    def forward(self) -> None:
-        self.data = self.deps[0].data * self.deps[1].data
+    fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
+
+    @classmethod
+    def degenerate(
+        cls, *deps: "Op") -> (type, List["Op"], Optional["Float"]):
+        x0, x1 = deps
+        # if isinstance(x0, Scalar) and x0.data == Zero or \
+            # isinstance(x1, Scalar) and x1.data == Zero:
+            # return Scalar, [], Zero
+        # if isinstance(x0, Scalar) and isinstance(x1, Scalar):
+            # data = self.__class__.fwd_func(x0, x1)
+            # return Scalar, [], data
+        # if isinstance(x0, Scalar) and x0.data == One:
+            # return x1.__class__, x1.deps, None
+        # if isinstance(x1, Scalar) and x1.data == One:
+            # return x0.__class__, x0.deps, None
+        return cls, deps, None
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -131,8 +145,7 @@ class Multiply(Op):
 
 @register_op(2)
 class Divide(Op):
-    def forward(self) -> None:
-        self.data = self.deps[0].data / self.deps[1].data
+    fwd_func: FwdFuncType = lambda v0, v1: v0 / v1
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -156,20 +169,6 @@ class Divide(Op):
             self.diff.append(op)
 
 def register_op_def(cls):
-    def op_func(op_cls):
-        def wrapper(*deps: "Op") -> "Op":
-            equivs: List[str] = op_cls.op_equiv_func(deps)
-            for equiv in equivs:
-                if equiv in OpDef.equiv_map:
-                    equiv_op: "Op" = OpDef.equiv_map[equiv]
-                    return equiv_op
-            op: "Op" = op_cls(*deps)
-            OpDef.set_id(op)
-            for equiv in equivs:
-                OpDef.equiv_map[equiv] = op
-            return op
-        return wrapper
-
     def scalar_func(op_cls):
         def wrapper(data: "Float") -> "Op":
             nv: "np.float64" = cast_float(data)
@@ -179,6 +178,30 @@ def register_op_def(cls):
             OpDef.set_id(op)
             op.set_data(data)
             OpDef.scalar_map[nv] = op
+            return op
+        return wrapper
+
+    def op_func(op_cls):
+        def wrapper(*deps: "Op") -> "Op":
+            # check degenerality
+            nop_cls, ndeps, data = op_cls.degenerate(*deps)
+            # check scalar
+            if data is not None:
+                assert nop_cls == Scalar, \
+                    "invalid op: {}".format(op.op_type)
+                assert len(ndeps) == 0, \
+                    "invalid number of deps: {}".format(len(ndeps))
+                return scalar_func(Scalar)(data)
+            # check availability
+            equivs: List[str] = nop_cls.op_equiv_func(ndeps)
+            for equiv in equivs:
+                if equiv in OpDef.equiv_map:
+                    equiv_op: "Op" = OpDef.equiv_map[equiv]
+                    return equiv_op
+            op: "Op" = nop_cls(*ndeps)
+            OpDef.set_id(op)
+            for equiv in equivs:
+                OpDef.equiv_map[equiv] = op
             return op
         return wrapper
 

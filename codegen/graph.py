@@ -1,10 +1,11 @@
-from typing import List, Set, Dict, Any
+from typing import List, Set, Dict, Any, Optional
 from os import path
 import json
 
 import mxnet as mx
 
 from codegen.base import Float, Op, cast_float
+from codegen.sym_utils import sym_rename
 
 def register_dfs(impl):
     def dfs(op: "Op", visited: Set[int], **kwargs) -> None:
@@ -39,9 +40,14 @@ def op_autograph_backward(op: "Op", **kwargs) -> None:
 
 
 class Graph(object):
-    def __init__(self, inps: List["Op"], outs: List["Op"]) -> None:
+    def __init__(
+        self, inps: List["Op"], outs: List["Op"],
+        out_appends: Optional[List[str]]=None) -> None:
         self.inps: List["Op"] = inps
         self.outs: List["Op"] = outs
+        self.out_appends: Optional[List[str]] = out_appends \
+            if out_appends is not None else \
+            ["Out:{}".format(out.id) for out in outs]
         self.reset()
 
     def reset(self) -> None:
@@ -71,7 +77,13 @@ class Graph(object):
         visited = set()
         for out in self.outs:
             op_to_sym(out, visited)
-        sym_outs = [out.sym for out in self.outs]
+        sym_outs = []
+        for i, out in enumerate(self.outs):
+            assert out is not None and out.sym is not None
+            name = "{}#{}".format(
+                out.sym.attr("name"), self.out_appends[i])
+            sym = sym_rename(out.sym, name)
+            sym_outs.append(sym)
         sym = mx.sym.Group(sym_outs)
         arr: Dict[str, Any] = json.loads(sym.tojson())
         nodes: List[Dict[str, Any]] = arr["nodes"]
@@ -86,8 +98,13 @@ class Graph(object):
         var_seq: Dict[int, int] = \
             {self.inps[i].id: i for i in range(len(self.inps))}
         visited = set()
+        out_appends: List[str] = []
         for out in self.outs:
             op_autograph_backward(out, visited, var_seq=var_seq)
+            for i, o in enumerate(out.diff):
+                assert o is not None, \
+                    "invalid diff: {}, op: {}".format(o.info, out.info)
+                name = "Diff:{},{}".format(out.id, self.inps[i].id)
+                out_appends.append(name)
         outs = [o for o in out.diff for out in self.outs]
-        return Graph(self.inps, outs)
-
+        return Graph(self.inps, outs, out_appends=out_appends)

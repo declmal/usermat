@@ -4,9 +4,11 @@ import logging
 import numpy as np
 import mxnet as mx
 
-
 Float = Union["int", "float", "np.float32", "np.float64"]
 GradFuncType = Callable[["np.float64"], "np.float64"]
+FwdFuncType = Callable[[List["np.float64"]], "np.float64"]
+Zero = np.float64(0.0)
+One = np.float64(1.0)
 
 def cast_float(scalar: "Float") -> "np.float64":
     if isinstance(scalar, np.float64):
@@ -39,6 +41,18 @@ def register_op(
             return equiv_func(op_type, ops)
 
         setattr(cls, "op_equiv_func", op_equiv_func)
+
+        def check_num_deps_deg(func):
+            def impl(*deps: "Op") -> "Op":
+                assert len(deps) == num_deps, \
+                    "invalid deps number: {}, ".format(len(deps)) + \
+                    "expected: {}".format(num_deps)
+                return func(*deps)
+            return impl
+
+        func = getattr(cls, "degenerate")
+        func = check_num_deps_deg(func)
+        setattr(cls, "degenerate", func)
         supported_ops[op_type] = cls
         return cls
     return wrapper
@@ -49,6 +63,7 @@ class Op(object):
     op_type: Optional[str] = None
     num_deps: Optional[int] = None
     op_equiv_func: Optional["OpEquivFuncType"] = None
+    fwd_func: FwdFuncType
 
     def __init__(self, *deps: "Op")-> None:
         assert len(deps) == self.num_deps, \
@@ -60,6 +75,15 @@ class Op(object):
         self.id: int = -1
         self.diff: List["Op"] = []
         self.sym: Optional["mx.sym.Symbol"] = None
+
+    def forward(self) -> None:
+        vs: List["np.float64"] = [dep.data for dep in self.deps]
+        self.data = self.__class__.fwd_func(*vs)
+
+    @classmethod
+    def degenerate(
+        cls, *deps: "Op") -> (type, List["Op"], Optional["Float"]):
+        return cls, deps, None
 
     def set_id(self, op_id: int) -> None:
         self.id = op_id
@@ -74,18 +98,17 @@ class Op(object):
             backward_grad = self._grad_fns[i](grad)
             dep.backward(backward_grad)
 
-    def forward(self) -> None:
-        pass
-
     def reset(self) -> None:
         self.data = cast_float(0)
         self.diff.clear()
         self.sym = None
 
-    def display(self, logger=logging.getLogger("op_info")) -> None:
-        info = "id: {}, op_type: {}, data: {}".format(
+    def info(self) -> str:
+        return "id: {}, op_type: {}, data: {}".format(
             self.id, self.op_type, self.data)
-        logger.info(info)
+
+    def display(self, logger=logging.getLogger("op_info")) -> None:
+        logger.info(self.info())
 
     def to_sym(self) -> None:
         name = "{},{}".format(self.id, self.op_type)

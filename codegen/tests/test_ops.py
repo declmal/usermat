@@ -53,4 +53,3 @@ class TestOps(unittest.TestCase):
                 d*d*d*np.cos(a/b+c),
                 3*d*d*np.sin(a/b+c),
             ])
-

@@ -77,6 +77,10 @@ class Op(object):
         return None
 
     @classmethod
+    def rewrite(cls, *deps: "Op"):
+        pass
+
+    @classmethod
     def degenerate(cls, *deps: "Op") -> Optional["Op"]:
         return None
 

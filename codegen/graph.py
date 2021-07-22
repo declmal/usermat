@@ -7,6 +7,27 @@ import mxnet as mx
 from codegen.base import Float, Op, cast_float
 from codegen.sym_utils import sym_rename
 
+def topo_sort(op_group: List["Op"]) -> List["Op"]:
+    topo_seq: List["Op"] = []
+    cur: List["Op"] = op_group
+    visited: Dict[int, int] = {}
+    while cur:
+        cop: "Op" = cur[-1]
+        flag = True
+        for dep in cop.deps:
+            nid = dep.id
+            if nid not in visited:
+                cur.append(dep)
+                visited[nid] = 1
+                flag = False
+            elif visited[nid] == 1:
+                flag = False
+        if flag:
+            topo_seq.append(cop)
+            visited[cop.id] = 2
+            cur.pop()
+    return topo_seq
+
 def register_dfs(impl):
     def dfs(op: "Op", visited: Set[int], **kwargs) -> None:
         assert op.id != -1, "invalid id: {}".format(op.id)

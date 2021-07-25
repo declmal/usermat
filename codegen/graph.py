@@ -5,7 +5,9 @@ import json
 import mxnet as mx
 
 from codegen.base import Float, Op, cast_float
+from codegen.ops import OpDef as od
 from codegen.sym_utils import sym_rename
+
 
 def topo_sort(op_group: List["Op"]) -> List["Op"]:
     topo_seq: List["Op"] = []
@@ -27,6 +29,24 @@ def topo_sort(op_group: List["Op"]) -> List["Op"]:
             visited[cop.id] = 2
             cur.pop()
     return topo_seq
+
+def topo_visit(
+    ops: List["Op"], graph: Dict[int, str],
+    call_back: str) -> List["Op"]:
+    op_ids = [op.id for op in ops]
+    graph = {}
+    for op in topo_sort(ops):
+        op_id = op.id
+        ndeps = []
+        for dep in op.deps:
+            assert dep.id in graph, \
+                "dep_id: {}, op_id: {}".format(dep_id, op_id)
+            ndeps.append(dep)
+        opt_func = getattr(op, call_back)
+        nop = opt_func(*ndeps, op_id=op_id)
+        graph[op_id] = nop
+    nops = [graph[op_id] for op_id in op_ids]
+    return nops
 
 def register_dfs(impl):
     def dfs(op: "Op", visited: Set[int], **kwargs) -> None:

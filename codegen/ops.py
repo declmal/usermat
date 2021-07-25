@@ -10,10 +10,10 @@ from codegen.base import Op, GradFuncType, \
 var_equiv_func: "EquivFuncType" = lambda op_type, ops: []
 swappable_equiv_func: "EquivFuncType" = \
     lambda op_type, ops: list(set([
-        "{}:[{}]".format(
-            op_type, ",".join([str(ops[0].id), str(ops[1].id)])),
-        "{}:[{}]".format(
-            op_type, ",".join([str(ops[1].id), str(ops[0].id)])),
+        "{}:[{}]".format(op_type, ",".join(
+            [str(ops[0].id), str(ops[1].id)])),
+        "{}:[{}]".format(op_type, ",".join(
+            [str(ops[1].id), str(ops[0].id)])),
     ]))
 
 
@@ -196,13 +196,7 @@ def register_op_def(cls):
         return op
 
     def op_func(op_cls):
-        def wrapper(*deps: "Op") -> "Op":
-            data: Optional["Float"] = op_cls.to_scalar(*deps)
-            if data is not None:
-                return scalar_func(data)
-            op: Optional["Op"] = op_cls.degenerate(*deps)
-            if op is not None:
-                return op
+        def wrapper(*deps: "Op", op_id: Optional[int]=None) -> "Op":
             equivs: List[str] = op_cls.op_equiv_func(deps)
             for equiv in equivs:
                 if equiv in OpDef.equiv_map:

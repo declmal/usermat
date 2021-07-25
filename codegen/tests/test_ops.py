@@ -1,13 +1,38 @@
 import unittest
+import logging
+import inspect
 
 import numpy as np
 
 from codegen.ops import OpDef as od
 from codegen.graph import Graph
+from codegen.utils import random_array
 
+def register_logger(cls):
+    def info_func(self, info_s: str) -> None:
+        return self.logger.info(info_s)
+
+    assert "info" not in dir(cls)
+    setattr(cls, "info", info_func)
+
+    def register_logger_func(func):
+        def wrapper(self, *args, **kwargs):
+            self.logger = logging.getLogger(inspect.stack()[0][3])
+            return func(self, *args, **kwargs)
+        return wrapper
+
+    for func_name in dir(cls):
+        if not func_name.startswith("test_"):
+            continue
+        func = getattr(cls, func_name)
+        func = register_logger_func(func)
+        setattr(cls, func_name, func)
+    return cls
+
+
+@register_logger
 class TestOps(unittest.TestCase):
     def test_1(self):
-        return
         od.reset()
         a = od.var()
         b = od.var()
@@ -53,3 +78,22 @@ class TestOps(unittest.TestCase):
                 d*d*d*np.cos(a/b+c),
                 3*d*d*np.sin(a/b+c),
             ])
+
+    def test_3(self):
+        od.reset()
+        v0 = od.var()
+        v1 = od.var()
+        v2 = od.var()
+        v3 = od.add(v0, v1)
+        v4 = od.multiply(v0, v1)
+        v5 = od.sin(v4)
+        v6 = od.add(v1, v0)
+        v7 = od.multiply(v5, v6)
+        g = Graph([v0, v1, v2], [v7])
+        data = random_array([3])
+        self.info("set input data: \n{}\n <end of input data>".format(data))
+        g.set_input(*data)
+        outs = g.forward()
+        a, b, c = data
+        self.assertEqual(outs, np.sin(a*b)*(a+b))
+        # g.to_sym()

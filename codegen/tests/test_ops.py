@@ -1,6 +1,6 @@
 import unittest
 import logging
-import inspect
+from os import path
 
 import numpy as np
 
@@ -8,32 +8,39 @@ from codegen.ops import OpDef as od
 from codegen.graph import Graph
 from codegen.utils import random_array
 
-def register_logger(cls):
-    def info_func(self, info_s: str) -> None:
-        return self.logger.info(info_s)
+def register_test(cls):
+    def info_func(self, s: str) -> None:
+        return self.logger.info(s)
+    def warn_func(self, s: str) -> None:
+        return self.logger.warning(s)
 
     assert "info" not in dir(cls)
     setattr(cls, "info", info_func)
+    assert "warn" not in dir(cls)
+    setattr(cls, "warn", warn_func)
 
-    def register_logger_func(func):
+    def register_test_func(func):
         def wrapper(self, *args, **kwargs):
-            self.logger = logging.getLogger(inspect.stack()[0][3])
-            return func(self, *args, **kwargs)
+            self.logger = logging.getLogger(func.__name__)
+            self.warn("starting")
+            od.reset(clear_scalar=True)
+            ret = func(self, *args, **kwargs)
+            self.warn("end")
+            return ret
         return wrapper
 
     for func_name in dir(cls):
         if not func_name.startswith("test_"):
             continue
         func = getattr(cls, func_name)
-        func = register_logger_func(func)
+        func = register_test_func(func)
         setattr(cls, func_name, func)
     return cls
 
 
-@register_logger
+@register_test
 class TestOps(unittest.TestCase):
     def test_1(self):
-        od.reset()
         a = od.var()
         b = od.var()
         c = od.add(a, b)
@@ -50,7 +57,6 @@ class TestOps(unittest.TestCase):
         self.assertEqual(b.grad, 1)
 
     def test_2(self):
-        od.reset()
         v0 = od.var()
         v1 = od.var()
         v2 = od.var()
@@ -80,7 +86,6 @@ class TestOps(unittest.TestCase):
             ])
 
     def test_3(self):
-        od.reset()
         v0 = od.var()
         v1 = od.var()
         v2 = od.var()
@@ -89,11 +94,17 @@ class TestOps(unittest.TestCase):
         v5 = od.sin(v4)
         v6 = od.add(v1, v0)
         v7 = od.multiply(v5, v6)
-        g = Graph([v0, v1, v2], [v7])
-        data = random_array([3])
+        g = Graph([v0, v1], [v7])
+        data = random_array([2])
         self.info("set input data: \n{}\n <end of input data>".format(data))
         g.set_input(*data)
         outs = g.forward()
-        a, b, c = data
+        a, b = data
         self.assertEqual(outs, np.sin(a*b)*(a+b))
-        # g.to_sym()
+        g.to_sym()
+        g.rewrite()
+        g.to_sym(json_path=path.expanduser("~/Desktop/mx2.json"))
+        a, b = data
+        g.set_input(*data)
+        outs = g.forward()
+        self.assertEqual(outs, np.sin(a*b)*(a+b))

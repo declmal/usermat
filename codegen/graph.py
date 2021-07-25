@@ -4,50 +4,62 @@ import json
 
 import mxnet as mx
 
-from codegen.base import Float, Op, cast_float
-from codegen.ops import OpDef as od
+from codegen.ops import OpDef as od, Float, Op, cast_float, Scalar, Var
 from codegen.sym_utils import sym_rename
 
-
 def topo_sort(op_group: List["Op"]) -> List["Op"]:
-    topo_seq: List["Op"] = []
-    cur: List["Op"] = op_group
-    visited: Dict[int, int] = {}
-    while cur:
-        cop: "Op" = cur[-1]
-        flag = True
-        for dep in cop.deps:
-            nid = dep.id
-            if nid not in visited:
-                cur.append(dep)
-                visited[nid] = 1
-                flag = False
-            elif visited[nid] == 1:
-                flag = False
-        if flag:
-            topo_seq.append(cop)
-            visited[cop.id] = 2
-            cur.pop()
+    topo_seq = []
+    visited = {}
+    for root in op_group:
+        rid = root.id
+        if rid in visited:
+            assert visited[rid] == 2
+            continue
+        cur = [root]
+        visited[rid] = 1
+        while cur:
+            cop: "Op" = cur[-1]
+            flag = True
+            for dep in cop.deps:
+                nid = dep.id
+                if nid not in visited:
+                    cur.append(dep)
+                    visited[nid] = 1
+                    flag = False
+                elif visited[nid] == 1:
+                    flag = False
+            if flag:
+                topo_seq.append(cop)
+                visited[cop.id] = 2
+                cur.pop()
     return topo_seq
 
 def topo_visit(
-    ops: List["Op"], graph: Dict[int, str],
-    call_back: str) -> List["Op"]:
-    op_ids = [op.id for op in ops]
+    inps: List["Op"], outs: List["Op"], call_back: str) -> List["Op"]:
+    inp_ids = [op.id for op in inps]
+    out_ids = [op.id for op in outs]
     graph = {}
-    od.reset()
-    for op in topo_sort(ops):
+    od.reset(clear_scalar=False)
+    for op in topo_sort(outs):
         op_id = op.id
-        ndeps = []
-        for dep in op.deps:
-            assert dep.id in graph, \
-                "dep_id: {}, op_id: {}".format(dep_id, op_id)
-            ndeps.append(dep)
-        opt_func = getattr(op.__class__, call_back)
-        nop = opt_func(*ndeps)
-        graph[op_id] = nop
-    nops = [graph[op_id] for op_id in op_ids]
-    return nops
+        if isinstance(op, Scalar):
+            data = op.data
+            nop = od.scalar(data)
+            graph[op_id] = nop
+        else:
+            ndeps = []
+            for dep in op.deps:
+                dep_id = dep.id
+                assert dep_id in graph, \
+                    "dep_id: {}, op_id: {}".format(dep_id, op_id)
+                ndep = graph[dep_id]
+                ndeps.append(ndep)
+            opt_func = getattr(op.__class__, call_back)
+            nop = opt_func(*ndeps)
+            graph[op_id] = nop
+    ninps = [graph[op_id] for op_id in inp_ids]
+    nouts = [graph[op_id] for op_id in out_ids]
+    return ninps, nouts
 
 def register_dfs(impl):
     def dfs(op: "Op", visited: Set[int], **kwargs) -> None:
@@ -80,13 +92,31 @@ def op_to_sym(op: "Op") -> None:
 def op_autograph_backward(op: "Op", **kwargs) -> None:
     op.autograph_backward(kwargs.get("var_seq"))
 
+def register_graph_opt(cls):
+    def graph_opt(callback):
+        def wrapper(self):
+            self.inps, self.outs = \
+                topo_visit(self.inps, self.outs, callback)
+        return wrapper
 
+    for call_back in dir(Op):
+        if call_back.startswith("opt_"):
+            setattr(cls, call_back[4:], graph_opt(call_back))
+    return cls
+
+
+@register_graph_opt
 class Graph(object):
     def __init__(
         self, inps: List["Op"], outs: List["Op"],
         out_appends: Optional[List[str]]=None) -> None:
         self.inps: List["Op"] = inps
         self.outs: List["Op"] = outs
+        ids = {op.id for op in topo_sort(self.outs)}
+        for inp in self.inps:
+            inp_id = inp.id
+            assert inp_id in ids, \
+                "invalid inp_id: {}, ids: {}".format(inp_id, ids)
         self.out_appends: Optional[List[str]] = out_appends \
             if out_appends is not None else \
             ["Out:{}".format(out.id) for out in outs]

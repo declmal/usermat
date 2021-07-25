@@ -35,6 +35,7 @@ def topo_visit(
     call_back: str) -> List["Op"]:
     op_ids = [op.id for op in ops]
     graph = {}
+    od.reset()
     for op in topo_sort(ops):
         op_id = op.id
         ndeps = []
@@ -42,8 +43,8 @@ def topo_visit(
             assert dep.id in graph, \
                 "dep_id: {}, op_id: {}".format(dep_id, op_id)
             ndeps.append(dep)
-        opt_func = getattr(op, call_back)
-        nop = opt_func(*ndeps, op_id=op_id)
+        opt_func = getattr(op.__class__, call_back)
+        nop = opt_func(*ndeps)
         graph[op_id] = nop
     nops = [graph[op_id] for op_id in op_ids]
     return nops

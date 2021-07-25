@@ -196,7 +196,7 @@ def register_op_def(cls):
         return op
 
     def op_func(op_cls):
-        def wrapper(*deps: "Op", op_id: Optional[int]=None) -> "Op":
+        def wrapper(*deps: "Op") -> "Op":
             equivs: List[str] = op_cls.op_equiv_func(deps)
             for equiv in equivs:
                 if equiv in OpDef.equiv_map:

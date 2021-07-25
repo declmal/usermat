@@ -69,20 +69,25 @@ class Op(object):
         vs: List["np.float64"] = [dep.data for dep in self.deps]
         self.data = self.__class__.fwd_func(*vs)
 
-    @classmethod
-    def to_scalar(cls, *deps: "Op") -> Optional["Float"]:
-        if deps and all([dep.is_scalar for dep in deps]):
-            vs: List["np.float64"] = [dep.data for dep in deps]
-            return self.__class__.fwd_func(*vs)
-        return None
+    # @classmethod
+    # def to_scalar(cls, *deps: "Op") -> Optional["Float"]:
+        # if deps and all([dep.is_scalar for dep in deps]):
+            # vs: List["np.float64"] = [dep.data for dep in deps]
+            # return self.__class__.fwd_func(*vs)
+        # return None
 
     @classmethod
     def rewrite(cls, *deps: "Op"):
         pass
 
+
     @classmethod
-    def degenerate(cls, *deps: "Op") -> Optional["Op"]:
-        return None
+    def to_scalar(cls, *deps: "Op"):
+        pass
+
+    # @classmethod
+    # def degenerate(cls, *deps: "Op") -> Optional["Op"]:
+        # return None
 
     def set_id(self, op_id: int) -> None:
         self.id = op_id

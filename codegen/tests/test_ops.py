@@ -23,7 +23,7 @@ def register_test(cls):
         def wrapper(self, *args, **kwargs):
             self.logger = logging.getLogger(func.__name__)
             self.warn("starting")
-            od.reset(clear_scalar=True)
+            od.reset()
             ret = func(self, *args, **kwargs)
             self.warn("end")
             return ret
@@ -68,11 +68,13 @@ class TestOps(unittest.TestCase):
         v8 = od.multiply(v7, v3)
         v9 = od.multiply(v6, v8)
         g = Graph([v0,v1,v2,v3], [v9])
+        g.to_sym()
+        g.rewrite()
+        g.to_sym()
         a, b, c, d = [float(v) for v in [1, 2, 3, 4]]
         g.set_input(a,b,c,d)
         outs1 = g.forward()
         self.assertEqual(outs1, [np.sin(a/b+c)*d*d*d])
-        # g.to_sym()
         ng = g.autograph_backward()
         ng.to_sym()
         ng.set_input(a,b,c,d)
@@ -105,9 +107,9 @@ class TestOps(unittest.TestCase):
         outs = g.forward()
         a, b, c = data
         self.assertAlmostEqual(outs[0], np.sin(a*b)*((a-np.float64(1))+b)/c)
-        g.to_sym()
+        # g.to_sym()
         g.rewrite()
-        g.to_sym(json_path=path.expanduser("~/Desktop/mx2.json"))
+        # g.to_sym(json_path=path.expanduser("~/Desktop/mx2.json"))
         a, b, c = data
         g.set_input(*data)
         outs = g.forward()

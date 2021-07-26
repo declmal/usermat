@@ -198,6 +198,9 @@ class Scalar(Op):
         name = self.info()
         self.sym = mx.sym.var(name=name)
 
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
+        self.diff = [None] * len(var_seq)
+
 
 @register_opt("opt_rewrite")
 @register_op(0)
@@ -275,8 +278,17 @@ class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
 
     @classmethod
-    def opt_to_scalar(cls, *dep: "Op") -> "Op":
+    def opt_to_scalar(cls, *deps: "Op") -> "Op":
         pass
+
+    @classmethod
+    def opt_degenerate(cls, *deps: "Op") -> "Op":
+        x, y = deps
+        if isinstance(x, Scalar) and x.data == One:
+            op = y
+        elif isinstance(y, Scalar) and y.data == One:
+            op = x
+        return op
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -302,7 +314,23 @@ class Multiply(Op):
 class Power(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0**v1
 
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
+        x, y = self.deps
+        d = x.diff
+        assert any([dd is not None for dd in d])
+        self.diff.clear()
+        nscalar = OpDef.scalar(y.data-1)
+        npower = OpDef.power(x, nscalar)
+        mul_scalar = OpDef.multiply(y, npower)
+        for i in range(len(d)):
+            if d[i] is None:
+                op = None
+            else:
+                op = OpDef.multiply(mul_scalar, d[i])
+            self.diff.append(op)
 
+
+# @register_opt("opt_rewrite")
 @register_op(2, equiv_func=sequential_equiv_func)
 class Divide(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 / v1
@@ -317,26 +345,27 @@ class Divide(Op):
 
     # TODO: to deprecate
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
-        x0, x1 = self.deps
-        d0, d1 = x0.diff, x1.diff
-        self.diff.clear()
-        for i in range(len(d0)):
-            if d0[i] is None:
-                if d1[i] is None:
-                    op = None
-                else:
-                    op1 = OpDef.multiply(self, d1[i])
-                    op2 = OpDef.divide(op1, x1)
-                    op = OpDef.negative(op2)
-            else:
-                if d1[i] is None:
-                    op = OpDef.divide(d0[i], x1)
-                else:
-                    op1 = OpDef.multiply(self, d1[i])
-                    op2 = OpDef.subtract(d0[i], op1)
-                    op = OpDef.divide(op2, x1)
-            self.diff.append(op)
-
+        raise RuntimeError(
+            "Divide Op is not supported in autograph_backward")
+        # x0, x1 = self.deps
+        # d0, d1 = x0.diff, x1.diff
+        # self.diff.clear()
+        # for i in range(len(d0)):
+            # if d0[i] is None:
+                # if d1[i] is None:
+                    # op = None
+                # else:
+                    # op1 = OpDef.multiply(self, d1[i])
+                    # op2 = OpDef.divide(op1, x1)
+                    # op = OpDef.negative(op2)
+            # else:
+                # if d1[i] is None:
+                    # op = OpDef.divide(d0[i], x1)
+                # else:
+                    # op1 = OpDef.multiply(self, d1[i])
+                    # op2 = OpDef.subtract(d0[i], op1)
+                    # op = OpDef.divide(op2, x1)
+            # self.diff.append(op)
 
 def register_op_def(cls):
     def scalar_func(data: "Float") -> "Op":
@@ -379,11 +408,10 @@ class OpDef(object):
     scalar_map: Dict["np.float64", "Op"] = {}
 
     @staticmethod
-    def reset(clear_scalar=False):
+    def reset():
         OpDef.current_id = 0
         OpDef.equiv_map.clear()
-        if clear_scalar:
-            OpDef.scalar_map.clear()
+        OpDef.scalar_map.clear()
 
     @staticmethod
     def set_id(op: "Op") -> None:

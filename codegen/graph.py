@@ -40,7 +40,7 @@ def topo_visit(
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
     graph = {}
-    od.reset(clear_scalar=False)
+    od.reset()
     for op in topo_sort(outs):
         op_id = op.id
         if isinstance(op, Scalar):

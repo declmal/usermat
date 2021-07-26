@@ -4,7 +4,8 @@ import json
 
 import mxnet as mx
 
-from codegen.ops import OpDef as od, Float, Op, cast_float, Scalar, Var
+from codegen.ops import OpDef as od, Float, Op, \
+    cast_float, Scalar, Var, get_opt
 from codegen.sym_utils import sym_rename
 
 def topo_sort(op_group: List["Op"]) -> List["Op"]:
@@ -35,7 +36,7 @@ def topo_sort(op_group: List["Op"]) -> List["Op"]:
     return topo_seq
 
 def topo_visit(
-    inps: List["Op"], outs: List["Op"], call_back: str) -> List["Op"]:
+    inps: List["Op"], outs: List["Op"], callback: str) -> List["Op"]:
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
     graph = {}
@@ -54,7 +55,7 @@ def topo_visit(
                     "dep_id: {}, op_id: {}".format(dep_id, op_id)
                 ndep = graph[dep_id]
                 ndeps.append(ndep)
-            opt_func = getattr(op.__class__, call_back)
+            opt_func = get_opt(op, callback)
             nop = opt_func(*ndeps)
             graph[op_id] = nop
     ninps = [graph[op_id] for op_id in inp_ids]
@@ -99,9 +100,9 @@ def register_graph_opt(cls):
                 topo_visit(self.inps, self.outs, callback)
         return wrapper
 
-    for call_back in dir(Op):
-        if call_back.startswith("opt_"):
-            setattr(cls, call_back[4:], graph_opt(call_back))
+    for callback in dir(Op):
+        if callback.startswith("opt_"):
+            setattr(cls, callback[4:], graph_opt(callback))
     return cls
 
 
@@ -119,7 +120,7 @@ class Graph(object):
                 "invalid inp_id: {}, ids: {}".format(inp_id, ids)
         self.out_appends: Optional[List[str]] = out_appends \
             if out_appends is not None else \
-            ["Out:{}".format(out.id) for out in outs]
+            ["Out:{}".format(i) for i in range(len(self.outs))]
         self.reset()
 
     def reset(self) -> None:
@@ -171,12 +172,12 @@ class Graph(object):
             {self.inps[i].id: i for i in range(len(self.inps))}
         visited = set()
         out_appends: List[str] = []
-        for out in self.outs:
+        for i, out in enumerate(self.outs):
             op_autograph_backward(out, visited, var_seq=var_seq)
-            for i, o in enumerate(out.diff):
+            for j, o in enumerate(out.diff):
                 assert o is not None, \
                     "invalid diff: {}, op: {}".format(o.info, out.info)
-                name = "Diff:{},{}".format(out.id, self.inps[i].id)
+                name = "Diff:{},{}".format(i, j)
                 out_appends.append(name)
         outs = [o for o in out.diff for out in self.outs]
         return Graph(self.inps, outs, out_appends=out_appends)

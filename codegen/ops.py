@@ -1,4 +1,4 @@
-from typing import Dict, List, Callable, Optional, Union, Any
+from typing import Dict, List, Callable, Optional, Union, Any, Set
 import logging
 
 import numpy as np
@@ -28,7 +28,6 @@ swappable_equiv_func: "EquivFuncType" = \
 
 Zero = np.float64(0.0)
 One = np.float64(1.0)
-supported_ops: Dict[str, "Op"] = {}
 
 def cast_float(scalar: "Float") -> "np.float64":
     if isinstance(scalar, np.float64):
@@ -36,13 +35,16 @@ def cast_float(scalar: "Float") -> "np.float64":
     else:
         return np.float64(scalar)
 
+supported_ops: Dict[str, type] = {}
+op_supported_opts: Dict[str, Set[str]] = {}
+
 def register_op(
     num_deps: int,
     equiv_func: "EquivFuncType"=default_equiv_func):
     def wrapper(cls):
         op_type: str = cls.__name__.lower()
         assert op_type not in supported_ops, \
-            "duplicate op_type: {}".format(op_type)
+            "op_type: {} has been registered".format(op_type)
         setattr(cls, "op_type", op_type)
         setattr(cls, "num_deps", num_deps)
 
@@ -54,8 +56,23 @@ def register_op(
 
         setattr(cls, "op_equiv_func", op_equiv_func)
         supported_ops[op_type] = cls
+        _op_supported_opts = op_supported_opts[op_type] = set()
+        for k, v in cls.__dict__.items():
+            if k.startswith("opt_") and type(v).__name__ == "classmethod":
+                _op_supported_opts.add(k)
         return cls
     return wrapper
+
+def get_opt(op: "Op", callback: str) -> "Op":
+    op_type = op.op_type
+    assert op_type in supported_ops, \
+        "Op: {} has not been registered".format(op_type)
+    op_cls = supported_ops[op_type]
+    _op_supported_opts = op_supported_opts[op_type]
+    assert callback in _op_supported_opts, \
+        "Op: {}, Opt: {} has not been registered".format(op_type, callback)
+    opt_func = getattr(op_cls, callback)
+    return opt_func
 
 
 class Op(object):
@@ -147,6 +164,24 @@ class Op(object):
     def autograph_forward(self) -> "Op":
         raise NotImplementedError
 
+supported_opts: Set[str] = { \
+    k for k, v in Op.__dict__.items() \
+    if k.startswith("opt_") and type(v).__name__ == "classmethod"
+}
+
+def register_opt(callback: str):
+    assert callback in supported_opts, \
+        "Opt: {} is not supported by Op".format(callback)
+
+    def wrapper(cls):
+        op_type = getattr(cls, "op_type")
+        _op_supported_opts = op_supported_opts[op_type]
+        assert callback not in _op_supported_opts, \
+            "Op: {}, Opt: {} has been registered".format(op_type, callback)
+        _op_supported_opts.add(callback)
+        return cls
+    return wrapper
+
 
 @register_op(0)
 class Scalar(Op):
@@ -164,6 +199,7 @@ class Scalar(Op):
         self.sym = mx.sym.var(name=name)
 
 
+@register_opt("opt_rewrite")
 @register_op(0)
 class Var(Op):
     def forward(self):
@@ -179,6 +215,7 @@ class Negative(Op):
     fwd_func: FwdFuncType = lambda v: -v
 
 
+@register_opt("opt_rewrite")
 @register_op(1, equiv_func=sequential_equiv_func)
 class Sin(Op):
     fwd_func: FwdFuncType = lambda v: np.sin(v)
@@ -200,6 +237,7 @@ class Cos(Op):
     fwd_func: FwdFuncType = lambda v: np.cos(v)
 
 
+@register_opt("opt_rewrite")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Add(Op):
     _grad_fns: List["GradFuncType"] = [
@@ -231,9 +269,14 @@ class Subtract(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 - v1
 
 
+@register_opt("opt_rewrite")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
+
+    @classmethod
+    def opt_to_scalar(cls, *dep: "Op") -> "Op":
+        pass
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -256,9 +299,23 @@ class Multiply(Op):
 
 
 @register_op(2, equiv_func=sequential_equiv_func)
+class Power(Op):
+    fwd_func: FwdFuncType = lambda v0, v1: v0**v1
+
+
+@register_op(2, equiv_func=sequential_equiv_func)
 class Divide(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 / v1
 
+    @classmethod
+    def opt_rewrite(cls, *deps: "Op") -> None:
+        x, y = deps
+        minus_one = OpDef.scalar(-1)
+        _pow = OpDef.power(y, minus_one)
+        op = OpDef.multiply(x, _pow)
+        return op
+
+    # TODO: to deprecate
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
         d0, d1 = x0.diff, x1.diff
@@ -279,6 +336,7 @@ class Divide(Op):
                     op2 = OpDef.subtract(d0[i], op1)
                     op = OpDef.divide(op2, x1)
             self.diff.append(op)
+
 
 def register_op_def(cls):
     def scalar_func(data: "Float") -> "Op":

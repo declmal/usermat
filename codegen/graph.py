@@ -5,7 +5,7 @@ import json
 import mxnet as mx
 
 from codegen.ops import OpDef as od, Float, Op, \
-    cast_float, Scalar, Var, get_topo
+    cast_float, Scalar, Var, get_opt
 from codegen.sym_utils import sym_rename
 
 def topo_sort(op_group: List["Op"]) -> List["Op"]:
@@ -55,19 +55,24 @@ def topo_visit(
                     "dep_id: {}, op_id: {}".format(dep_id, op_id)
                 ndep = graph[dep_id]
                 ndeps.append(ndep)
-            topo_func = get_topo(op, callback)
+            topo_func = get_opt(op, callback)
             nop = topo_func(*ndeps)
             graph[op_id] = nop
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
     return ninps, nouts
 
-def dfs(
-    op: "Op", visited: Set[int],
-    callback: str, **kwargs) -> Optional["Op"]:
+def dfs(op: "Op", visited: Set[int], callback: str, **kwargs) -> "Op":
     assert op.id != -1
     if op.id in visited:
-        pass
+        return op
+    visited.add(op.id)
+    ndeps = []
+    for dep in op.deps:
+        ndep = dfs(op, visited, callback, **kwargs)
+        ndeps.append(ndep)
+    get_dfs
+    getattr(Op)
 
 def dfs_visit(
     inps: List["Op"], outs: List["Op"], callback: str) -> List["Op"]:
@@ -105,7 +110,7 @@ def op_to_sym(op: "Op") -> None:
 def op_autograph_backward(op: "Op", **kwargs) -> None:
     op.autograph_backward(kwargs.get("var_seq"))
 
-def register_graph_topo(cls):
+def register_graph_opt(cls):
     def graph_topo(callback):
         def wrapper(self):
             self.inps, self.outs = \
@@ -118,7 +123,7 @@ def register_graph_topo(cls):
     return cls
 
 
-@register_graph_topo
+@register_graph_opt
 class Graph(object):
     def __init__(
         self, inps: List["Op"], outs: List["Op"],

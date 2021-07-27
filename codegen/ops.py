@@ -36,7 +36,7 @@ def cast_float(scalar: "Float") -> "np.float64":
         return np.float64(scalar)
 
 supported_ops: Dict[str, type] = {}
-op_supported_topos: Dict[str, Set[str]] = {}
+op_supported_opts: Dict[str, Set[str]] = {}
 
 def register_op(
     num_deps: int,
@@ -56,23 +56,24 @@ def register_op(
 
         setattr(cls, "op_equiv_func", op_equiv_func)
         supported_ops[op_type] = cls
-        _op_supported_topos = op_supported_topos[op_type] = set()
+        _op_supported_opts = op_supported_opts[op_type] = set()
         for k, v in cls.__dict__.items():
-            if k.startswith("topo_") and type(v).__name__ == "classmethod":
-                _op_supported_topos.add(k)
+            if (k.startswith("topo_") or k.startswith("dfs_")) and \
+                type(v).__name__ == "classmethod":
+                _op_supported_opts.add(k)
         return cls
     return wrapper
 
-def get_topo(op: "Op", callback: str) -> "Op":
+def get_opt(op: "Op", callback: str) -> "Op":
     op_type = op.op_type
     assert op_type in supported_ops, \
         "Op: {} has not been registered".format(op_type)
     op_cls = supported_ops[op_type]
-    _op_supported_topos = op_supported_topos[op_type]
-    assert callback in _op_supported_topos, \
+    _op_supported_opts = op_supported_opts[op_type]
+    assert callback in _op_supported_opts, \
         "Op: {}, Opt: {} has not been registered".format(op_type, callback)
-    topo_func = getattr(op_cls, callback)
-    return topo_func
+    opt_func = getattr(op_cls, callback)
+    return opt_func
 
 
 class Op(object):
@@ -184,21 +185,21 @@ class Op(object):
     def autograph_forward(self) -> "Op":
         raise NotImplementedError
 
-supported_topos: Set[str] = { \
+supported_opts: Set[str] = { \
     k for k, v in Op.__dict__.items() \
     if k.startswith("topo_") and type(v).__name__ == "classmethod"
 }
 
-def register_topo(callback: str):
-    assert callback in supported_topos, \
+def register_opt(callback: str):
+    assert callback in supported_opts, \
         "Opt: {} is not supported by Op".format(callback)
 
     def wrapper(cls):
         op_type = getattr(cls, "op_type")
-        _op_supported_topos = op_supported_topos[op_type]
-        assert callback not in _op_supported_topos, \
+        _op_supported_opts = op_supported_opts[op_type]
+        assert callback not in _op_supported_opts, \
             "Op: {}, Opt: {} has been registered".format(op_type, callback)
-        _op_supported_topos.add(callback)
+        _op_supported_opts.add(callback)
         return cls
     return wrapper
 
@@ -222,8 +223,8 @@ class Scalar(Op):
         self.diff = [None] * len(var_seq)
 
 
-@register_topo("topo_divtopower")
-@register_topo("topo_degenerate")
+@register_opt("topo_divtopower")
+@register_opt("topo_degenerate")
 @register_op(0)
 class Var(Op):
     @classmethod
@@ -243,9 +244,9 @@ class Negative(Op):
     fwd_func: FwdFuncType = lambda v: -v
 
 
-@register_topo("topo_divtopower")
-@register_topo("topo_toscalar")
-@register_topo("topo_degenerate")
+@register_opt("topo_divtopower")
+@register_opt("topo_toscalar")
+@register_opt("topo_degenerate")
 @register_op(1, equiv_func=sequential_equiv_func)
 class Sin(Op):
     fwd_func: FwdFuncType = lambda v: np.sin(v)
@@ -267,8 +268,8 @@ class Cos(Op):
     fwd_func: FwdFuncType = lambda v: np.cos(v)
 
 
-@register_topo("topo_divtopower")
-@register_topo("topo_toscalar")
+@register_opt("topo_divtopower")
+@register_opt("topo_toscalar")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Add(Op):
     _grad_fns: List["GradFuncType"] = [
@@ -309,7 +310,7 @@ class Subtract(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 - v1
 
 
-@register_topo("topo_divtopower")
+@register_opt("topo_divtopower")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1

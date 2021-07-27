@@ -4,7 +4,7 @@ from os import path
 
 import numpy as np
 
-from codegen.ops import OpDef as od
+from codegen.ops import OpDef as od, Zero
 from codegen.graph import Graph
 from codegen.utils import random_array
 
@@ -25,7 +25,7 @@ def register_test(cls):
             self.warn("starting")
             od.reset()
             ret = func(self, *args, **kwargs)
-            self.warn("end")
+            self.warn("succeed")
             return ret
         return wrapper
 
@@ -69,7 +69,7 @@ class TestOps(unittest.TestCase):
         v9 = od.multiply(v6, v8)
         g = Graph([v0,v1,v2,v3], [v9])
         g.to_sym()
-        g.rewrite()
+        g.pre_optimize()
         g.to_sym()
         a, b, c, d = [float(v) for v in [1, 2, 3, 4]]
         g.set_input(a,b,c,d)
@@ -108,7 +108,7 @@ class TestOps(unittest.TestCase):
         a, b, c = data
         self.assertAlmostEqual(outs[0], np.sin(a*b)*((a-np.float64(1))+b)/c)
         # g.to_sym()
-        g.rewrite()
+        g.divtopower()
         # g.to_sym(json_path=path.expanduser("~/Desktop/mx2.json"))
         a, b, c = data
         g.set_input(*data)
@@ -117,3 +117,66 @@ class TestOps(unittest.TestCase):
 
     def test_mul(self):
         pass
+
+    def test_add_degenerate(self):
+        v0 = od.scalar(0)
+        v1 = od.var()
+        v2 = od.add(v0, v1)
+        g = Graph([v1], [v2])
+        g.degenerate()
+        for _ in range(10000):
+            datas = random_array([1], low=-1000.0, high=1000.0)
+            a = datas[0]
+            rets = [a]
+            g.set_input(*datas)
+            outs = g.forward()
+            for i in range(len(rets)):
+                self.assertAlmostEqual(outs[i], rets[i], places=10)
+
+    def test_multiply_degenerate(self):
+        v0 = od.scalar(1)
+        v1 = od.var()
+        v2 = od.multiply(v0, v1)
+        g = Graph([v1], [v2])
+        g.degenerate()
+        for _ in range(10000):
+            datas = random_array([1], low=-1000.0, high=1000.0)
+            a = datas[0]
+            rets = [a]
+            g.set_input(*datas)
+            outs = g.forward()
+            for i in range(len(rets)):
+                self.assertAlmostEqual(outs[i], rets[i], places=10)
+
+    def test_power_degenerate(self):
+        v0 = od.scalar(1)
+        v1 = od.var()
+        v2 = od.power(v1, v0)
+        g = Graph([v1], [v2])
+        g.degenerate()
+        for _ in range(10000):
+            datas = random_array([1], low=-1000.0, high=1000.0)
+            a = datas[0]
+            rets = [a]
+            g.set_input(*datas)
+            outs = g.forward()
+            for i in range(len(rets)):
+                self.assertAlmostEqual(outs[i], rets[i], places=10)
+
+    def test_divide_divtopower(self):
+        v0 = od.var()
+        v1 = od.var()
+        v2 = od.divide(v0, v1)
+        g = Graph([v0, v1], [v2])
+        g.divtopower()
+        for _ in range(10000):
+            flag = True
+            while flag:
+                datas = random_array([2], low=-1000.0, high=1000.0)
+                flag = datas[1] == Zero
+            a, b = datas
+            rets = [a/b]
+            g.set_input(*datas)
+            outs = g.forward()
+            for i in range(len(rets)):
+                self.assertAlmostEqual(outs[i], rets[i], places=10)

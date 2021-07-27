@@ -107,12 +107,28 @@ class Op(object):
         return od_func(*deps)
 
     @classmethod
-    def opt_rewrite(cls, *deps: "Op") -> "Op":
+    def opt_divtopower(cls, *deps: "Op") -> "Op":
         return cls._default_op(*deps)
 
     @classmethod
-    def opt_to_scalar(cls, *deps: "Op") -> "Op":
+    def opt_fusepower(cls, *deps: "Op") -> "Op":
         return cls._default_op(*deps)
+
+    @classmethod
+    def opt_toscalar(cls, *deps: "Op") -> "Op":
+        flag = True
+        datas = []
+        for dep in deps:
+            if not isinstance(dep, Scalar):
+                flag = False
+                break
+            data = dep.data
+            datas.append(data)
+        if not flag:
+            return cls._default_op(*deps)
+        cdata = cls.fwd_func(*datas)
+        op = OpDef.scalar(cdata)
+        return op
 
     @classmethod
     def opt_degenerate(cls, *deps: "Op") -> "Op":
@@ -158,6 +174,10 @@ class Op(object):
         else:
             self.sym = mx.sym.add_n(*dep_syms, name=name)
 
+    @classmethod
+    def validate(cls, *deps: "Op") -> None:
+        pass
+
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         raise NotImplementedError
 
@@ -202,9 +222,15 @@ class Scalar(Op):
         self.diff = [None] * len(var_seq)
 
 
-@register_opt("opt_rewrite")
+@register_opt("opt_divtopower")
+@register_opt("opt_fusepower")
+@register_opt("opt_degenerate")
 @register_op(0)
 class Var(Op):
+    @classmethod
+    def opt_toscalar(cls, *deps: "Op") -> "Op":
+        return cls._default_op(*deps)
+
     def forward(self):
         pass
 
@@ -218,7 +244,10 @@ class Negative(Op):
     fwd_func: FwdFuncType = lambda v: -v
 
 
-@register_opt("opt_rewrite")
+@register_opt("opt_divtopower")
+@register_opt("opt_fusepower")
+@register_opt("opt_toscalar")
+@register_opt("opt_degenerate")
 @register_op(1, equiv_func=sequential_equiv_func)
 class Sin(Op):
     fwd_func: FwdFuncType = lambda v: np.sin(v)
@@ -240,7 +269,9 @@ class Cos(Op):
     fwd_func: FwdFuncType = lambda v: np.cos(v)
 
 
-@register_opt("opt_rewrite")
+@register_opt("opt_divtopower")
+@register_opt("opt_fusepower")
+@register_opt("opt_toscalar")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Add(Op):
     _grad_fns: List["GradFuncType"] = [
@@ -248,6 +279,15 @@ class Add(Op):
         lambda grad: grad,
     ]
     fwd_func: FwdFuncType = lambda v0, v1: v0 + v1
+
+    @classmethod
+    def opt_degenerate(cls, *deps: "Op") -> None:
+        x, y = deps
+        if isinstance(x, Scalar) and x.data == Zero:
+            return y
+        if isinstance(y, Scalar) and y.data == Zero:
+            return x
+        return cls._default_op(*deps)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -272,23 +312,58 @@ class Subtract(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 - v1
 
 
-@register_opt("opt_rewrite")
+@register_opt("opt_fusepower")
+@register_opt("opt_divtopower")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
 
+    # @classmethod
+    # def opt_fusepower(cls, *deps: "Op") -> "Op":
+        # x, y = deps
+        # if isinstance(x, Power):
+            # xx, xy = x.deps
+            # if isinstance(y, Power):
+                # yx, yy = y.deps
+                # if xx.id == yx.id:
+                    # nscalar = OpDef.scalar(xy.data+yy.data)
+                    # op = OpDef.power(xx, nscalar)
+                    # return op
+            # elif isinstance(y, Var):
+                # if xx.id == y.id:
+                    # nscalar = OpDef.scalar(xy.data+1)
+                    # op = OpDef.power(xx, nscalar)
+                    # return op
+        # elif isinstance(x, Var):
+            # if isinstance(y, Power):
+                # yx, yy = y.deps
+                # if x.id == yx.id:
+                    # nscalar = OpDef.scalar(1+yy.data)
+                    # op = OpDef.power(x, nscalar)
+                    # return op
+            # if isinstance(y, Var):
+                # if x.id == y.id:
+                    # nscalar = OpDef.scalar(2)
+                    # op = OpDef.power(x, nscalar)
+                    # return op
+        # return cls._default_op(*deps)
+
     @classmethod
-    def opt_to_scalar(cls, *deps: "Op") -> "Op":
-        pass
+    def opt_toscalar(cls, *deps: "Op") -> "Op":
+        x, y = deps
+        if isinstance(x, Scalar) and x.data == Zero or \
+            isinstance(y, Scalar) and y.data == Zero:
+            return OpDef.scalar(0)
+        return cls._default_op(*deps)
 
     @classmethod
     def opt_degenerate(cls, *deps: "Op") -> "Op":
         x, y = deps
         if isinstance(x, Scalar) and x.data == One:
-            op = y
-        elif isinstance(y, Scalar) and y.data == One:
-            op = x
-        return op
+            return y
+        if isinstance(y, Scalar) and y.data == One:
+            return x
+        return cls._default_op(*deps)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -314,6 +389,41 @@ class Multiply(Op):
 class Power(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0**v1
 
+    @classmethod
+    def opt_fusepower(cls, *deps: "Op") -> None:
+        x, y = deps
+        if isinstance(x, Power):
+            xx, xy = x.deps
+            nscalar = OpDef.scalar(y.data*xy.data)
+            op = OpDef.power(xx, nscalar)
+            return op
+        return cls._default_op(*deps)
+
+    @classmethod
+    def opt_toscalar(cls, *deps: "Op") -> None:
+        x, y = deps
+        if y.data == Zero:
+            op = OpDef.scalar(1)
+            return op
+        if isinstance(x, Scalar):
+            if x.data == Zero:
+                assert y.data >= Zero, \
+                    "zero division occurs: deps[0].data: {}".format(
+                        x.data) + ", deps[1].data: {}".format(y.data)
+            elif x.data < Zero:
+                assert int(y.data) == y.data, \
+                    "power must be an integer for negative values, " + \
+                    "deps[0].data: {}, deps[1].data: {}".format(
+                        x.data, y.data)
+        return cls._default_op(*deps)
+
+    @classmethod
+    def opt_degenerate(cls, *deps: "Op") -> None:
+        x, y = deps
+        if y.data == One:
+            return x
+        return cls._default_op(*deps)
+
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x, y = self.deps
         d = x.diff
@@ -329,14 +439,20 @@ class Power(Op):
                 op = OpDef.multiply(mul_scalar, d[i])
             self.diff.append(op)
 
+    @classmethod
+    def validate(cls, *deps: "Op") -> None:
+        x, y = deps
+        assert isinstance(y, Scalar), \
+            "type of deps[1]: {} must be scalar".format(
+                type(y).__class__.__name__)
 
-# @register_opt("opt_rewrite")
+
 @register_op(2, equiv_func=sequential_equiv_func)
 class Divide(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 / v1
 
     @classmethod
-    def opt_rewrite(cls, *deps: "Op") -> None:
+    def opt_divtopower(cls, *deps: "Op") -> None:
         x, y = deps
         minus_one = OpDef.scalar(-1)
         _pow = OpDef.power(y, minus_one)
@@ -385,6 +501,7 @@ def register_op_def(cls):
                 if equiv in OpDef.equiv_map:
                     equiv_op: "Op" = OpDef.equiv_map[equiv]
                     return equiv_op
+            op_cls.validate(*deps)
             op: "Op" = op_cls(*deps)
             OpDef.set_id(op)
             for equiv in equivs:

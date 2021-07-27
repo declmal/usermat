@@ -181,3 +181,14 @@ class Graph(object):
                 out_appends.append(name)
         outs = [o for o in out.diff for out in self.outs]
         return Graph(self.inps, outs, out_appends=out_appends)
+
+    def pre_optimize(self) -> None:
+        self.divtopower()
+        self.toscalar()
+        self.degenerate()
+        self.fusepower()
+        self.toscalar()
+        self.degenerate()
+
+    def post_optimize(self) -> None:
+        pass

@@ -40,7 +40,7 @@ def topo_visit(
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
     graph = {}
-    od.reset()
+    od.reset() # reset the graph define here
     for op in topo_sort(outs):
         op_id = op.id
         if isinstance(op, Scalar):
@@ -60,6 +60,17 @@ def topo_visit(
             graph[op_id] = nop
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
+    return ninps, nouts
+
+def dfs(
+    op: "Op", visited: Set[int],
+    callback: str, **kwargs) -> Optional["Op"]:
+    assert op.id != -1
+    if op.id in visited:
+
+def dfs_visit(
+    inps: List["Op"], outs: List["Op"], callback: str) -> List["Op"]:
+    # TODO: implement
     return ninps, nouts
 
 def register_dfs(impl):

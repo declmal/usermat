@@ -186,9 +186,6 @@ class Graph(object):
         self.divtopower()
         self.toscalar()
         self.degenerate()
-        self.fusepower()
-        self.toscalar()
-        self.degenerate()
 
     def post_optimize(self) -> None:
         pass

@@ -110,9 +110,9 @@ class Op(object):
     def topo_divtopower(cls, *deps: "Op") -> "Op":
         return cls._default_op(*deps)
 
-    @classmethod
-    def topo_fusepower(cls, *deps: "Op") -> "Op":
-        return cls._default_op(*deps)
+    # @classmethod
+    # def topo_fusepower(cls, *deps: "Op") -> "Op":
+        # return cls._default_op(*deps)
 
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> "Op":
@@ -223,7 +223,6 @@ class Scalar(Op):
 
 
 @register_topo("topo_divtopower")
-@register_topo("topo_fusepower")
 @register_topo("topo_degenerate")
 @register_op(0)
 class Var(Op):
@@ -245,7 +244,6 @@ class Negative(Op):
 
 
 @register_topo("topo_divtopower")
-@register_topo("topo_fusepower")
 @register_topo("topo_toscalar")
 @register_topo("topo_degenerate")
 @register_op(1, equiv_func=sequential_equiv_func)
@@ -270,7 +268,6 @@ class Cos(Op):
 
 
 @register_topo("topo_divtopower")
-@register_topo("topo_fusepower")
 @register_topo("topo_toscalar")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Add(Op):
@@ -312,7 +309,6 @@ class Subtract(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 - v1
 
 
-@register_topo("topo_fusepower")
 @register_topo("topo_divtopower")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Multiply(Op):
@@ -389,15 +385,15 @@ class Multiply(Op):
 class Power(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0**v1
 
-    @classmethod
-    def topo_fusepower(cls, *deps: "Op") -> None:
-        x, y = deps
-        if isinstance(x, Power):
-            xx, xy = x.deps
-            nscalar = OpDef.scalar(y.data*xy.data)
-            op = OpDef.power(xx, nscalar)
-            return op
-        return cls._default_op(*deps)
+    # @classmethod
+    # def topo_fusepower(cls, *deps: "Op") -> None:
+        # x, y = deps
+        # if isinstance(x, Power):
+            # xx, xy = x.deps
+            # nscalar = OpDef.scalar(y.data*xy.data)
+            # op = OpDef.power(xx, nscalar)
+            # return op
+        # return cls._default_op(*deps)
 
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> None:

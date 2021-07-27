@@ -71,8 +71,9 @@ def dfs(op: "Op", visited: Set[int], callback: str, **kwargs) -> "Op":
     for dep in op.deps:
         ndep = dfs(op, visited, callback, **kwargs)
         ndeps.append(ndep)
-    get_dfs
-    getattr(Op)
+    dfs_func = get_opt(op, callback)
+    nop = dfs_func(*ndeps)
+    return nop
 
 def dfs_visit(
     inps: List["Op"], outs: List["Op"], callback: str) -> List["Op"]:

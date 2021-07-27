@@ -67,6 +67,7 @@ def dfs(
     callback: str, **kwargs) -> Optional["Op"]:
     assert op.id != -1
     if op.id in visited:
+        pass
 
 def dfs_visit(
     inps: List["Op"], outs: List["Op"], callback: str) -> List["Op"]:

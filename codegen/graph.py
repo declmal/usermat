@@ -5,7 +5,7 @@ import json
 import mxnet as mx
 
 from codegen.ops import OpDef as od, Float, Op, \
-    cast_float, Scalar, Var, get_opt
+    cast_float, Scalar, Var, get_topo
 from codegen.sym_utils import sym_rename
 
 def topo_sort(op_group: List["Op"]) -> List["Op"]:
@@ -55,8 +55,8 @@ def topo_visit(
                     "dep_id: {}, op_id: {}".format(dep_id, op_id)
                 ndep = graph[dep_id]
                 ndeps.append(ndep)
-            opt_func = get_opt(op, callback)
-            nop = opt_func(*ndeps)
+            topo_func = get_topo(op, callback)
+            nop = topo_func(*ndeps)
             graph[op_id] = nop
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
@@ -93,20 +93,20 @@ def op_to_sym(op: "Op") -> None:
 def op_autograph_backward(op: "Op", **kwargs) -> None:
     op.autograph_backward(kwargs.get("var_seq"))
 
-def register_graph_opt(cls):
-    def graph_opt(callback):
+def register_graph_topo(cls):
+    def graph_topo(callback):
         def wrapper(self):
             self.inps, self.outs = \
                 topo_visit(self.inps, self.outs, callback)
         return wrapper
 
     for callback in dir(Op):
-        if callback.startswith("opt_"):
-            setattr(cls, callback[4:], graph_opt(callback))
+        if callback.startswith("topo_"):
+            setattr(cls, callback[5:], graph_topo(callback))
     return cls
 
 
-@register_graph_opt
+@register_graph_topo
 class Graph(object):
     def __init__(
         self, inps: List["Op"], outs: List["Op"],

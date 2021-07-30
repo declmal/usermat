@@ -453,6 +453,8 @@ class Add(Op):
         y_dict = get_polynomial_dict(y)
         m_dict = merge_polynomial_dict(x_dict, y_dict)
         scalar = OpDef.scalar(m_dict[-1])
+        if len(m_dict) == 1:
+            return scalar
         ndeps = [scalar]
         for op_id, scalar_data in m_dict.items():
             if op_id == -1:
@@ -461,6 +463,9 @@ class Add(Op):
             ndeps.append(dep)
             coef = OpDef.scalar(scalar_data)
             ndeps.append(coef)
+        if len(ndeps) == 3 and ndeps[0].data == Zero and \
+            ndeps[2].data == One:
+            return ndeps[1]
         op = OpDef.polynomial(*ndeps)
         return op
 
@@ -517,6 +522,8 @@ class Multiply(Op):
         y_dict = get_monomial_dict(y)
         m_dict = merge_monomial_dict(x_dict, y_dict)
         scalar = OpDef.scalar(m_dict[-1])
+        if len(m_dict) == 1:
+            return scalar
         ndeps = [scalar]
         for op_id, scalar_data in m_dict.items():
             if op_id == -1:
@@ -623,8 +630,8 @@ class Power(Op):
         validate_exp(frac_data, exp_data)
         scalar_data = frac_data ** exp_data
         scalar = OpDef.scalar(scalar_data)
-        if len(m_dict) == 1:
-            return OpDef.monomial(scalar)
+        if len(m_dict) == 1 or exp_data == Zero:
+            return scalar
         if exp_data.denominator != 1:
             return super().topo_fuse(*deps)
         ndeps = [scalar]
@@ -637,6 +644,9 @@ class Power(Op):
             nexp_data = Fraction(scalar_data*exp_data)
             nexp = OpDef.scalar(nexp_data)
             ndeps.append(nexp)
+        if len(ndeps) == 3 and ndeps[0].data == One and \
+            ndeps[2].data == One:
+            return ndeps[1]
         op = OpDef.monomial(*ndeps)
         return op
 

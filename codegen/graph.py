@@ -141,6 +141,9 @@ class Graph(object):
             ["Out:{}".format(i) for i in range(len(self.outs))]
         self.reset()
 
+    def get_inp_size(self):
+        return len(self.inps)
+
     def reset(self) -> None:
         visited = set()
         for out in self.outs:
@@ -204,6 +207,7 @@ class Graph(object):
         self.standardize()
         self.toscalar()
         self.degenerate()
+        self.validate()
 
     def post_optimize(self) -> None:
         pass

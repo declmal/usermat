@@ -1,12 +1,15 @@
 from typing import Dict, List, Callable, Optional, Union, Any, Set
 import logging
+from fractions import Fraction
 
 import numpy as np
 import mxnet as mx
 
 """ Types
 """
-Float = Union["int", "float", "np.float32", "np.float64"]
+Float = Union[
+    "int", "np.int32", "np.int64", "float",
+    "np.float32", "np.float64", "Fraction"]
 GradFuncType = Callable[["np.float64"], "np.float64"]
 FwdFuncType = Callable[[List["np.float64"]], "np.float64"]
 EquivFuncType = Callable[[str, List["Op"]], List[str]]
@@ -26,8 +29,10 @@ swappable_equiv_func: "EquivFuncType" = \
             [str(ops[1].token()), str(ops[0].token())])),
     ]))
 
-Zero = np.float64(0.0)
-One = np.float64(1.0)
+# Zero = np.float64(0.0)
+# One = np.float64(1.0)
+Zero = Fraction(0)
+One = Fraction(1)
 
 def cast_float(scalar: "Float") -> "np.float64":
     if isinstance(scalar, np.float64):
@@ -35,11 +40,17 @@ def cast_float(scalar: "Float") -> "np.float64":
     else:
         return np.float64(scalar)
 
+def cast_fraction(scalar: "Float") -> "Fraction":
+    if isinstance(scalar, Fraction):
+        return scalar
+    else:
+        return Fraction(scalar)
+
 supported_ops: Dict[str, type] = {}
 op_supported_opts: Dict[str, Set[str]] = {}
 
 def register_op(
-    num_deps: int,
+    num_deps: Optional[int],
     equiv_func: "EquivFuncType"=default_equiv_func):
     def wrapper(cls):
         op_type: str = cls.__name__.lower()
@@ -49,9 +60,10 @@ def register_op(
         setattr(cls, "num_deps", num_deps)
 
         def op_equiv_func(ops: List["Op"]) -> List[str]:
-            assert len(ops) == num_deps, \
-                "invalid number of ops: {}, expected: {}".format(
-                    len(ops), num_deps)
+            if num_deps is not None:
+                assert len(ops) == num_deps, \
+                    "invalid number of ops: {}, expected: {}".format(
+                        len(ops), num_deps)
             return equiv_func(op_type, ops)
 
         setattr(cls, "op_equiv_func", op_equiv_func)
@@ -85,12 +97,13 @@ class Op(object):
     is_scalar: bool = False
 
     def __init__(self, *deps: "Op")-> None:
-        assert len(deps) == self.num_deps, \
-            "invalid deps number: {}, ".format(len(deps)) + \
-            "expected: {}".format(self.num_deps)
+        if self.num_deps is not None:
+            assert len(deps) == self.num_deps, \
+                "invalid deps number: {}, ".format(len(deps)) + \
+                "expected: {}".format(self.num_deps)
         self.deps: List["Op"] = list(deps)
-        self.data: "Float" = cast_float(0)
-        self.grad: "Float" = cast_float(0)
+        self.data: "Float" = cast_fraction(0)
+        self.grad: "Float" = cast_fraction(0)
         self.id: int = -1
         self.diff: List["Op"] = []
         self.sym: Optional["mx.sym.Symbol"] = None
@@ -99,7 +112,8 @@ class Op(object):
         return self.id
 
     def forward(self) -> None:
-        vs: List["np.float64"] = [dep.data for dep in self.deps]
+        vs: List["np.float64"] = \
+            [np.float64(dep.data) for dep in self.deps]
         self.data = self.__class__.fwd_func(*vs)
 
     @classmethod
@@ -136,24 +150,32 @@ class Op(object):
         return cls._default_op(*deps)
 
     @classmethod
+    def topo_validate(cls, *deps: "Op") -> "Op":
+        return cls._default_op(*deps)
+
+    @classmethod
+    def topo_fuse(cls, *deps: "Op") -> "Op":
+        return cls._default_op(*deps)
+
+    @classmethod
     def dfs_fusepower(cls, *deps: "Op") -> "Op":
         pass
 
     def set_id(self, op_id: int) -> None:
         self.id = op_id
 
-    def set_data(self, data: 'Float') -> None:
+    def set_data(self, data: "Float") -> None:
         self.data = data
 
-    def backward(self, grad: "Float"=cast_float(1)) -> None:
-        grad = cast_float(grad)
+    def backward(self, grad: "Float"=cast_fraction(1)) -> None:
+        grad = cast_fraction(grad)
         self.grad += grad
         for i, dep in enumerate(self.deps):
             backward_grad = self._grad_fns[i](grad)
             dep.backward(backward_grad)
 
     def reset(self) -> None:
-        self.data = cast_float(0)
+        self.data = cast_fraction(0)
         self.diff.clear()
         self.sym = None
 
@@ -227,6 +249,8 @@ class Scalar(Op):
         self.diff = [None] * len(var_seq)
 
 
+@register_opt("topo_validate")
+@register_opt("topo_fuse")
 @register_opt("topo_standardize")
 @register_opt("topo_degenerate")
 @register_op(0)
@@ -243,11 +267,125 @@ class Var(Op):
         self.diff[var_seq[self.id]] = OpDef.scalar(1.0)
 
 
+@register_op(None, equiv_func=sequential_equiv_func)
+class Polynomial(Op):
+    @classmethod
+    def fwd_func(cls, *v: "Float") -> "Float":
+        summation = v[0]
+        for i in range(1, len(v), 2):
+            if v[i+1] == One:
+                summation += v[i]
+            else:
+                summation += v[i]*v[i+1]
+        return summation
+
+
+@register_op(None, equiv_func=sequential_equiv_func)
+class Monomial(Op):
+    @classmethod
+    def fwd_func(cls, *v: "Float") -> "Float":
+        product = v[0]
+        for i in range(1, len(v), 2):
+            if v[i+1] == One:
+                product *= v[i]
+            else:
+                product *= v[i]**v[i+1]
+        return product
+
+def get_monomial_dict(op: "Op") -> Dict[int,"Float"]:
+    if isinstance(op, Monomial):
+        deps = op.deps
+        ret = {-1: deps[0].data}
+        for i in range(1, len(deps), 2):
+            dep_id = deps[i].id
+            assert dep_id not in ret
+            exp_data = deps[i+1].data
+            assert isinstance(exp_data, Fraction)
+            ret[dep_id] = exp_data
+        return ret
+    elif isinstance(op, Scalar):
+        ret = {-1: op.data}
+        return ret
+    else:
+        ret = {-1: One}
+        op_id = op.id
+        assert op_id not in ret
+        ret[op_id] = Fraction(One)
+        return ret
+
+def merge_monomial_dict(
+    dict1: Dict[int,"Float"],
+    dict2: Dict[int,"Float"]) -> Dict[int,"Float"]:
+    ret = dict2
+    for op_id, scalar_data in dict1.items():
+        if op_id == -1:
+            ret[-1] *= scalar_data
+            if ret[-1] == Zero:
+                return {-1: Zero}
+            continue
+        assert isinstance(scalar_data, Fraction)
+        if op_id not in ret:
+            ret[op_id] = scalar_data
+            continue
+        scalar_data2 = ret[op_id]
+        assert isinstance(scalar_data2, Fraction)
+        if scalar_data2 + scalar_data == Zero:
+            del ret[op_id]
+        else:
+            ret[op_id] = scalar_data + scalar_data2
+    return ret
+
+def get_polynomial_dict(op: "Op") -> Dict[int,"Float"]:
+    if isinstance(op, Polynomial):
+        deps = op.deps
+        ret = {-1: deps[0].data}
+        for i in range(1, len(deps), 2):
+            dep_id = deps[0].id
+            assert dep_id not in ret
+            coef_data = deps[i+1].data
+            ret[dep_id] = coef_data
+        return ret
+    elif isinstance(op, Scalar):
+        ret = {-1: op.data}
+        return ret
+    else:
+        ret = {-1: Zero}
+        op_id = op.id
+        assert op_id not in ret
+        ret[op_id] = One
+        return ret
+
+def merge_polynomial_dict(
+    dict1: Dict[int,"Float"],
+    dict2: Dict[int,"Float"]) -> Dict[int,"Float"]:
+    ret = dict2
+    for op_id, scalar_data in dict1.items():
+        if op_id == -1:
+            ret[-1] += scalar_data
+            continue
+        if op_id not in ret:
+            ret[op_id] = scalar_data
+        elif ret[op_id] + scalar_data == Zero:
+            del ret[op_id]
+        else:
+            ret[op_id] += scalar_data
+    return ret
+
+
 @register_op(1, equiv_func=sequential_equiv_func)
 class Negative(Op):
     fwd_func: FwdFuncType = lambda v: -v
 
+    @classmethod
+    def topo_standardize(cls, deps: "Op") -> "Op":
+        minus_one = OpDef.scalar(-1)
+        x = deps
+        op = OpDef.multiply(x, minus_one)
+        return op
 
+
+@register_opt("topo_fuse")
+@register_opt("topo_validate")
 @register_opt("topo_standardize")
 @register_opt("topo_toscalar")
 @register_opt("topo_degenerate")
@@ -267,11 +405,37 @@ class Sin(Op):
             self.diff.append(op)
 
 
+@register_opt("topo_fuse")
 @register_op(1, equiv_func=sequential_equiv_func)
 class Cos(Op):
     fwd_func: FwdFuncType = lambda v: np.cos(v)
 
 
+@register_op(2, equiv_func=swappable_equiv_func)
+class NotEqual(Op):
+    def forward(self) -> None:
+        v0 = self.deps[0].data
+        v1 = self.deps[1].data
+        assert v0 != v1
+
+
+@register_op(2, equiv_func=sequential_equiv_func)
+class LessThan(Op):
+    def forward(self) -> None:
+        v0 = self.deps[0].data
+        v1 = self.deps[1].data
+        assert v0 < v1
+
+
+@register_op(2, equiv_func=sequential_equiv_func)
+class NoMoreThan(Op):
+    def forward(self) -> None:
+        v0 = self.deps[0].data
+        v1 = self.deps[1].data
+        assert v0 <= v1
+
+
+@register_opt("topo_validate")
 @register_opt("topo_standardize")
 @register_opt("topo_toscalar")
 @register_op(2, equiv_func=swappable_equiv_func)
@@ -283,7 +447,25 @@ class Add(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 + v1
 
     @classmethod
-    def topo_degenerate(cls, *deps: "Op") -> None:
+    def topo_fuse(cls, *deps: "Op") -> "Op":
+        x, y = deps
+        x_dict = get_polynomial_dict(x)
+        y_dict = get_polynomial_dict(y)
+        m_dict = merge_polynomial_dict(x_dict, y_dict)
+        scalar = OpDef.scalar(m_dict[-1])
+        ndeps = [scalar]
+        for op_id, scalar_data in m_dict.items():
+            if op_id == -1:
+                continue
+            dep = OpDef.get_op(op_id)
+            ndeps.append(dep)
+            coef = OpDef.scalar(scalar_data)
+            ndeps.append(coef)
+        op = OpDef.polynomial(*ndeps)
+        return op
+
+    @classmethod
+    def topo_degenerate(cls, *deps: "Op") -> "Op":
         x, y = deps
         if isinstance(x, Scalar) and x.data == Zero:
             return y
@@ -313,11 +495,41 @@ class Add(Op):
 class Subtract(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 - v1
 
+    @classmethod
+    def topo_standardize(cls, *deps: "Op") -> "Op":
+        x, y = deps
+        minus_one = OpDef.scalar(-1)
+        minus_y = OpRef.multiply(minus_one, y)
+        op = OpDef.add(x, minus_y)
+        return op
 
+
+@register_opt("topo_validate")
 @register_opt("topo_standardize")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
+
+    @classmethod
+    def topo_fuse(cls, *deps: "Op") -> "Op":
+        x, y = deps
+        x_dict = get_monomial_dict(x)
+        y_dict = get_monomial_dict(y)
+        m_dict = merge_monomial_dict(x_dict, y_dict)
+        scalar = OpDef.scalar(m_dict[-1])
+        ndeps = [scalar]
+        for op_id, scalar_data in m_dict.items():
+            if op_id == -1:
+                continue
+            dep = OpDef.get_op(op_id)
+            ndeps.append(dep)
+            exp = OpDef.scalar(scalar_data)
+            ndeps.append(exp)
+        if len(ndeps) == 3 and ndeps[0].data == One and \
+            ndeps[2].data == One:
+            return ndeps[1]
+        op = OpDef.monomial(*ndeps)
+        return op
 
     # @classmethod
     # def topo_fusepower(cls, *deps: "Op") -> "Op":
@@ -385,20 +597,48 @@ class Multiply(Op):
                     op = OpDef.add(op1, op2)
             self.diff.append(op)
 
+def validate_exp(frac_data: "Float", exp_data: "Fraction") -> None:
+    if frac_data == Zero:
+        assert exp_data >= Zero, \
+            "zero division occurs: frac_data: {}".format(
+                frac_data) + ", exp_data: {}".format(exp_data)
+    elif frac_data < Zero:
+        assert exp_data.denominator == 1, \
+            "exp must be an integer for negative fraction, " + \
+            "frac_data: {}, exp_data: {}".format(frac_data, exp_data)
 
+
+@register_opt("topo_validate")
 @register_op(2, equiv_func=sequential_equiv_func)
 class Power(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0**v1
 
-    # @classmethod
-    # def topo_fusepower(cls, *deps: "Op") -> None:
-        # x, y = deps
-        # if isinstance(x, Power):
-            # xx, xy = x.deps
-            # nscalar = OpDef.scalar(y.data*xy.data)
-            # op = OpDef.power(xx, nscalar)
-            # return op
-        # return cls._default_op(*deps)
+    @classmethod
+    def topo_fuse(cls, *deps: "Op") -> "Op":
+        x, y = deps
+        exp_data = y.data
+        assert isinstance(exp_data, Fraction), exp_data
+        m_dict = get_monomial_dict(x)
+        frac_data = m_dict[-1]
+        validate_exp(frac_data, exp_data)
+        scalar_data = frac_data ** exp_data
+        scalar = OpDef.scalar(scalar_data)
+        if len(m_dict) == 1:
+            return OpDef.monomial(scalar)
+        if exp_data.denominator != 1:
+            return super().topo_fuse(*deps)
+        ndeps = [scalar]
+        for op_id, scalar_data in m_dict.items():
+            if op_id == -1:
+                continue
+            assert isinstance(scalar_data, Fraction)
+            dep = OpDef.get_op(op_id)
+            ndeps.append(dep)
+            nexp_data = Fraction(scalar_data*exp_data)
+            nexp = OpDef.scalar(nexp_data)
+            ndeps.append(nexp)
+        op = OpDef.monomial(*ndeps)
+        return op
 
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> None:
@@ -407,15 +647,7 @@ class Power(Op):
             op = OpDef.scalar(1)
             return op
         if isinstance(x, Scalar):
-            if x.data == Zero:
-                assert y.data >= Zero, \
-                    "zero division occurs: deps[0].data: {}".format(
-                        x.data) + ", deps[1].data: {}".format(y.data)
-            elif x.data < Zero:
-                assert int(y.data) == y.data, \
-                    "power must be an integer for negative values, " + \
-                    "deps[0].data: {}, deps[1].data: {}".format(
-                        x.data, y.data)
+            validate_exp(x.data, y.data)
         return cls._default_op(*deps)
 
     @classmethod
@@ -486,13 +718,14 @@ class Divide(Op):
 
 def register_op_def(cls):
     def scalar_func(data: "Float") -> "Op":
-        nv: "np.float64" = cast_float(data)
+        nv: "Fraction" = cast_fraction(data)
         if nv in OpDef.scalar_map:
             return OpDef.scalar_map[nv]
         op: "Op" = Scalar()
         OpDef.set_id(op)
-        op.set_data(data)
+        op.set_data(nv)
         OpDef.scalar_map[nv] = op
+        OpDef.id_map[op.id] = op
         return op
 
     def op_func(op_cls):
@@ -507,6 +740,7 @@ def register_op_def(cls):
             OpDef.set_id(op)
             for equiv in equivs:
                 OpDef.equiv_map[equiv] = op
+            OpDef.id_map[op.id] = op
             return op
         return wrapper
 
@@ -523,15 +757,23 @@ def register_op_def(cls):
 class OpDef(object):
     current_id: int = 0
     equiv_map: Dict[str, "Op"] = {}
-    scalar_map: Dict["np.float64", "Op"] = {}
+    id_map: Dict[int, "Op"] = {}
+    scalar_map: Dict["Fraction", "Op"] = {}
 
     @staticmethod
     def reset():
         OpDef.current_id = 0
         OpDef.equiv_map.clear()
+        OpDef.id_map.clear()
         OpDef.scalar_map.clear()
 
     @staticmethod
     def set_id(op: "Op") -> None:
         op.set_id(OpDef.current_id)
         OpDef.current_id += 1
+
+    @staticmethod
+    def get_op(op_id: int) -> None:
+        assert op_id in OpDef.id_map, \
+            "invalid op_id: {}".format(op_id)
+        return OpDef.id_map[op_id]

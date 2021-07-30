@@ -201,7 +201,7 @@ class Graph(object):
         return Graph(self.inps, outs, out_appends=out_appends)
 
     def pre_optimize(self) -> None:
-        self.divtopower()
+        self.standardize()
         self.toscalar()
         self.degenerate()
 

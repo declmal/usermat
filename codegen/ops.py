@@ -108,7 +108,7 @@ class Op(object):
         return od_func(*deps)
 
     @classmethod
-    def topo_divtopower(cls, *deps: "Op") -> "Op":
+    def topo_standardize(cls, *deps: "Op") -> "Op":
         return cls._default_op(*deps)
 
     # @classmethod
@@ -134,6 +134,10 @@ class Op(object):
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> "Op":
         return cls._default_op(*deps)
+
+    @classmethod
+    def dfs_fusepower(cls, *deps: "Op") -> "Op":
+        pass
 
     def set_id(self, op_id: int) -> None:
         self.id = op_id
@@ -223,7 +227,7 @@ class Scalar(Op):
         self.diff = [None] * len(var_seq)
 
 
-@register_opt("topo_divtopower")
+@register_opt("topo_standardize")
 @register_opt("topo_degenerate")
 @register_op(0)
 class Var(Op):
@@ -244,7 +248,7 @@ class Negative(Op):
     fwd_func: FwdFuncType = lambda v: -v
 
 
-@register_opt("topo_divtopower")
+@register_opt("topo_standardize")
 @register_opt("topo_toscalar")
 @register_opt("topo_degenerate")
 @register_op(1, equiv_func=sequential_equiv_func)
@@ -268,7 +272,7 @@ class Cos(Op):
     fwd_func: FwdFuncType = lambda v: np.cos(v)
 
 
-@register_opt("topo_divtopower")
+@register_opt("topo_standardize")
 @register_opt("topo_toscalar")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Add(Op):
@@ -310,7 +314,7 @@ class Subtract(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 - v1
 
 
-@register_opt("topo_divtopower")
+@register_opt("topo_standardize")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
@@ -449,7 +453,7 @@ class Divide(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 / v1
 
     @classmethod
-    def topo_divtopower(cls, *deps: "Op") -> None:
+    def topo_standardize(cls, *deps: "Op") -> None:
         x, y = deps
         minus_one = OpDef.scalar(-1)
         _pow = OpDef.power(y, minus_one)

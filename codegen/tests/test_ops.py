@@ -108,7 +108,7 @@ class TestOps(unittest.TestCase):
         a, b, c = data
         self.assertAlmostEqual(outs[0], np.sin(a*b)*((a-np.float64(1))+b)/c)
         # g.to_sym()
-        g.divtopower()
+        g.standardize()
         # g.to_sym(json_path=path.expanduser("~/Desktop/mx2.json"))
         a, b, c = data
         g.set_input(*data)
@@ -163,12 +163,12 @@ class TestOps(unittest.TestCase):
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=10)
 
-    def test_divide_divtopower(self):
+    def test_divide_standardize(self):
         v0 = od.var()
         v1 = od.var()
         v2 = od.divide(v0, v1)
         g = Graph([v0, v1], [v2])
-        g.divtopower()
+        g.standardize()
         for _ in range(10000):
             flag = True
             while flag:

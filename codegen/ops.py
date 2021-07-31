@@ -412,7 +412,7 @@ class Cos(Op):
 
 
 @register_op(2, equiv_func=swappable_equiv_func)
-class NotEqual(Op):
+class AssertNotEqual(Op):
     def forward(self) -> None:
         v0 = self.deps[0].data
         v1 = self.deps[1].data
@@ -420,7 +420,7 @@ class NotEqual(Op):
 
 
 @register_op(2, equiv_func=sequential_equiv_func)
-class LessThan(Op):
+class AssertLessThan(Op):
     def forward(self) -> None:
         v0 = self.deps[0].data
         v1 = self.deps[1].data
@@ -428,7 +428,7 @@ class LessThan(Op):
 
 
 @register_op(2, equiv_func=sequential_equiv_func)
-class NoMoreThan(Op):
+class AssertNoMoreThan(Op):
     def forward(self) -> None:
         v0 = self.deps[0].data
         v1 = self.deps[1].data
@@ -624,13 +624,16 @@ class Power(Op):
     def topo_fuse(cls, *deps: "Op") -> "Op":
         x, y = deps
         exp_data = y.data
+        if exp_data == Zero:
+            op = OpDef.scalar(1)
+            return op
         assert isinstance(exp_data, Fraction), exp_data
         m_dict = get_monomial_dict(x)
         frac_data = m_dict[-1]
         validate_exp(frac_data, exp_data)
         scalar_data = frac_data ** exp_data
         scalar = OpDef.scalar(scalar_data)
-        if len(m_dict) == 1 or exp_data == Zero:
+        if len(m_dict) == 1:
             return scalar
         if exp_data.denominator != 1:
             return super().topo_fuse(*deps)
@@ -725,6 +728,29 @@ class Divide(Op):
                     # op2 = OpDef.subtract(d0[i], op1)
                     # op = OpDef.divide(op2, x1)
             # self.diff.append(op)
+
+
+class CndOp(Op):
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
+        assert len(self.deps) == 4
+        lhs, rhs, lv, rv = self.deps
+        dl, dr = lv.diff, rv.diff
+        assert len(dl) == len(dr)
+        od_func = getattr(OpDef, self.op_type)
+        self.diff.clear()
+        for i in range(len(dl)):
+            dop = od_func(lhs, rhs, dl[i], dr[i])
+            self.diff.append(dop)
+
+
+@register_op(4, equiv_func=default_equiv_func)
+class LessThan(CndOp):
+    fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 < v1 else v3
+
+
+@register_op(4, equiv_func=default_equiv_func)
+class NoMoreThan(CndOp):
+    fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 <= v1 else v3
 
 def register_op_def(cls):
     def scalar_func(data: "Float") -> "Op":

@@ -15,7 +15,8 @@ def register_test(cls):
 
     def register_test_func(func):
         def wrapper(self, *args, **kwargs):
-            self.logger = logging.getLogger(func.__name__)
+            s = "{}.{}".format(self.__class__.__name__, func.__name__)
+            self.logger = logging.getLogger(s)
             self.warn("starting")
             od.reset()
             ret = func(self, *args, **kwargs)

@@ -117,17 +117,17 @@ class Op(object):
         self.data = self.__class__.fwd_func(*vs)
 
     @classmethod
-    def _default_op(cls, *deps: "Op") -> "Op":
+    def default_op(cls, *deps: "Op") -> "Op":
         od_func = getattr(OpDef, cls.op_type)
         return od_func(*deps)
 
     @classmethod
     def topo_standardize(cls, *deps: "Op") -> "Op":
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     # @classmethod
     # def topo_fusepower(cls, *deps: "Op") -> "Op":
-        # return cls._default_op(*deps)
+        # return cls.default_op(*deps)
 
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> "Op":
@@ -140,22 +140,22 @@ class Op(object):
             data = dep.data
             datas.append(data)
         if not flag:
-            return cls._default_op(*deps)
+            return cls.default_op(*deps)
         cdata = cls.fwd_func(*datas)
         op = OpDef.scalar(cdata)
         return op
 
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> "Op":
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     @classmethod
     def topo_validate(cls, *deps: "Op") -> "Op":
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     @classmethod
     def topo_fuse(cls, *deps: "Op") -> "Op":
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     @classmethod
     def dfs_fusepower(cls, *deps: "Op") -> "Op":
@@ -257,13 +257,13 @@ class Scalar(Op):
 class Var(Op):
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> "Op":
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     def forward(self):
         pass
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
-        self.diff = [None]*len(var_seq)
+        self.diff = [None] * len(var_seq)
         self.diff[var_seq[self.id]] = OpDef.scalar(1.0)
 
 
@@ -476,7 +476,7 @@ class Add(Op):
             return y
         if isinstance(y, Scalar) and y.data == Zero:
             return x
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -504,7 +504,7 @@ class Subtract(Op):
     def topo_standardize(cls, *deps: "Op") -> "Op":
         x, y = deps
         minus_one = OpDef.scalar(-1)
-        minus_y = OpRef.multiply(minus_one, y)
+        minus_y = OpDef.multiply(minus_one, y)
         op = OpDef.add(x, minus_y)
         return op
 
@@ -566,7 +566,7 @@ class Multiply(Op):
                     # nscalar = OpDef.scalar(2)
                     # op = OpDef.power(x, nscalar)
                     # return op
-        # return cls._default_op(*deps)
+        # return cls.default_op(*deps)
 
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> "Op":
@@ -574,7 +574,7 @@ class Multiply(Op):
         if isinstance(x, Scalar) and x.data == Zero or \
             isinstance(y, Scalar) and y.data == Zero:
             return OpDef.scalar(0)
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> "Op":
@@ -583,7 +583,7 @@ class Multiply(Op):
             return y
         if isinstance(y, Scalar) and y.data == One:
             return x
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -615,6 +615,7 @@ def validate_exp(frac_data: "Float", exp_data: "Fraction") -> None:
             "frac_data: {}, exp_data: {}".format(frac_data, exp_data)
 
 
+@register_opt("topo_standardize")
 @register_opt("topo_validate")
 @register_op(2, equiv_func=sequential_equiv_func)
 class Power(Op):
@@ -661,14 +662,14 @@ class Power(Op):
             return op
         if isinstance(x, Scalar):
             validate_exp(x.data, y.data)
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> None:
         x, y = deps
         if y.data == One:
             return x
-        return cls._default_op(*deps)
+        return cls.default_op(*deps)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x, y = self.deps
@@ -729,28 +730,54 @@ class Divide(Op):
                     # op = OpDef.divide(op2, x1)
             # self.diff.append(op)
 
+def cnd_auto_backward(
+    deps: List["Op"], od_func: Callable[[List["Op"]], "Op"],
+    var_seq: Dict[int,int]) -> List["Op"]:
+    lhs, rhs, lv, rv = deps
+    dl, dr = lv.diff, rv.diff
+    diff = []
+    for i in range(len(dl)):
+        dop = od_func(lhs, rhs, dl[i], dr[i])
+        diff.append(dop)
+    return diff
 
-class CndOp(Op):
-    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
-        assert len(self.deps) == 4
-        lhs, rhs, lv, rv = self.deps
-        dl, dr = lv.diff, rv.diff
-        assert len(dl) == len(dr)
-        od_func = getattr(OpDef, self.op_type)
-        self.diff.clear()
-        for i in range(len(dl)):
-            dop = od_func(lhs, rhs, dl[i], dr[i])
-            self.diff.append(dop)
+def cnd_topo_degenerate(
+    default_op_func: Callable[[List["Op"]], "Op"], *deps: "Op") -> "Op":
+    lhs, rhs, lv, rv = deps
+    if lv.id == rv.id:
+        return lv
+    return default_op_func(*deps)
 
-
+@register_opt("topo_standardize")
+@register_opt("topo_toscalar")
+@register_opt("topo_validate")
 @register_op(4, equiv_func=default_equiv_func)
-class LessThan(CndOp):
+class LessThan(Op):
     fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 < v1 else v3
 
+    @classmethod
+    def topo_degenerate(cls, *deps: "Op") -> "Op":
+        return cnd_topo_degenerate(cls.default_op, *deps)
 
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
+        od_func = getattr(OpDef, self.op_type)
+        self.diff = cnd_auto_backward(self.deps, od_func, var_seq)
+
+
+@register_opt("topo_standardize")
+@register_opt("topo_toscalar")
+@register_opt("topo_validate")
 @register_op(4, equiv_func=default_equiv_func)
-class NoMoreThan(CndOp):
+class NoMoreThan(Op):
     fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 <= v1 else v3
+
+    @classmethod
+    def topo_degenerate(cls, *deps: "Op") -> "Op":
+        return cnd_topo_degenerate(cls.default_op, *deps)
+
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
+        od_func = getattr(OpDef, self.op_type)
+        self.diff = cnd_auto_backward(self.deps, od_func, var_seq)
 
 def register_op_def(cls):
     def scalar_func(data: "Float") -> "Op":

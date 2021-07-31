@@ -68,16 +68,16 @@ class TestOps(unittest.TestCase):
         v8 = od.multiply(v7, v3)
         v9 = od.multiply(v6, v8)
         g = Graph([v0,v1,v2,v3], [v9])
-        g.to_sym()
+        # g.to_sym()
         g.pre_optimize()
-        g.to_sym()
+        # g.to_sym()
         a, b, c, d = [float(v) for v in [1, 2, 3, 4]]
         g.set_input(a,b,c,d)
         outs1 = g.forward()
         self.assertEqual(outs1, [np.sin(a/b+c)*d*d*d])
         ng = g.autograph_backward()
         ng.fuse()
-        ng.to_sym()
+        # ng.to_sym()
         ng.set_input(a,b,c,d)
         outs2 = ng.forward()
         self.assertEqual(
@@ -209,7 +209,7 @@ class TestOps(unittest.TestCase):
         v8 = od.multiply(v7, v2)
         g = Graph([v0, v1, v2], [v8])
         g.pre_optimize()
-        g.to_sym()
+        # g.to_sym()
         for _ in range(10000):
             inp_size = g.get_inp_size()
             datas = random_array([inp_size], low=-1000.0, high=1000.0)
@@ -220,6 +220,17 @@ class TestOps(unittest.TestCase):
             g.set_input(*datas)
             outs = g.forward()
             for i in range(len(rets)):
-                self.assertAlmostEqual(outs[i], rets[i], places=10)
+                self.assertAlmostEqual(outs[i], rets[i], places=14)
         dg = g.autograph_backward()
-
+        dg.fuse()
+        dg.to_sym()
+        for _ in range(10000):
+            inp_size = g.get_inp_size()
+            datas = random_array([inp_size], low=-1000.0, high=1000.0)
+            a, b, c = datas
+            rets = [0, 2*c*(b-1), (b-1)**2] if -b*c < np.sin(a) else \
+                [0, 2*c, 2*(b-1)]
+            dg.set_input(*datas)
+            outs = dg.forward()
+            for i in range(len(rets)):
+                self.assertAlmostEqual(outs[i], rets[i], places=14)

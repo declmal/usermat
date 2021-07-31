@@ -246,7 +246,7 @@ class Scalar(Op):
         self.sym = mx.sym.var(name=name)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
-        self.diff = [None] * len(var_seq)
+        self.diff = [OpDef.scalar(0)] * len(var_seq)
 
 
 @register_opt("topo_validate")
@@ -263,8 +263,8 @@ class Var(Op):
         pass
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
-        self.diff = [None] * len(var_seq)
-        self.diff[var_seq[self.id]] = OpDef.scalar(1.0)
+        self.diff = [OpDef.scalar(0)] * len(var_seq)
+        self.diff[var_seq[self.id]] = OpDef.scalar(1)
 
 
 @register_op(None, equiv_func=sequential_equiv_func)
@@ -398,11 +398,8 @@ class Sin(Op):
         y = OpDef.cos(x)
         self.diff.clear()
         for di in self.deps[0].diff:
-            if di is None:
-                op = None
-            else:
-                op = OpDef.multiply(y, di)
-            self.diff.append(op)
+            dop = OpDef.multiply(y, di)
+            self.diff.append(dop)
 
 
 @register_opt("topo_fuse")
@@ -483,17 +480,8 @@ class Add(Op):
         d0, d1 = x0.diff, x1.diff
         self.diff.clear()
         for i in range(len(var_seq)):
-            if d0[i] is None:
-                if d1[i] is None:
-                    op = None
-                else:
-                    op = d1[i]
-            else:
-                if d1[i] is None:
-                    op = d0[i]
-                else:
-                    op = OpDef.add(d0[i], d1[i])
-            self.diff.append(op)
+            dop = OpDef.add(d0[i], d1[i])
+            self.diff.append(dop)
 
 
 @register_op(2, equiv_func=sequential_equiv_func)
@@ -590,19 +578,10 @@ class Multiply(Op):
         d0, d1 = x0.diff, x1.diff
         self.diff.clear()
         for i in range(len(d0)):
-            if d0[i] is None:
-                if d1[i] is None:
-                    op = None
-                else:
-                    op = OpDef.multiply(x0, d1[i])
-            else:
-                op1 = OpDef.multiply(x1, d0[i])
-                if d1[i] is None:
-                    op = op1
-                else:
-                    op2 = OpDef.multiply(x0, d1[i])
-                    op = OpDef.add(op1, op2)
-            self.diff.append(op)
+            mul0 = OpDef.multiply(x1, d0[i])
+            mul1 = OpDef.multiply(x0, d1[i])
+            dop = OpDef.add(mul0, mul1)
+            self.diff.append(dop)
 
 def validate_exp(frac_data: "Float", exp_data: "Fraction") -> None:
     if frac_data == Zero:
@@ -680,11 +659,8 @@ class Power(Op):
         npower = OpDef.power(x, nscalar)
         mul_scalar = OpDef.multiply(y, npower)
         for i in range(len(d)):
-            if d[i] is None:
-                op = None
-            else:
-                op = OpDef.multiply(mul_scalar, d[i])
-            self.diff.append(op)
+            dop = OpDef.multiply(mul_scalar, d[i])
+            self.diff.append(dop)
 
     @classmethod
     def validate(cls, *deps: "Op") -> None:
@@ -751,6 +727,7 @@ def cnd_topo_degenerate(
 @register_opt("topo_standardize")
 @register_opt("topo_toscalar")
 @register_opt("topo_validate")
+@register_opt("topo_fuse")
 @register_op(4, equiv_func=default_equiv_func)
 class LessThan(Op):
     fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 < v1 else v3
@@ -767,6 +744,7 @@ class LessThan(Op):
 @register_opt("topo_standardize")
 @register_opt("topo_toscalar")
 @register_opt("topo_validate")
+@register_opt("topo_fuse")
 @register_op(4, equiv_func=default_equiv_func)
 class NoMoreThan(Op):
     fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 <= v1 else v3

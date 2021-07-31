@@ -1,41 +1,13 @@
 import unittest
-import logging
 from os import path
+from fractions import Fraction
 
 import numpy as np
 
 from codegen.ops import OpDef as od, Zero
 from codegen.graph import Graph
 from codegen.utils import random_array
-
-def register_test(cls):
-    def info_func(self, s: str) -> None:
-        return self.logger.info(s)
-    def warn_func(self, s: str) -> None:
-        return self.logger.warning(s)
-
-    assert "info" not in dir(cls)
-    setattr(cls, "info", info_func)
-    assert "warn" not in dir(cls)
-    setattr(cls, "warn", warn_func)
-
-    def register_test_func(func):
-        def wrapper(self, *args, **kwargs):
-            self.logger = logging.getLogger(func.__name__)
-            self.warn("starting")
-            od.reset()
-            ret = func(self, *args, **kwargs)
-            self.warn("succeed")
-            return ret
-        return wrapper
-
-    for func_name in dir(cls):
-        if not func_name.startswith("test_"):
-            continue
-        func = getattr(cls, func_name)
-        func = register_test_func(func)
-        setattr(cls, func_name, func)
-    return cls
+from codegen.tests.test_utils import register_test
 
 
 @register_test
@@ -116,9 +88,6 @@ class TestOps(unittest.TestCase):
         outs = g.forward()
         self.assertAlmostEqual(outs[0], np.sin(a*b)*((a-np.float64(1))+b)/c, places=10)
 
-    def test_mul(self):
-        pass
-
     def test_add_degenerate(self):
         v0 = od.scalar(0)
         v1 = od.var()
@@ -197,7 +166,7 @@ class TestOps(unittest.TestCase):
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=10)
 
-    def test_cnd_op(self):
+    def test_cnd(self):
         v0 = od.var()
         v1 = od.var()
         v2 = od.var()
@@ -222,8 +191,10 @@ class TestOps(unittest.TestCase):
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)
         dg = g.autograph_backward()
+        # dg.toscalar()
+        dg.degenerate()
         dg.fuse()
-        dg.to_sym()
+        # dg.to_sym()
         for _ in range(10000):
             inp_size = g.get_inp_size()
             datas = random_array([inp_size], low=-1000.0, high=1000.0)
@@ -234,3 +205,19 @@ class TestOps(unittest.TestCase):
             outs = dg.forward()
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)
+
+    def test_power(self):
+        v0 = od.var()
+        v1 = od.var()
+        v2 = od.power(v0, od.scalar(Fraction(2,3)))
+        v3 = od.power(v1, od.scalar(Fraction(4,5)))
+        v4 = od.multiply(v2, v3)
+        v5 = od.power(v4, od.scalar(2))
+        v6 = od.power(v5, od.scalar(Fraction(1,2)))
+        v7 = od.var()
+        v8 = od.power(v7, od.scalar(2))
+        v9 = od.multiply(v6, v8)
+        v10 = od.power(v9, od.scalar(Fraction(1,2)))
+        g = Graph([v0,v1,v7], [v10])
+        g.fuse()
+        g.to_sym()

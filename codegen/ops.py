@@ -186,7 +186,7 @@ class Op(object):
                 ",".join([str(dep.id) for dep in self.deps])
         data_info = ""
         if with_data:
-            data_info = "data:{}".format(self.data)
+            data_info = "data:{}".format(cast_float(self.data))
         s = "id:{},op_type:{}".format(self.id, self.op_type)
         return ",".join([s, data_info, deps_info])
 
@@ -589,9 +589,9 @@ def validate_exp(frac_data: "Float", exp_data: "Fraction") -> None:
             "zero division occurs: frac_data: {}".format(
                 frac_data) + ", exp_data: {}".format(exp_data)
     elif frac_data < Zero:
-        assert exp_data.denominator == 1, \
-            "exp must be an integer for negative fraction, " + \
-            "frac_data: {}, exp_data: {}".format(frac_data, exp_data)
+        assert exp_data.denominator % 2 == 1, \
+            "the denominator of exp must be odd for negative fraction," + \
+            " frac_data: {}, exp_data: {}".format(frac_data, exp_data)
 
 
 @register_opt("topo_standardize")
@@ -602,12 +602,10 @@ class Power(Op):
 
     @classmethod
     def topo_fuse(cls, *deps: "Op") -> "Op":
-        x, y = deps
-        exp_data = y.data
-        if exp_data == Zero:
-            op = OpDef.scalar(1)
-            return op
-        assert isinstance(exp_data, Fraction), exp_data
+        x, exp = deps
+        exp_data = exp.data
+        assert isinstance(exp_data, Fraction) and \
+            exp_data != One and exp_data != Zero, x.info()
         m_dict = get_monomial_dict(x)
         frac_data = m_dict[-1]
         validate_exp(frac_data, exp_data)
@@ -615,8 +613,30 @@ class Power(Op):
         scalar = OpDef.scalar(scalar_data)
         if len(m_dict) == 1:
             return scalar
-        if exp_data.denominator != 1:
-            return super().topo_fuse(*deps)
+        denominator = exp_data.denominator
+        if denominator % 2 != 1:
+            flag = True
+            for op_id, scalar_data in m_dict.items():
+                if op_id == -1:
+                    continue
+                assert isinstance(scalar_data, Fraction), scalar_data
+                numerator = scalar_data.numerator
+                if numerator < 2*denominator or \
+                    numerator % (2*denominator) == 1:
+                    flag = False
+                    break
+            if not flag:
+                cnt = 0
+                for op_id, scalar_data in m_dict.items():
+                    if op_id == -1:
+                        continue
+                    assert isinstance(scalar_data, Fraction), scalar_data
+                    if scalar_data.denominator % 2 == 1:
+                        cnt += 1
+                if not cnt > 1:
+                    one = OpDef.scalar(1)
+                    op = OpDef.monomial(one, x, exp)
+                    return op
         ndeps = [scalar]
         for op_id, scalar_data in m_dict.items():
             if op_id == -1:
@@ -624,7 +644,8 @@ class Power(Op):
             assert isinstance(scalar_data, Fraction)
             dep = OpDef.get_op(op_id)
             ndeps.append(dep)
-            nexp_data = Fraction(scalar_data*exp_data)
+            nexp_data = scalar_data * exp_data
+            assert isinstance(nexp_data, Fraction), nexp_data
             nexp = OpDef.scalar(nexp_data)
             ndeps.append(nexp)
         if len(ndeps) == 3 and ndeps[0].data == One and \

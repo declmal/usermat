@@ -9,30 +9,47 @@ from codegen.ops import OpDef as od, Float, Op, \
 from codegen.sym_utils import sym_rename
 
 def topo_sort(op_group: List["Op"]) -> List["Op"]:
-    topo_seq = []
-    visited = {}
-    for root in op_group:
-        rid = root.id
-        if rid in visited:
-            assert visited[rid] == 2
-            continue
-        cur = [root]
-        visited[rid] = 1
-        while cur:
-            cop: "Op" = cur[-1]
-            flag = True
-            for dep in cop.deps:
-                nid = dep.id
-                if nid not in visited:
-                    cur.append(dep)
-                    visited[nid] = 1
-                    flag = False
-                elif visited[nid] == 1:
-                    flag = False
-            if flag:
-                topo_seq.append(cop)
-                visited[cop.id] = 2
-                cur.pop()
+    visited: Set[int] = set()
+    sops: List["Op"] = []
+    nxt: Dict[int,Set[int]] = {}
+    for op in op_group:
+        op_id = op.id
+        nxt[op_id] = set()
+        visited.add(op_id)
+        sops.append(op)
+    res: Dict[int,int] = {}
+    op_map: Dict[int,"Op"] = {}
+    zero_deps: List[int] = []
+    while sops:
+        cop = sops.pop()
+        cid = cop.id
+        assert cid not in op_map, cid
+        op_map[cid] = cop
+        num_deps = len({o.id for o in cop.deps})
+        if num_deps == 0:
+            zero_deps.append(cid)
+        else:
+            res[cid] = num_deps
+        for dep in cop.deps:
+            dep_id = dep.id
+            if dep_id not in nxt:
+                nxt[dep_id] = set()
+            nxt[dep_id].add(cid)
+            if dep_id in visited:
+                continue
+            visited.add(dep_id)
+            sops.append(dep)
+    topo_seq: List["Op"] = []
+    while zero_deps:
+        cid = zero_deps.pop()
+        cop = op_map[cid]
+        topo_seq.append(cop)
+        for nid in nxt[cid]:
+            assert nid in res and res[nid] > 0
+            res[nid] -= 1
+            if res[nid] == 0:
+                zero_deps.append(nid)
+                del res[nid]
     return topo_seq
 
 def topo_visit(

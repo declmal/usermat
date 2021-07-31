@@ -191,7 +191,7 @@ class Op(object):
         return ",".join([s, data_info, deps_info])
 
     def display(self, logger=logging.getLogger("op_info")) -> None:
-        logger.info(self.info())
+        logger.debug(self.info())
 
     def to_sym(self) -> None:
         name = self.info(with_data=False)

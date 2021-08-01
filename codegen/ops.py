@@ -688,23 +688,29 @@ class Power(Op):
                         sm_dict[-1] = MinusOne
                     continue
                 deno_in, nume_in = data.denominator, data.numerator
-                if nume_in % 2 == 0 or deno_in % 2 == 0:
-                    cop = OpDef.get_op(op_id)
+                cop = OpDef.get_op(op_id)
+                if nume_in % 2 == 0 or deno_in % 2 == 0 or \
+                    isinstance(cop, Abs):
                     if nume_in % 2 == 0:
                         assert not isinstance(cop, Abs), type(cop)
                     nm_dict[op_id] = data
                     continue
                 sm_dict[op_id] = data
             # create a mial op using sm_dict, with op_id as sid
-            sop = create_mial_op(sm_dict, "monomial")
-            sid = sop.id
-            # merge nm_dict and sm_dict into a new m_dict
-            OpDef.assertexceedzero(sop)
-            if sid not in nm_dict:
-                nm_dict[sid] = One
+            if len(sm_dict) > 1:
+                sop = create_mial_op(sm_dict, "monomial")
+                sid = sop.id
+                # merge nm_dict and sm_dict into a new m_dict
+                OpDef.assertexceedzero(sop)
+                if sid not in nm_dict:
+                    nm_dict[sid] = One
+                else:
+                    nm_dict[sid] += One
+                    assert isinstance(nm_dict[sid], Fraction)
             else:
-                nm_dict[sid] += One
-                assert isinstance(nm_dict[sid], Fraction)
+                assert -1 in sm_dict, sm_dict.keys()
+                scalar_data = sm_dict[-1]
+                assert scalar_data > Zero, scalar_data
             m_dict = nm_dict
         # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
         # exp = Fraction(nume, deno)
@@ -726,7 +732,7 @@ class Power(Op):
                 if nid not in m_dict:
                     m_dict[nid] = data
                 else:
-                    # TODO: unittest test_power_1.py
+                    # TODO: unittest test_power_2.py
                     m_dict[nid] += data
                     assert isinstance(m_dict[nid], Fraction), m_dict[nid]
         # update m_dict by power
@@ -758,7 +764,7 @@ class Power(Op):
                     m_dict[sid] = data
                 else:
                     # TODO: unittest test_power_1.py
-                    m_dcit[sid] += data
+                    m_dict[sid] += data
                     assert isinstance(m_dict[sid], Fraction)
         # create monomial op
         op = create_mial_op(m_dict, "monomial")

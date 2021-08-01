@@ -690,7 +690,8 @@ class Power(Op):
                 deno_in, nume_in = data.denominator, data.numerator
                 if nume_in % 2 == 0 or deno_in % 2 == 0:
                     cop = OpDef.get_op(op_id)
-                    assert not isinstance(cop, Abs), type(cop)
+                    if nume_in % 2 == 0:
+                        assert not isinstance(cop, Abs), type(cop)
                     nm_dict[op_id] = data
                     continue
                 sm_dict[op_id] = data
@@ -710,28 +711,55 @@ class Power(Op):
         # in case that en = Fraction(even_num, odd_num)
         # and deno = k * even_num
         # the op with op_id as i_n should be turned into abs(op)
-        # store the transformed and untransformed op in nm_dict
         nm_dict = m_dict.copy()
-        for op_id, data in m_dict.items():
+        for op_id, data in nm_dict.items():
             if op_id == -1:
                 continue
+            assert isinstance(data, Fraction), data
             nume_in = data.numerator
             if nume_in % 2 == 0 and deno >= nume_in and \
                 deno % nume_in == 0:
-                del nm_dict[op_id]
+                del m_dict[op_id]
                 cop = OpDef.get_op(op_id)
                 nop = OpDef.abs(cop)
                 nid = nop.id
-                nm_dict[nid] = data
+                if nid not in m_dict:
+                    m_dict[nid] = data
+                else:
+                    # TODO: unittest test_power_1.py
+                    m_dict[nid] += data
+                    assert isinstance(m_dict[nid], Fraction), m_dict[nid]
         # update m_dict by power
-        m_dict = nm_dict.copy()
+        nm_dict = m_dict.copy()
         for op_id, data in nm_dict.items():
             if op_id == -1:
                 scalar_data = data ** exp_data
                 m_dict[-1] = scalar_data
                 continue
             ndata = data * exp_data
+            assert isinstance(ndata, Fraction), ndata
             m_dict[op_id] = ndata
+        # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
+        # in case that en = Fraction(2*k, deno_in)
+        # and op with op_id i_n is abs(sop)
+        # then op should be turned into sop
+        nm_dict = m_dict.copy()
+        for op_id, data in nm_dict.items():
+            if op_id == -1:
+                continue
+            assert isinstance(data, Fraction), data
+            nume_in = data.numerator
+            op = OpDef.get_op(op_id)
+            if nume_in % 2 == 0 and isinstance(op, Abs):
+                del m_dict[op_id]
+                sop = op.deps[0]
+                sid = sop.id
+                if sid not in m_dict:
+                    m_dict[sid] = data
+                else:
+                    # TODO: unittest test_power_1.py
+                    m_dcit[sid] += data
+                    assert isinstance(m_dict[sid], Fraction)
         # create monomial op
         op = create_mial_op(m_dict, "monomial")
         return op

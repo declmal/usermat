@@ -123,10 +123,6 @@ class Op(object):
     def topo_standardize(cls, *deps: "Op") -> "Op":
         return cls.default_op(*deps)
 
-    # @classmethod
-    # def topo_fusepower(cls, *deps: "Op") -> "Op":
-        # return cls.default_op(*deps)
-
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> "Op":
         flag = True
@@ -153,6 +149,11 @@ class Op(object):
 
     @classmethod
     def topo_fuse(cls, *deps: "Op") -> "Op":
+        return cls.default_op(*deps)
+
+    @classmethod
+    def topo_discrete_exp(cls, *deps: "Op") -> "Op":
+        # should be run after topo_fuse pass
         return cls.default_op(*deps)
 
     @classmethod
@@ -248,6 +249,7 @@ class Scalar(Op):
 
 
 @register_opt("topo_validate")
+@register_opt("topo_discrete_exp")
 @register_opt("topo_fuse")
 @register_opt("topo_standardize")
 @register_opt("topo_degenerate")
@@ -306,6 +308,30 @@ class Monomial(Op):
             else:
                 product *= v[i]**v[i+1]
         return product
+
+    @classmethod
+    def topo_discrete_exp(cls, *deps: "Op") -> "Op":
+        scalar = deps[0]
+        scalar_data = scalar.data
+        ndeps = []
+        for i in range(1, len(deps), 2):
+            op, scalar_in = deps[i:i+2]
+            scalar_data_in = scalar_in.data
+            assert isinstance(scalar_data_in, Fraction), scalar_data_in
+            deno = scalar_data_in.denominator
+            nume = scalar_data_in.numerator
+            if deno % 2 == 1 and not isinstance(op, Abs):
+                # TODO: check whether op is positive
+                nop = OpDef.abs(op)
+                ndeps.append(nop)
+                scalar_data *= MinusOne ** nume
+            else:
+                ndeps.append(op)
+            ndeps.append(scalar_in)
+        ndeps = [scalar] + ndeps
+        op = OpDef.monomial(*ndeps)
+        return op
+
 
 def get_monomial_dict(op: "Op") -> Dict[int,"Float"]:
     if isinstance(op, Monomial):
@@ -704,8 +730,8 @@ class Power(Op):
                     nm_dict[op_id] = data
                     continue
                 sm_dict[op_id] = data
-            # create a mial op using sm_dict, with op_id as sid
             if len(sm_dict) > 1:
+                # create a mial op using sm_dict, with op_id as sid
                 sop = create_mial_op(sm_dict, "monomial")
                 sid = sop.id
                 # merge nm_dict and sm_dict into a new m_dict
@@ -713,13 +739,14 @@ class Power(Op):
                 if sid not in nm_dict:
                     nm_dict[sid] = One
                 else:
+                    # unittest test_power_4.py
                     nm_dict[sid] += One
                     assert isinstance(nm_dict[sid], Fraction)
             else:
-                # unittest test_power_3.py
                 assert -1 in sm_dict, sm_dict.keys()
                 scalar_data = sm_dict[-1]
                 if scalar_data < Zero:
+                    # unittest test_power_3.py
                     raise ExpContradictError(
                         "contradictory exp_data: {}, ".format(exp_data) + \
                         "dep_ids: {}".format([dep.id for dep in deps]))

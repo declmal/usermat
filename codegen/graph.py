@@ -224,7 +224,6 @@ class Graph(object):
         self.standardize()
         self.toscalar()
         self.degenerate()
-        self.validate()
 
     def post_optimize(self) -> None:
         pass

@@ -446,6 +446,10 @@ class Sin(Op):
             self.diff.append(dop)
 
 
+@register_opt("topo_standardize")
+@register_opt("topo_toscalar")
+@register_opt("topo_degenerate")
+@register_opt("topo_fuse")
 @register_op(1, equiv_func=sequential_equiv_func)
 class Abs(Op):
     fwd_func: FwdFuncType = lambda v: np.abs(v)
@@ -628,6 +632,10 @@ def validate_exp(frac_data: "Float", exp_data: "Fraction") -> None:
             " frac_data: {}, exp_data: {}".format(frac_data, exp_data)
 
 
+class ExpContradictError(Exception):
+    pass
+
+
 @register_opt("topo_standardize")
 @register_opt("topo_validate")
 @register_op(2, equiv_func=sequential_equiv_func)
@@ -708,9 +716,13 @@ class Power(Op):
                     nm_dict[sid] += One
                     assert isinstance(nm_dict[sid], Fraction)
             else:
+                # unittest test_power_3.py
                 assert -1 in sm_dict, sm_dict.keys()
                 scalar_data = sm_dict[-1]
-                assert scalar_data > Zero, scalar_data
+                if scalar_data < Zero:
+                    raise ExpContradictError(
+                        "contradictory exp_data: {}, ".format(exp_data) + \
+                        "dep_ids: {}".format([dep.id for dep in deps]))
             m_dict = nm_dict
         # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
         # exp = Fraction(nume, deno)
@@ -732,7 +744,7 @@ class Power(Op):
                 if nid not in m_dict:
                     m_dict[nid] = data
                 else:
-                    # TODO: unittest test_power_2.py
+                    # unittest test_power_2.py
                     m_dict[nid] += data
                     assert isinstance(m_dict[nid], Fraction), m_dict[nid]
         # update m_dict by power
@@ -763,7 +775,7 @@ class Power(Op):
                 if sid not in m_dict:
                     m_dict[sid] = data
                 else:
-                    # TODO: unittest test_power_1.py
+                    # unittest test_power_1.py
                     m_dict[sid] += data
                     assert isinstance(m_dict[sid], Fraction)
         # create monomial op

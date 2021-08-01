@@ -26,4 +26,4 @@ class TestPower(unittest.TestCase):
         v10 = od.power(v9, od.scalar(Fraction(1,2)))
         g = Graph([v0,v1,v7], [v10])
         g.fuse()
-        g.to_sym()
+        # g.to_sym()

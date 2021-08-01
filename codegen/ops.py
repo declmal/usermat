@@ -735,59 +735,6 @@ class Power(Op):
         # create monomial op
         op = create_mial_op(m_dict, "monomial")
         return op
-        # # TODO
-        # x, exp = deps
-        # exp_data = exp.data
-        # assert isinstance(exp_data, Fraction) and \
-            # exp_data != One and exp_data != Zero, x.info()
-        # m_dict = get_monomial_dict(x)
-        # frac_data = m_dict[-1]
-        # validate_exp(frac_data, exp_data)
-        # scalar_data = frac_data ** exp_data
-        # scalar = OpDef.scalar(scalar_data)
-        # if len(m_dict) == 1:
-            # return scalar
-        # denominator = exp_data.denominator
-        # if denominator % 2 != 1:
-            # flag = True
-            # for op_id, scalar_data in m_dict.items():
-                # if op_id == -1:
-                    # continue
-                # assert isinstance(scalar_data, Fraction), scalar_data
-                # numerator = scalar_data.numerator
-                # if numerator < 2*denominator or \
-                    # numerator % (2*denominator) == 1:
-                    # flag = False
-                    # break
-            # if not flag:
-                # cnt = 0
-                # for op_id, scalar_data in m_dict.items():
-                    # if op_id == -1:
-                        # continue
-                    # assert isinstance(scalar_data, Fraction), scalar_data
-                    # if scalar_data.numerator % 2 == 0 and \
-                        # scalar_data.denominator % 2 == 1:
-                        # cnt += 1
-                # if cnt > 1:
-                    # one = OpDef.scalar(1)
-                    # op = OpDef.monomial(one, x, exp)
-                    # return op
-        # ndeps = [scalar]
-        # for op_id, scalar_data in m_dict.items():
-            # if op_id == -1:
-                # continue
-            # assert isinstance(scalar_data, Fraction)
-            # dep = OpDef.get_op(op_id)
-            # ndeps.append(dep)
-            # nexp_data = scalar_data * exp_data
-            # assert isinstance(nexp_data, Fraction), nexp_data
-            # nexp = OpDef.scalar(nexp_data)
-            # ndeps.append(nexp)
-        # if len(ndeps) == 3 and ndeps[0].data == One and \
-            # ndeps[2].data == One:
-            # return ndeps[1]
-        # op = OpDef.monomial(*ndeps)
-        # return op
 
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> None:

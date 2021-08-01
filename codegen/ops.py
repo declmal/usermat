@@ -22,17 +22,15 @@ sequential_equiv_func: "EquivFuncType" = \
     lambda op_type, ops: [
         "{}:[{}]".format(op_type, ",".join([str(op.id) for op in ops]))]
 swappable_equiv_func: "EquivFuncType" = \
-    lambda op_type, ops: list(set([
+    lambda op_type, ops: [
         "{}:[{}]".format(op_type, ",".join(
-            [str(ops[0].token()), str(ops[1].token())])),
-        "{}:[{}]".format(op_type, ",".join(
-            [str(ops[1].token()), str(ops[0].token())])),
-    ]))
+            sorted([str(op.id) for op in ops])))]
 
 # Zero = np.float64(0.0)
 # One = np.float64(1.0)
 Zero = Fraction(0)
 One = Fraction(1)
+MinusOne = Fraction(-1)
 
 def cast_float(scalar: "Float") -> "np.float64":
     if isinstance(scalar, np.float64):
@@ -267,6 +265,23 @@ class Var(Op):
         self.diff[var_seq[self.id]] = OpDef.scalar(1)
 
 
+@register_op(1, equiv_func=swappable_equiv_func)
+class AssertExceedZero(Op):
+    @classmethod
+    def fwd_func(cls, v: "Float") -> "Float":
+        assert v >= Zero
+        return Zero
+
+
+@register_op(1, equiv_func=swappable_equiv_func)
+class AssertNotZero(Op):
+    @classmethod
+    def fwd_func(cls, v: "Float") -> "Float":
+        assert v != Zero
+        return Zero
+
+
+
 @register_op(None, equiv_func=sequential_equiv_func)
 class Polynomial(Op):
     @classmethod
@@ -371,6 +386,35 @@ def merge_polynomial_dict(
             ret[op_id] += scalar_data
     return ret
 
+def create_mial_op(m_dict: Dict[int,"Float"], op_type: str) -> "Op":
+    assert op_type in ["polynomial", "monomial"], op_type
+    assert -1 in m_dict, m_dict.keys()
+    scalar_data = m_dict[-1]
+    assert scalar_data != Zero, scalar_data
+    id_data = [
+        (op_id, data) for op_id, data in m_dict.items() if op_id != -1]
+    for _, data in id_data:
+        assert data != Zero, data
+    if len(id_data) == 1 and id_data[0][1] == One:
+        if op_type == "polynomial" and scalar_data == Zero or \
+            op_type == "monomial" and scalar_data == One:
+            op_id = id_data[0][0]
+            op = OpDef.get_op(op_id)
+            return op
+    id_data.sort()
+    scalar = OpDef.scalar(scalar_data)
+    deps = [scalar]
+    for op_id, data in id_data:
+        if op_type == "monomial":
+            assert isinstance(data, Fraction), type(data)
+        cop = OpDef.get_op(op_id)
+        deps.append(cop)
+        scalar = OpDef.scalar(data)
+        deps.append(scalar)
+    od_func = getattr(OpDef, op_type)
+    op = od_func(*deps)
+    return op
+
 
 @register_op(1, equiv_func=sequential_equiv_func)
 class Negative(Op):
@@ -397,8 +441,22 @@ class Sin(Op):
         x = self.deps[0]
         y = OpDef.cos(x)
         self.diff.clear()
-        for di in self.deps[0].diff:
+        for di in x.diff:
             dop = OpDef.multiply(y, di)
+            self.diff.append(dop)
+
+
+@register_op(1, equiv_func=sequential_equiv_func)
+class Abs(Op):
+    fwd_func: FwdFuncType = lambda v: np.abs(v)
+
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
+        x = self.deps[0]
+        self.diff.clear()
+        for di in x.diff:
+            zero_op = OpDef.scalar(0)
+            neg_op = OpDef.negative(di)
+            dop = OpDef.lessthan(di, zero_op, neg_op, di)
             self.diff.append(dop)
 
 
@@ -406,30 +464,6 @@ class Sin(Op):
 @register_op(1, equiv_func=sequential_equiv_func)
 class Cos(Op):
     fwd_func: FwdFuncType = lambda v: np.cos(v)
-
-
-@register_op(2, equiv_func=swappable_equiv_func)
-class AssertNotEqual(Op):
-    def forward(self) -> None:
-        v0 = self.deps[0].data
-        v1 = self.deps[1].data
-        assert v0 != v1
-
-
-@register_op(2, equiv_func=sequential_equiv_func)
-class AssertLessThan(Op):
-    def forward(self) -> None:
-        v0 = self.deps[0].data
-        v1 = self.deps[1].data
-        assert v0 < v1
-
-
-@register_op(2, equiv_func=sequential_equiv_func)
-class AssertNoMoreThan(Op):
-    def forward(self) -> None:
-        v0 = self.deps[0].data
-        v1 = self.deps[1].data
-        assert v0 <= v1
 
 
 @register_opt("topo_validate")
@@ -602,57 +636,158 @@ class Power(Op):
 
     @classmethod
     def topo_fuse(cls, *deps: "Op") -> "Op":
-        x, exp = deps
+        frac, exp = deps
         exp_data = exp.data
         assert isinstance(exp_data, Fraction) and \
-            exp_data != One and exp_data != Zero, x.info()
-        m_dict = get_monomial_dict(x)
-        frac_data = m_dict[-1]
-        validate_exp(frac_data, exp_data)
-        scalar_data = frac_data ** exp_data
-        scalar = OpDef.scalar(scalar_data)
+            exp_data != One and exp_data != Zero, \
+            "invalid exp_data: {}, ".format(exp_data) + \
+            "run degenerate and toscalar first"
+        m_dict = get_monomial_dict(frac)
         if len(m_dict) == 1:
+            data = m_dict[-1]
+            validate_exp(data, exp_data)
+            scalar_data = data ** exp_data
+            scalar = OpDef.scalar(scalar_data)
             return scalar
-        denominator = exp_data.denominator
-        if denominator % 2 != 1:
-            flag = True
-            for op_id, scalar_data in m_dict.items():
+        assert m_dict[-1] != Zero, m_dict[-1]
+        deno, nume = exp_data.denominator, exp_data.numerator
+        if nume < 0:
+            # in case that: exp < 0
+            # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
+            # for op with op_id as i_n
+            # validate op is not equal to zero
+            for op_id, data in m_dict.items():
                 if op_id == -1:
+                    assert data != Zero
                     continue
-                assert isinstance(scalar_data, Fraction), scalar_data
-                numerator = scalar_data.numerator
-                if numerator < 2*denominator or \
-                    numerator % (2*denominator) == 1:
-                    flag = False
-                    break
-            if not flag:
-                cnt = 0
-                for op_id, scalar_data in m_dict.items():
-                    if op_id == -1:
-                        continue
-                    assert isinstance(scalar_data, Fraction), scalar_data
-                    if scalar_data.denominator % 2 == 1:
-                        cnt += 1
-                if not cnt > 1:
-                    one = OpDef.scalar(1)
-                    op = OpDef.monomial(one, x, exp)
-                    return op
-        ndeps = [scalar]
-        for op_id, scalar_data in m_dict.items():
+                assert isinstance(data, Fraction)
+                deno_in, nume_in = data.denominator, data.numerator
+                if nume_in < 0:
+                    continue
+                op = OpDef.get_op(op_id)
+                OpDef.assertnotzero(op)
+        if deno % 2 == 0:
+            # in case that: exp = Fraction(odd_num, even_num)
+            # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
+            # m_dict will first be decomposed into nm_dict and sm_dict
+            # where
+            # nm_dict: {-1: abs(scalar_data), j1: f1, j2: f2, ... }
+            # where fn = Fraction(odd_num, even_num) or 
+            # fn = Fraction(even_num, odd_num)
+            # sm_dict: {-1, sgn(scalar_data), k1: g1, k2: g2, ... }
+            # where gn = Fraction(odd_num, even_num)
+            nm_dict = {}
+            sm_dict = {}
+            for op_id, data in m_dict.items():
+                if op_id == -1:
+                    if data > Zero:
+                        nm_dict[-1] = data
+                        sm_dict[-1] = One
+                    else:
+                        nm_dict[-1] = -data
+                        sm_dict[-1] = MinusOne
+                    continue
+                deno_in, nume_in = data.denominator, data.numerator
+                if nume_in % 2 == 0 or deno_in % 2 == 0:
+                    cop = OpDef.get_op(op_id)
+                    assert not isinstance(cop, Abs), type(cop)
+                    nm_dict[op_id] = data
+                    continue
+                sm_dict[op_id] = data
+            # create a mial op using sm_dict, with op_id as sid
+            sop = create_mial_op(sm_dict, "monomial")
+            sid = sop.id
+            # merge nm_dict and sm_dict into a new m_dict
+            OpDef.assertexceedzero(sop)
+            if sid not in nm_dict:
+                nm_dict[sid] = One
+            else:
+                nm_dict[sid] += One
+                assert isinstance(nm_dict[sid], Fraction)
+            m_dict = nm_dict
+        # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
+        # exp = Fraction(nume, deno)
+        # in case that en = Fraction(even_num, odd_num)
+        # and deno = k * even_num
+        # the op with op_id as i_n should be turned into abs(op)
+        # store the transformed and untransformed op in nm_dict
+        nm_dict = m_dict.copy()
+        for op_id, data in m_dict.items():
             if op_id == -1:
                 continue
-            assert isinstance(scalar_data, Fraction)
-            dep = OpDef.get_op(op_id)
-            ndeps.append(dep)
-            nexp_data = scalar_data * exp_data
-            assert isinstance(nexp_data, Fraction), nexp_data
-            nexp = OpDef.scalar(nexp_data)
-            ndeps.append(nexp)
-        if len(ndeps) == 3 and ndeps[0].data == One and \
-            ndeps[2].data == One:
-            return ndeps[1]
-        op = OpDef.monomial(*ndeps)
+            nume_in = data.numerator
+            if nume_in % 2 == 0 and deno >= nume_in and \
+                deno % nume_in == 0:
+                del nm_dict[op_id]
+                cop = OpDef.get_op(op_id)
+                nop = OpDef.abs(cop)
+                nid = nop.id
+                nm_dict[nid] = data
+        # update m_dict by power
+        m_dict = nm_dict.copy()
+        for op_id, data in nm_dict.items():
+            if op_id == -1:
+                scalar_data = data ** exp_data
+                m_dict[-1] = scalar_data
+                continue
+            ndata = data * exp_data
+            m_dict[op_id] = ndata
+        # create monomial op
+        op = create_mial_op(m_dict, "monomial")
         return op
+        # # TODO
+        # x, exp = deps
+        # exp_data = exp.data
+        # assert isinstance(exp_data, Fraction) and \
+            # exp_data != One and exp_data != Zero, x.info()
+        # m_dict = get_monomial_dict(x)
+        # frac_data = m_dict[-1]
+        # validate_exp(frac_data, exp_data)
+        # scalar_data = frac_data ** exp_data
+        # scalar = OpDef.scalar(scalar_data)
+        # if len(m_dict) == 1:
+            # return scalar
+        # denominator = exp_data.denominator
+        # if denominator % 2 != 1:
+            # flag = True
+            # for op_id, scalar_data in m_dict.items():
+                # if op_id == -1:
+                    # continue
+                # assert isinstance(scalar_data, Fraction), scalar_data
+                # numerator = scalar_data.numerator
+                # if numerator < 2*denominator or \
+                    # numerator % (2*denominator) == 1:
+                    # flag = False
+                    # break
+            # if not flag:
+                # cnt = 0
+                # for op_id, scalar_data in m_dict.items():
+                    # if op_id == -1:
+                        # continue
+                    # assert isinstance(scalar_data, Fraction), scalar_data
+                    # if scalar_data.numerator % 2 == 0 and \
+                        # scalar_data.denominator % 2 == 1:
+                        # cnt += 1
+                # if cnt > 1:
+                    # one = OpDef.scalar(1)
+                    # op = OpDef.monomial(one, x, exp)
+                    # return op
+        # ndeps = [scalar]
+        # for op_id, scalar_data in m_dict.items():
+            # if op_id == -1:
+                # continue
+            # assert isinstance(scalar_data, Fraction)
+            # dep = OpDef.get_op(op_id)
+            # ndeps.append(dep)
+            # nexp_data = scalar_data * exp_data
+            # assert isinstance(nexp_data, Fraction), nexp_data
+            # nexp = OpDef.scalar(nexp_data)
+            # ndeps.append(nexp)
+        # if len(ndeps) == 3 and ndeps[0].data == One and \
+            # ndeps[2].data == One:
+            # return ndeps[1]
+        # op = OpDef.monomial(*ndeps)
+        # return op
 
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> None:
@@ -802,7 +937,11 @@ def register_op_def(cls):
             OpDef.set_id(op)
             for equiv in equivs:
                 OpDef.equiv_map[equiv] = op
-            OpDef.id_map[op.id] = op
+            op_id = op.id
+            OpDef.id_map[op_id] = op
+            op_type = getattr(op_cls, "op_type")
+            if op_type.startswith("assert"):
+                OpDef.assert_map[op_id] = op
             return op
         return wrapper
 
@@ -821,6 +960,11 @@ class OpDef(object):
     equiv_map: Dict[str, "Op"] = {}
     id_map: Dict[int, "Op"] = {}
     scalar_map: Dict["Fraction", "Op"] = {}
+    assert_map: Dict[int, "Op"] = {}
+
+    @staticmethod
+    def get_assert_ops() -> List["Op"]:
+        return list(OpDef.assert_map.values())
 
     @staticmethod
     def reset():
@@ -828,6 +972,7 @@ class OpDef(object):
         OpDef.equiv_map.clear()
         OpDef.id_map.clear()
         OpDef.scalar_map.clear()
+        OpDef.assert_map.clear()
 
     @staticmethod
     def set_id(op: "Op") -> None:

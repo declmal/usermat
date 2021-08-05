@@ -133,6 +133,7 @@ def register_graph_opt(cls):
         def wrapper(self):
             self.inps, self.outs = \
                 topo_visit(self.inps, self.outs, callback)
+            # update assert_ops
         return wrapper
 
     for callback in dir(Op):
@@ -144,15 +145,35 @@ def register_graph_opt(cls):
 @register_graph_opt
 class Graph(object):
     def __init__(
-        self, inps: List["Op"], outs: List["Op"],
+        self, inps: List["Op"], outs: List["Op"], assert_ops: List["Op"]=[],
         out_appends: Optional[List[str]]=None) -> None:
-        self.inps: List["Op"] = inps
-        self.outs: List["Op"] = outs
-        ids = {op.id for op in topo_sort(self.outs)}
-        for inp in self.inps:
+        # validate and set inps
+        graph_op_ids = {op.id for op in topo_sort(outs)}
+        inp_ids = set()
+        for inp in inps:
             inp_id = inp.id
-            assert inp_id in ids, \
-                "invalid inp_id: {}, ids: {}".format(inp_id, ids)
+            assert inp_id in graph_op_ids, \
+                "inp_id: {} not found in graph_op_ids: {}".format(
+                    inp_id, graph_op_ids)
+            assert inp_id not in inp_ids, \
+                "duplicate ops, inp_id: {}".format(inp_id)
+        self.inps: List["Op"] = inps
+        # validate and set outs
+        out_ids = set()
+        for out in outs:
+            out_id = out.id
+            assert out_id not in out_ids, \
+                "duplicate ops, out_id: {}".format(out_id)
+        self.outs: List["Op"] = outs
+        # validate assert_ops
+        self.assert_op_ids = set()
+        for op in assert_ops:
+            op_id = op.id
+            assert op_id not in self.assert_op_ids, \
+                "duplicate ops, op_id: {}".format(op_id)
+            self.assert_op_ids.add(op_id)
+        self.assert_ops: List["Op"] = assert_ops
+        # out_appends: suffix that comes after "##" of the output symbol name
         self.out_appends: Optional[List[str]] = out_appends \
             if out_appends is not None else \
             ["Out:{}".format(i) for i in range(len(self.outs))]
@@ -177,6 +198,8 @@ class Graph(object):
         visited = set()
         for out in self.outs:
             op_forward(out, visited)
+        for assert_op in self.assert_ops:
+            op_fowardd(assert_op)
         return [out.data for out in self.outs]
 
     def display(self) -> None:
@@ -218,12 +241,23 @@ class Graph(object):
                 name = "Diff:{},{}".format(i, j)
                 out_appends.append(name)
         outs = [o for o in out.diff for out in self.outs]
-        return Graph(self.inps, outs, out_appends=out_appends)
+        return Graph(
+            self.inps, outs, out_appends=out_appends,
+            assert_ops=self.assert_ops)
 
     def pre_optimize(self) -> None:
         self.standardize()
         self.toscalar()
         self.degenerate()
+        self.graph_assertion()
+
+    def graph_assertion(self) -> None:
+        assert_ops = od.get_assert_ops()
+        for op in assert_ops:
+            op_id = op.id
+            if op_id not in self.assert_op_ids:
+                self.assert_ops.append(op)
+                self.assert_op_ids.add(op_id)
 
     def post_optimize(self) -> None:
-        pass
+        self.graph_assertion()

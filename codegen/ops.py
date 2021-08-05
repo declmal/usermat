@@ -267,19 +267,31 @@ class Var(Op):
         self.diff[var_seq[self.id]] = OpDef.scalar(1)
 
 
+class AssertExceedZeroError(Exception):
+    pass
+
+
 @register_op(1, equiv_func=swappable_equiv_func)
 class AssertExceedZero(Op):
     @classmethod
     def fwd_func(cls, v: "Float") -> "Float":
-        assert v >= Zero
+        # TODO: unittest test_assert_exceed_zero.py
+        if v < Zero:
+            raise AssertExceedZeroError("value: {}".format(v))
         return Zero
+
+
+class AssertNotZeroError(Exception):
+    pass
 
 
 @register_op(1, equiv_func=swappable_equiv_func)
 class AssertNotZero(Op):
     @classmethod
     def fwd_func(cls, v: "Float") -> "Float":
-        assert v != Zero
+        # TODO: unittest test_assert_not_zero.py
+        if v == Zero:
+            raise AssertNotZeroError("value: {}".format(v))
         return Zero
 
 
@@ -331,7 +343,6 @@ class Monomial(Op):
         ndeps = [scalar] + ndeps
         op = OpDef.monomial(*ndeps)
         return op
-
 
 def get_monomial_dict(op: "Op") -> Dict[int,"Float"]:
     if isinstance(op, Monomial):
@@ -961,7 +972,8 @@ def register_op_def(cls):
             OpDef.id_map[op_id] = op
             op_type = getattr(op_cls, "op_type")
             if op_type.startswith("assert"):
-                OpDef.assert_map[op_id] = op
+                assert op_id not in OpDef.assert_set
+                OpDef.assert_set.add(op_id)
             return op
         return wrapper
 
@@ -980,11 +992,12 @@ class OpDef(object):
     equiv_map: Dict[str, "Op"] = {}
     id_map: Dict[int, "Op"] = {}
     scalar_map: Dict["Fraction", "Op"] = {}
-    assert_map: Dict[int, "Op"] = {}
+    assert_set: Set[int] = set()
 
     @staticmethod
     def get_assert_ops() -> List["Op"]:
-        return list(OpDef.assert_map.values())
+        return list([
+            OpDef.get_op(op_id) for op_id in OpDef.assert_set])
 
     @staticmethod
     def reset():
@@ -992,7 +1005,7 @@ class OpDef(object):
         OpDef.equiv_map.clear()
         OpDef.id_map.clear()
         OpDef.scalar_map.clear()
-        OpDef.assert_map.clear()
+        OpDef.assert_set.clear()
 
     @staticmethod
     def set_id(op: "Op") -> None:

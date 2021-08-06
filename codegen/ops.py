@@ -1,6 +1,7 @@
 from typing import Dict, List, Callable, Optional, Union, Any, Set
 import logging
 from fractions import Fraction
+from enum import Enum, auto
 
 import numpy as np
 import mxnet as mx
@@ -14,7 +15,6 @@ GradFuncType = Callable[["np.float64"], "np.float64"]
 FwdFuncType = Callable[[List["np.float64"]], "np.float64"]
 EquivFuncType = Callable[[str, List["Op"]], List[str]]
 OpEquivFuncType = Callable[[List["Op"]], List[str]]
-
 """ equivalent functions
 """
 default_equiv_func: "EquivFuncType" = lambda op_type, ops: []
@@ -25,6 +25,12 @@ swappable_equiv_func: "EquivFuncType" = \
     lambda op_type, ops: [
         "{}:[{}]".format(op_type, ",".join(
             sorted([str(op.id) for op in ops])))]
+""" Op Sign Types
+"""
+class OpSign(Enum):
+    NON_NEGATIVE = auto()
+    NON_POSITIVE = auto()
+    INDEFINITE = auto()
 
 # Zero = np.float64(0.0)
 # One = np.float64(1.0)
@@ -105,14 +111,13 @@ class Op(object):
         self.id: int = -1
         self.diff: List["Op"] = []
         self.sym: Optional["mx.sym.Symbol"] = None
+        self.sign: Optional["OpSign"] = None
 
-    def token(self):
-        return self.id
+    def set_id(self, op_id: int) -> None:
+        self.id = op_id
 
-    def forward(self) -> None:
-        vs: List["np.float64"] = \
-            [np.float64(dep.data) for dep in self.deps]
-        self.data = self.__class__.fwd_func(*vs)
+    def set_data(self, data: "Float") -> None:
+        self.data = data
 
     @classmethod
     def default_op(cls, *deps: "Op") -> "Op":
@@ -151,27 +156,10 @@ class Op(object):
     def topo_fuse(cls, *deps: "Op") -> "Op":
         return cls.default_op(*deps)
 
-    @classmethod
-    def topo_discrete_exp(cls, *deps: "Op") -> "Op":
-        # should be run after topo_fuse pass
-        return cls.default_op(*deps)
-
-    @classmethod
-    def dfs_fusepower(cls, *deps: "Op") -> "Op":
-        pass
-
-    def set_id(self, op_id: int) -> None:
-        self.id = op_id
-
-    def set_data(self, data: "Float") -> None:
-        self.data = data
-
-    def backward(self, grad: "Float"=cast_fraction(1)) -> None:
-        grad = cast_fraction(grad)
-        self.grad += grad
-        for i, dep in enumerate(self.deps):
-            backward_grad = self._grad_fns[i](grad)
-            dep.backward(backward_grad)
+    def forward(self) -> None:
+        vs: List["np.float64"] = \
+            [np.float64(dep.data) for dep in self.deps]
+        self.data = self.__class__.fwd_func(*vs)
 
     def reset(self) -> None:
         self.data = cast_fraction(0)
@@ -200,15 +188,20 @@ class Op(object):
         else:
             self.sym = mx.sym.add_n(*dep_syms, name=name)
 
+    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
+        raise NotImplementedError
+
     @classmethod
     def validate(cls, *deps: "Op") -> None:
         pass
 
-    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
-        raise NotImplementedError
-
-    def autograph_forward(self) -> "Op":
-        raise NotImplementedError
+    # TODO: deprecate
+    def backward(self, grad: "Float"=cast_fraction(1)) -> None:
+        grad = cast_fraction(grad)
+        self.grad += grad
+        for i, dep in enumerate(self.deps):
+            backward_grad = self._grad_fns[i](grad)
+            dep.backward(backward_grad)
 
 supported_opts: Set[str] = { \
     k for k, v in Op.__dict__.items() \
@@ -249,7 +242,6 @@ class Scalar(Op):
 
 
 @register_opt("topo_validate")
-@register_opt("topo_discrete_exp")
 @register_opt("topo_fuse")
 @register_opt("topo_standardize")
 @register_opt("topo_degenerate")
@@ -271,7 +263,6 @@ class AssertExceedZeroError(Exception):
     pass
 
 
-@register_opt("topo_discrete_exp")
 @register_op(1, equiv_func=swappable_equiv_func)
 class AssertExceedZero(Op):
     @classmethod
@@ -321,29 +312,6 @@ class Monomial(Op):
             else:
                 product *= v[i]**v[i+1]
         return product
-
-    @classmethod
-    def topo_discrete_exp(cls, *deps: "Op") -> "Op":
-        scalar = deps[0]
-        scalar_data = scalar.data
-        ndeps = []
-        for i in range(1, len(deps), 2):
-            op, scalar_in = deps[i:i+2]
-            scalar_data_in = scalar_in.data
-            assert isinstance(scalar_data_in, Fraction), scalar_data_in
-            deno = scalar_data_in.denominator
-            nume = scalar_data_in.numerator
-            if deno % 2 == 1 and not isinstance(op, Abs):
-                # TODO: check whether op is positive
-                nop = OpDef.abs(op)
-                ndeps.append(nop)
-                scalar_data *= MinusOne ** nume
-            else:
-                ndeps.append(op)
-            ndeps.append(scalar_in)
-        ndeps = [scalar] + ndeps
-        op = OpDef.monomial(*ndeps)
-        return op
 
 def get_monomial_dict(op: "Op") -> Dict[int,"Float"]:
     if isinstance(op, Monomial):
@@ -712,16 +680,17 @@ class Power(Op):
                     continue
                 op = OpDef.get_op(op_id)
                 OpDef.assertnotzero(op)
-        if deno % 2 == 0:
+        if deno % 2 == 0 or deno > 1:
             # in case that: exp = Fraction(odd_num, even_num)
             # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
             # m_dict will first be decomposed into nm_dict and sm_dict
             # where
             # nm_dict: {-1: abs(scalar_data), j1: f1, j2: f2, ... }
             # where fn = Fraction(odd_num, even_num) or 
-            # fn = Fraction(even_num, odd_num)
+            #            Fraction(even_num, odd_num) or
+            #            Fraction(odd_num1, odd_num2>1)
             # sm_dict: {-1, sgn(scalar_data), k1: g1, k2: g2, ... }
-            # where gn = Fraction(odd_num, even_num)
+            # where gn = Fraction(odd_num, 1)
             nm_dict = {}
             sm_dict = {}
             for op_id, data in m_dict.items():
@@ -736,24 +705,16 @@ class Power(Op):
                 deno_in, nume_in = data.denominator, data.numerator
                 cop = OpDef.get_op(op_id)
                 if nume_in % 2 == 0 or deno_in % 2 == 0 or \
-                    isinstance(cop, Abs):
+                    isinstance(cop, Abs) or deno_in > 1:
                     if nume_in % 2 == 0:
                         assert not isinstance(cop, Abs), type(cop)
                     nm_dict[op_id] = data
                     continue
                 sm_dict[op_id] = data
             if len(sm_dict) > 1:
-                # create a mial op using sm_dict, with op_id as sid
-                sop = create_mial_op(sm_dict, "monomial")
-                sid = sop.id
-                # merge nm_dict and sm_dict into a new m_dict
-                OpDef.assertexceedzero(sop)
-                if sid not in nm_dict:
-                    nm_dict[sid] = One
-                else:
-                    # unittest test_power_4.py
-                    nm_dict[sid] += One
-                    assert isinstance(nm_dict[sid], Fraction)
+                OpDef.assertexceedzero(frac)
+                frac_id = frac.id
+                m_dict = {-1: One, frac_id: One}
             else:
                 assert -1 in sm_dict, sm_dict.keys()
                 scalar_data = sm_dict[-1]
@@ -762,7 +723,7 @@ class Power(Op):
                     raise ExpContradictError(
                         "contradictory exp_data: {}, ".format(exp_data) + \
                         "dep_ids: {}".format([dep.id for dep in deps]))
-            m_dict = nm_dict
+                m_dict = nm_dict
         # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
         # exp = Fraction(nume, deno)
         # in case that en = Fraction(even_num, odd_num)
@@ -869,30 +830,6 @@ class Divide(Op):
         _pow = OpDef.power(y, minus_one)
         op = OpDef.multiply(x, _pow)
         return op
-
-    # TODO: to deprecate
-    def autograph_backward(self, var_seq: Dict[int,int]) -> None:
-        raise RuntimeError(
-            "Divide Op is not supported in autograph_backward")
-        # x0, x1 = self.deps
-        # d0, d1 = x0.diff, x1.diff
-        # self.diff.clear()
-        # for i in range(len(d0)):
-            # if d0[i] is None:
-                # if d1[i] is None:
-                    # op = None
-                # else:
-                    # op1 = OpDef.multiply(self, d1[i])
-                    # op2 = OpDef.divide(op1, x1)
-                    # op = OpDef.negative(op2)
-            # else:
-                # if d1[i] is None:
-                    # op = OpDef.divide(d0[i], x1)
-                # else:
-                    # op1 = OpDef.multiply(self, d1[i])
-                    # op2 = OpDef.subtract(d0[i], op1)
-                    # op = OpDef.divide(op2, x1)
-            # self.diff.append(op)
 
 def cnd_auto_backward(
     deps: List["Op"], od_func: Callable[[List["Op"]], "Op"],

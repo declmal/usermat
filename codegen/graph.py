@@ -82,24 +82,6 @@ def topo_visit(
     nassert_ops = [graph[op_id] for op_id in assert_op_ids]
     return ninps, nouts, nassert_ops
 
-def dfs(op: "Op", visited: Set[int], callback: str, **kwargs) -> "Op":
-    assert op.id != -1
-    if op.id in visited:
-        return op
-    visited.add(op.id)
-    ndeps = []
-    for dep in op.deps:
-        ndep = dfs(op, visited, callback, **kwargs)
-        ndeps.append(ndep)
-    dfs_func = get_opt(op, callback)
-    nop = dfs_func(*ndeps)
-    return nop
-
-def dfs_visit(
-    inps: List["Op"], outs: List["Op"], callback: str) -> List["Op"]:
-    # TODO: implement
-    return ninps, nouts
-
 def register_dfs(impl):
     def dfs(op: "Op", visited: Set[int], **kwargs) -> None:
         assert op.id != -1, "invalid id: {}".format(op.id)
@@ -126,6 +108,10 @@ def op_display(op: "Op") -> None:
 @register_dfs
 def op_to_sym(op: "Op") -> None:
     op.to_sym()
+
+@register_dfs
+def op_infer_sign(op: "Op") -> None:
+    op.infer_sign()
 
 @register_dfs
 def op_autograph_backward(op: "Op", **kwargs) -> None:
@@ -190,11 +176,6 @@ class Graph(object):
     def get_inp_size(self):
         return len(self.inps)
 
-    def reset(self) -> None:
-        visited = set()
-        for out in self.outs:
-            op_reset(out, visited)
-
     def set_input(self, *datas: "Float") -> None:
         assert len(datas) == len(self.inps), \
             "invalid number of datas: {}, expected: {}".format(
@@ -202,16 +183,32 @@ class Graph(object):
         for i, inp in enumerate(self.inps):
             inp.set_data(cast_float(datas[i]))
 
+    def reset(self) -> None:
+        visited = set()
+        for assert_op in self.assert_ops:
+            op_reset(assert_op, visited)
+        for out in self.outs:
+            op_reset(out, visited)
+
+    def infer_sign(self) -> None:
+        visited = set()
+        for assert_op in self.assert_ops:
+            op_infer_sign(assert_op, visited)
+        for out in self.outs:
+            op_infer_sign(out, visited)
+
     def forward(self) -> List["Float"]:
         visited = set()
-        for out in self.outs:
-            op_forward(out, visited)
         for assert_op in self.assert_ops:
             op_forward(assert_op, visited)
+        for out in self.outs:
+            op_forward(out, visited)
         return [out.data for out in self.outs]
 
     def display(self) -> None:
         visited = set()
+        for assert_op in self.assert_ops:
+            op_display(assert_op, visited)
         for out in self.outs:
             op_display(out, visited)
 

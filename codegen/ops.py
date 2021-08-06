@@ -271,6 +271,7 @@ class AssertExceedZeroError(Exception):
     pass
 
 
+@register_opt("topo_discrete_exp")
 @register_op(1, equiv_func=swappable_equiv_func)
 class AssertExceedZero(Op):
     @classmethod

@@ -53,12 +53,14 @@ def topo_sort(op_group: List["Op"]) -> List["Op"]:
     return topo_seq
 
 def topo_visit(
-    inps: List["Op"], outs: List["Op"], callback: str) -> List["Op"]:
+    inps: List["Op"], outs: List["Op"], assert_ops: List["Op"],
+    callback: str) -> List["Op"]:
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
+    assert_op_ids = [op.id for op in assert_ops]
     graph = {}
     od.reset() # reset the graph define here
-    for op in topo_sort(outs):
+    for op in topo_sort(outs + assert_ops):
         op_id = op.id
         if isinstance(op, Scalar):
             data = op.data
@@ -77,7 +79,8 @@ def topo_visit(
             graph[op_id] = nop
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
-    return ninps, nouts
+    nassert_ops = [graph[op_id] for op_id in assert_op_ids]
+    return ninps, nouts, nassert_ops
 
 def dfs(op: "Op", visited: Set[int], callback: str, **kwargs) -> "Op":
     assert op.id != -1
@@ -131,9 +134,11 @@ def op_autograph_backward(op: "Op", **kwargs) -> None:
 def register_graph_opt(cls):
     def graph_topo(callback):
         def wrapper(self):
-            self.inps, self.outs = \
-                topo_visit(self.inps, self.outs, callback)
-            # update assert_ops
+            self.inps, self.outs, self.assert_ops = \
+                topo_visit(self.inps, self.outs, self.assert_ops, callback)
+            self.assert_op_ids = {op.id for op in self.assert_ops}
+            assert len(self.assert_ops) == len(self.assert_op_ids)
+            self.graph_assertion()
         return wrapper
 
     for callback in dir(Op):
@@ -173,6 +178,9 @@ class Graph(object):
                 "duplicate ops, op_id: {}".format(op_id)
             self.assert_op_ids.add(op_id)
         self.assert_ops: List["Op"] = assert_ops
+        # no overlapping between out_ids and assert_op_ids
+        total_out_ids = self.assert_op_ids.union(out_ids)
+        assert len(total_out_ids) == len(self.assert_op_ids) + len(out_ids)
         # out_appends: suffix that comes after "##" of the output symbol name
         self.out_appends: Optional[List[str]] = out_appends \
             if out_appends is not None else \
@@ -199,7 +207,7 @@ class Graph(object):
         for out in self.outs:
             op_forward(out, visited)
         for assert_op in self.assert_ops:
-            op_fowardd(assert_op)
+            op_forward(assert_op, visited)
         return [out.data for out in self.outs]
 
     def display(self) -> None:
@@ -211,7 +219,13 @@ class Graph(object):
         visited = set()
         for out in self.outs:
             op_to_sym(out, visited)
+        for assert_op in self.assert_ops:
+            op_to_sym(assert_op, visited)
         sym_outs = []
+        for assert_op in self.assert_ops:
+            assert assert_op is not None and out.sym is not None
+            sym = assert_op.sym
+            sym_outs.append(sym)
         for i, out in enumerate(self.outs):
             assert out is not None and out.sym is not None
             name = "{}##{}".format(
@@ -249,7 +263,6 @@ class Graph(object):
         self.standardize()
         self.toscalar()
         self.degenerate()
-        self.graph_assertion()
 
     def graph_assertion(self) -> None:
         assert_ops = od.get_assert_ops()
@@ -260,4 +273,4 @@ class Graph(object):
                 self.assert_op_ids.add(op_id)
 
     def post_optimize(self) -> None:
-        self.graph_assertion()
+        pass

@@ -256,7 +256,6 @@ class Graph(object):
         # abs,sin,cos,lessthan,nomorethan
         # polynomial,monomial
         # add,power,multiply
-        self.toscalar()
         self.degenerate()
         self.fuse()
         # var,scalar

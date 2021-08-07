@@ -251,7 +251,7 @@ class Op(object):
         return cls.default_op(*deps)
 
     @classmethod
-    def topo_toscalar(cls, *deps: "Op") -> "Op":
+    def topo_degenerate(cls, *deps: "Op") -> "Op":
         flag = True
         datas = []
         for dep in deps:
@@ -265,10 +265,6 @@ class Op(object):
         cdata = cls.fwd_func(*datas)
         op = OpDef.scalar(cdata)
         return op
-
-    @classmethod
-    def topo_degenerate(cls, *deps: "Op") -> "Op":
-        return cls.default_op(*deps)
 
     @classmethod
     def topo_fuse(cls, *deps: "Op") -> "Op":
@@ -368,12 +364,11 @@ class Scalar(Op):
 
 
 @register_opt("topo_fuse")
-@register_opt("topo_degenerate")
 @register_opt("topo_standardize")
 @register_op(0)
 class Var(Op):
     @classmethod
-    def topo_toscalar(cls, *deps: "Op") -> "Op":
+    def topo_degenerate(cls, *deps: "Op") -> "Op":
         return cls.default_op(*deps)
 
     def forward(self):
@@ -478,7 +473,52 @@ class Monomial(Op):
         return product
 
     def autograph_backward(self, var_seq: Dict[int, int]) -> None:
+        diffs = []
+        for i in range(1, len(self.deps), 2):
+            dep = self.deps[i]
+            diff = dep.diff
+            diffs.append(diff)
+        assert len(diffs) > 0, "run degenerate first"
+        n = len(diffs[0])
+        scalar = self.deps[0]
+        # create m_dict_ref
+        self.diff.clear()
         raise NotImplementedError
+
+    @classmethod
+    def topo_degenerate(cls, *deps: "Op") -> "Op":
+        scalar = deps[0]
+        if len(deps) == 1:
+            return scalar
+        scalar_data = scalar.data
+        ndeps = []
+        for i in range(1, len(deps), 2):
+            frac, exp = deps[i], deps[i+1]
+            exp_data = exp.data
+            assert isinstance(exp_data, Fraction), exp_data
+            nume = exp_data.numerator
+            if nume == 0:
+                continue
+            if isinstance(frac, Scalar):
+                frac_data = frac.data
+                validate_exp(frac_data, exp_data)
+                scalar_data_in = frac ** exp_data
+                scalar_data *= scalar_data_in
+                continue
+            ndeps.append(frac, exp)
+        if scalar_data == Zero:
+            # TODO: unittest
+            op = OpDef.scalar(Zero)
+            return op
+        if len(ndeps) == 2 and scalar_data == One:
+            frac, exp = ndeps
+            exp_data = exp.data
+            deno, nume = exp_data.denominator, exp_data.numerator
+            assert isinstance(exp_data, Fraction), exp_data
+            if deno == 1 and nume == 1:
+                # TODO: unittest
+                return frac
+        return cls.default_op(**deps)
 
 def get_monomial_dict(op: "Op") -> Dict[int,"Float"]:
     if isinstance(op, Monomial):
@@ -607,7 +647,6 @@ class Negative(Op):
 
 
 @register_opt("topo_fuse")
-@register_opt("topo_toscalar")
 @register_opt("topo_degenerate")
 @register_opt("topo_standardize")
 @register_op(1, equiv_func=sequential_equiv_func)
@@ -624,7 +663,6 @@ class Sin(Op):
 
 
 @register_opt("topo_standardize")
-@register_opt("topo_toscalar")
 @register_opt("topo_degenerate")
 @register_opt("topo_fuse")
 @register_op(1, equiv_func=sequential_equiv_func)
@@ -653,7 +691,6 @@ class Cos(Op):
 
 
 @register_opt("topo_standardize")
-@register_opt("topo_toscalar")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Add(Op):
     _grad_fns: List["GradFuncType"] = [
@@ -697,7 +734,7 @@ class Add(Op):
             return y
         if isinstance(y, Scalar) and y.data == Zero:
             return x
-        return cls.default_op(*deps)
+        return super().topo_degenerate(*deps)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -761,21 +798,16 @@ class Multiply(Op):
         return op
 
     @classmethod
-    def topo_toscalar(cls, *deps: "Op") -> "Op":
+    def topo_degenerate(cls, *deps: "Op") -> "Op":
         x, y = deps
         if isinstance(x, Scalar) and x.data == Zero or \
             isinstance(y, Scalar) and y.data == Zero:
             return OpDef.scalar(0)
-        return cls.default_op(*deps)
-
-    @classmethod
-    def topo_degenerate(cls, *deps: "Op") -> "Op":
-        x, y = deps
         if isinstance(x, Scalar) and x.data == One:
             return y
         if isinstance(y, Scalar) and y.data == One:
             return x
-        return cls.default_op(*deps)
+        return super().topo_degenerate(*deps)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x0, x1 = self.deps
@@ -788,13 +820,14 @@ class Multiply(Op):
             self.diff.append(dop)
 
 def validate_exp(frac_data: "Float", exp_data: "Fraction") -> None:
+    deno, nume - exp_data.denominator, exp_data.numerator
     if frac_data == Zero:
-        assert exp_data >= Zero, \
+        assert nume >= Zero, \
             "zero division occurs: frac_data: {}".format(
                 frac_data) + ", exp_data: {}".format(exp_data)
     elif frac_data < Zero:
-        assert exp_data.denominator % 2 == 1, \
-            "the denominator of exp must be odd for negative fraction," + \
+        assert deno == 1, \
+            "the denominator of exp must be one for negative fraction," + \
             " frac_data: {}, exp_data: {}".format(frac_data, exp_data)
 
 
@@ -820,8 +853,7 @@ class Power(Op):
         exp_data = exp.data
         assert isinstance(exp_data, Fraction) and \
             exp_data != One and exp_data != Zero, \
-            "invalid exp_data: {}, ".format(exp_data) + \
-            "run degenerate and toscalar first"
+            "invalid exp_data: {}, run degenerate first".format(exp_data)
         m_dict = get_monomial_dict(frac)
         if len(m_dict) == 1:
             data = m_dict[-1]
@@ -888,7 +920,7 @@ class Power(Op):
                     # unittest test_power_3.py
                     raise ExpContradictError(
                         "contradictory exp_data: {}, ".format(exp_data) + \
-                        "dep_ids: {}".format([dep.id for dep in self.deps]))
+                        "dep_ids: {}".format([dep.id for dep in deps]))
                 m_dict = nm_dict
         # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
         # exp = Fraction(nume, deno)
@@ -949,20 +981,23 @@ class Power(Op):
         return op
 
     @classmethod
-    def topo_toscalar(cls, *deps: "Op") -> None:
-        x, y = deps
-        if y.data == Zero:
-            op = OpDef.scalar(1)
-            return op
-        if isinstance(x, Scalar):
-            validate_exp(x.data, y.data)
-        return cls.default_op(*deps)
-
-    @classmethod
     def topo_degenerate(cls, *deps: "Op") -> None:
-        x, y = deps
-        if y.data == One:
-            return x
+        frac, exp = deps
+        exp_data = exp.data
+        assert isinstance(exp_data, Fraction), exp_data
+        nume = exp_data.numerator
+        if nume == 0:
+            op = OpDef.scalar(One)
+            return op
+        if isinstance(frac, Scalar):
+            frac_data = frac.data
+            validate_exp(frac_data, exp_data)
+            scalar_data = frac_data ** exp_data
+            op = OpDef.scalar(scalar_data)
+            return op
+        deno = exp_data.denominator
+        if deno == 1 and nume == 1:
+            return frac
         return cls.default_op(*deps)
 
     @classmethod
@@ -971,15 +1006,6 @@ class Power(Op):
         assert isinstance(exp, Scalar), \
             "type of deps[1]: {} must be scalar".format(
                 type(exp).__class__.__name__)
-        exp_data = exp.data
-        deno = exp_data.numerator
-        if nume < 0:
-            OpDef.assertnotzero(frac)
-        deno = exp_data.denominator
-        if deno > 1:
-            sign = OpSign.NON_NEGATIVE
-            frac.set_sign(sign)
-            OpDef.assertexceedzero(frac)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x, y = self.deps
@@ -1023,15 +1049,8 @@ def cnd_auto_backward(
         diff.append(dop)
     return diff
 
-def cnd_topo_degenerate(
-    default_op_func: Callable[[List["Op"]], "Op"], *deps: "Op") -> "Op":
-    lhs, rhs, lv, rv = deps
-    if lv.id == rv.id:
-        return lv
-    return default_op_func(*deps)
 
 @register_opt("topo_standardize")
-@register_opt("topo_toscalar")
 @register_opt("topo_fuse")
 @register_op(4, equiv_func=default_equiv_func)
 class LessThan(Op):
@@ -1048,7 +1067,11 @@ class LessThan(Op):
 
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> "Op":
-        return cnd_topo_degenerate(cls.default_op, *deps)
+        lhs, rhs, lv, rv = deps
+        if lv.id == rv.id:
+            # TODO: unittest
+            return lv
+        return super().topo_degenerate(*deps)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         od_func = getattr(OpDef, self.op_type)
@@ -1056,7 +1079,6 @@ class LessThan(Op):
 
 
 @register_opt("topo_standardize")
-@register_opt("topo_toscalar")
 @register_opt("topo_fuse")
 @register_op(4, equiv_func=default_equiv_func)
 class NoMoreThan(Op):
@@ -1073,7 +1095,11 @@ class NoMoreThan(Op):
 
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> "Op":
-        return cnd_topo_degenerate(cls.default_op, *deps)
+        lhs, rhs, lv, rv = deps
+        if lv.id == rv.id:
+            # TODO: unittest
+            return lv
+        return super().topo_degenerate(*deps)
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         od_func = getattr(OpDef, self.op_type)

@@ -38,7 +38,6 @@ class TestCnd(unittest.TestCase):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)
         dg = g.autograph_backward()
         # dg.to_sym(json_path=path.expanduser("~/mx2.json"))
-        dg.toscalar()
         dg.degenerate()
         dg.fuse()
         # dg.to_sym()

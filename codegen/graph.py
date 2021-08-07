@@ -258,7 +258,6 @@ class Graph(object):
         # add,power,multiply
         self.toscalar()
         self.degenerate()
-        self.infer_sign()
         self.fuse()
         # var,scalar
         # assertnotzero, assertexceedzero, assertnolessthanzero

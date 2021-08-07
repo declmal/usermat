@@ -345,9 +345,12 @@ class Scalar(Op):
     is_scalar: bool = True
 
     def infer_sign(self) -> "OpSign":
-        assert data is not None, "run set_data first"
-        return ZERO if self.data == Zero else \
-            (OpSign.POSITIVE if self.data > Zero else OpSign.NEGATIVE)
+        assert self.data is not None, "run set_data first"
+        if self.data == Zero:
+            return OpSign.ZERO
+        if self.data > Zero:
+            return OpSign.POSITIVE
+        return OpSign.NEGATIVE
 
     def forward(self):
         pass
@@ -474,6 +477,9 @@ class Monomial(Op):
                 product *= v[i]**v[i+1]
         return product
 
+    def autograph_backward(self, var_seq: Dict[int, int]) -> None:
+        raise NotImplementedError
+
 def get_monomial_dict(op: "Op") -> Dict[int,"Float"]:
     if isinstance(op, Monomial):
         deps = op.deps
@@ -589,7 +595,7 @@ class Negative(Op):
 
     def infer_sign(self) -> "OpSign":
         dep_sign = self.deps[0].get_sign()
-        sign = infer_negative_sign(sign)
+        sign = infer_negative_sign(dep_sign)
         return sign
 
     @classmethod
@@ -802,7 +808,7 @@ class Power(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0**v1
 
     def infer_sign(self) -> "OpSign":
-        frac, exp = deps
+        frac, exp = self.deps
         exp_data = exp.data
         frac_sign = frac.get_sign()
         sign = infer_power_sign(frac_sign, exp_data)
@@ -882,7 +888,7 @@ class Power(Op):
                     # unittest test_power_3.py
                     raise ExpContradictError(
                         "contradictory exp_data: {}, ".format(exp_data) + \
-                        "dep_ids: {}".format([dep.id for dep in deps]))
+                        "dep_ids: {}".format([dep.id for dep in self.deps]))
                 m_dict = nm_dict
         # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
         # exp = Fraction(nume, deno)
@@ -1085,7 +1091,7 @@ def register_op_def(cls):
         OpDef.scalar_map[nv] = op
         OpDef.id_map[op.id] = op
         sign = op.infer_sign()
-        OpDef.set_sign(sign)
+        OpDef.set_sign(op_id, sign)
         return op
 
     def op_func(op_cls):
@@ -1145,6 +1151,7 @@ class OpDef(object):
     def set_sign(op_id: int, sign: "OpSign"):
         assert op_id not in OpDef.sign_map, \
             "duplicate op id: {}, sign_map: {}".format(op_id, OpDef.sign_map)
+        OpDef.sign_map[op_id] = sign
 
     @staticmethod
     def get_sign(op_id: int) -> "OpSign":

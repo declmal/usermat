@@ -23,5 +23,5 @@ class TestPower3(unittest.TestCase):
         v7 = od.negative(v6)
         v8 = od.power(v7, od.scalar(Fraction(1,2)))
         g = Graph([v0,v4], [v8])
-        g.pre_optimize()
+        g.forward_optimize()
         self.assertRaises(ExpContradictError, g.fuse)

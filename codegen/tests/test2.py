@@ -25,7 +25,7 @@ class Test2(unittest.TestCase):
         v9 = od.multiply(v6, v8)
         g = Graph([v0,v1,v2,v3], [v9])
         # g.to_sym()
-        g.pre_optimize()
+        g.forward_optimize()
         # g.to_sym()
         a, b, c, d = [float(v) for v in [1, 2, 3, 4]]
         g.set_input(a,b,c,d)

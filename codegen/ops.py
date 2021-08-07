@@ -29,8 +29,123 @@ swappable_equiv_func: "EquivFuncType" = \
 """
 class OpSign(Enum):
     NON_NEGATIVE = auto()
+    POSITIVE = auto()
     NON_POSITIVE = auto()
+    NEGATIVE = auto()
+    NON_ZERO = auto()
+    ZERO = auto()
     INDEFINITE = auto()
+
+def infer_negative_sign(sign: "OpSign") -> "OpSign":
+    if sign == OpSign.POSITIVE:
+        return OpSign.NEGATIVE
+    if sign == OpSign.NEGATIVE:
+        return OpSign.POSITIVE
+    if sign == OpSign.NON_NEGATIVE:
+        return OpSign.NON_POSITIVE
+    if sign == OpSign.NON_POSITIVE:
+        return OpSign.NON_NEGATIVE
+    return sign
+
+def infer_add_sign(x_sign: "OpSign", y_sign: "OpSign") -> "OpSign":
+    lst1 = [OpSign.POSITIVE, OpSign.NON_NEGATIVE]
+    lst2 = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
+    if x_sign == OpSign.INDEFINITE or y_sign == OpSign.INDEFINITE:
+        return OpSign.INDEFINITE
+    if x_sign == OpSign.ZERO:
+        return y_sign
+    if y_sign == OpSign.ZERO:
+        return x_sign
+    if x_sign == OpSign.NON_ZERO or y_sign == OpSign.NON_ZERO:
+        return OpSign.INDEFINITE
+    if x_sign == y_sign:
+        return x_sign
+    if x_sign in lst1 and y_sign in lst1:
+        return OpSign.POSITIVE
+    if x_sign in lst2 and y_sign in lst2:
+        return OpSign.NEGATIVE
+    return OpSign.INDEFINITE
+
+def infer_abs_sign(sign: "OpSign") -> "OpSign":
+    if sign in [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]:
+        return OpSign.POSITIVE
+    return OpSign.NON_NEGATIVE
+
+def infer_multiply_sign(x_sign: "OpSign", y_sign: "OpSign") -> "OpSign":
+    if x_sign == OpSign.ZERO or y_sign == OpSign.ZERO:
+        return OpSign.ZERO
+    if x_sign == OpSign.INDEFINITE or y_sign == OpSign.INDEFINITE:
+        return OpSign.INDEFINITE
+    lst1 = [OpSign.POSITIVE, OpSign.NEGATIVE, OpSign.NON_ZERO]
+    if x_sign == OpSign.NON_ZERO:
+        sign = OpSign.NON_ZERO if y_sign in lst1 else OpSign.INDEFINITE
+        return sign
+    if y_sign == OpSign.NON_ZERO:
+        sign = OpSign.NON_ZERO if x_sign in lst1 else OpSign.INDEFINITE
+        return sign
+    lst2 = [OpSign.POSITIVE, OpSign.NON_NEGATIVE]
+    if x_sign == OpSign.NON_NEGATIVE:
+        sign = OpSign.NON_NEGATIVE if y_sign in lst2 else OpSign.NON_POSITIVE
+        return sign
+    if y_sign == OpSign.NON_NEGATIVE:
+        sign = OpSign.NON_NEGATIVE if x_sign in lst2 else OpSign.NON_POSITIVE
+        return sign
+    if x_sign == OpSign.NON_POSITIVE:
+        sign = OpSign.NON_POSITIVE if y_sign in lst2 else OpSign.NON_NEGATIVE
+        return sign
+    if y_sign == OpSign.NON_POSITIVE:
+        sign = OpSign.NON_POSITIVE if x_sign in lst2 else OpSign.NON_NEGATIVE
+        return sign
+    sign = OpSign.POSITIVE if x_sign == y_sign else OpSign.NEGATIVE
+    return sign
+
+def infer_power_sign(frac_sign: "Opsign", exp_data: "Fraction") -> "OpSign":
+    assert isinstance(exp_data, Fraction), exp_data
+    nume, deno = exp_data.numerator, exp_data.denominator
+    if nume < 0:
+        assert frac_sign != OpSign.ZERO
+    if deno > 1:
+        assert frac_sign != OpSign.NEGATIVE
+    if nume == 0:
+        return OpSign.POSITIVE
+    if nume % 2 == 0 or deno > 1:
+        sign = infer_abs_sign(frac_sign) if nume > 0 else OpSign.POSITIVE
+        return sign
+    if frac_sign == OpSign.NON_NEGATIVE:
+        sign = OpSign.NON_NEGATIVE if nume > 0 else OpSign.POSITIVE
+        return sign
+    if frac_sign == OpSign.NON_POSITIVE:
+        sign = OpSign.NON_POSITIVE if nume > 0 else OpSign.NEGATIVE
+        return sign
+    return frac_sign
+
+def infer_mutual_sign(x_sign: "OpSign", y_sign: "Opsign") -> "OpSign":
+    if x_sign == y_sign:
+        return x_sign
+    lst1 = [OpSign.ZERO, OpSign.POSITIVE, OpSign.NON_NEGATIVE]
+    if x_sign in lst1 and y_sign in lst1:
+        return OpSign.NON_NEGATIVE
+    lst2 = [OpSign.ZERO, OpSign.NEGATIVE, OpSign.NON_POSITIVE]
+    if x_sign in lst2 and y_sign in lst2:
+        return OpSign.NON_POSITIVE
+    lst3 = [OpSign.POSITIVE, OpSign.NEGATIVE, OpSign.NON_ZERO]
+    if x_sign in lst3 and y_sign in lst3:
+        return OpSign.NON_ZERO
+    return OpSign.INDEFINITE
+
+def infer_lessthan(a_sign: "OpSign", b_sign: "OpSign") -> bool:
+    if a_sign == OpSign.NEGATIVE and \
+        b_sign in [Opsign.ZERO, OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
+        return True
+    if a_sign in [OpSign.NON_POSITIVE, OpSign.ZERO] and b_sign == OpSign.POSITIVE:
+        return True
+    return False
+
+def infer_nomorethan(a_sign: "OpSign", b_sign: "OpSign") -> bool:
+    if a_sign in [OpSign.ZERO, OpSign.NON_POSITIVE, OpSign.NEGATIVE] and \
+        b_sign in [OpSign.ZERO, OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
+        return True
+    return False
 
 # Zero = np.float64(0.0)
 # One = np.float64(1.0)
@@ -111,13 +226,20 @@ class Op(object):
         self.id: int = -1
         self.diff: List["Op"] = []
         self.sym: Optional["mx.sym.Symbol"] = None
-        self.sign: Optional["OpSign"] = None
 
     def set_id(self, op_id: int) -> None:
         self.id = op_id
 
     def set_data(self, data: "Float") -> None:
         self.data = data
+
+    def get_sign(self) -> "OpSign":
+        op_id = self.id
+        sign = OpDef.get_sign(op_id)
+        return sign
+
+    def infer_sign(self) -> "OpSign":
+        return OpSign.INDEFINITE
 
     @classmethod
     def default_op(cls, *deps: "Op") -> "Op":
@@ -149,22 +271,22 @@ class Op(object):
         return cls.default_op(*deps)
 
     @classmethod
-    def topo_validate(cls, *deps: "Op") -> "Op":
-        return cls.default_op(*deps)
-
-    @classmethod
     def topo_fuse(cls, *deps: "Op") -> "Op":
         return cls.default_op(*deps)
 
-    def forward(self) -> None:
-        vs: List["np.float64"] = \
-            [np.float64(dep.data) for dep in self.deps]
-        self.data = self.__class__.fwd_func(*vs)
+    @classmethod
+    def topo_validate(cls, *deps: "Op") -> "Op":
+        pass
 
     def reset(self) -> None:
         self.data = cast_fraction(0)
         self.diff.clear()
         self.sym = None
+
+    def forward(self) -> None:
+        vs: List["np.float64"] = \
+            [np.float64(dep.data) for dep in self.deps]
+        self.data = self.__class__.fwd_func(*vs)
 
     def info(self, with_data=True) -> str:
         deps_info = ""
@@ -190,10 +312,6 @@ class Op(object):
 
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         raise NotImplementedError
-
-    @classmethod
-    def validate(cls, *deps: "Op") -> None:
-        pass
 
     # TODO: deprecate
     def backward(self, grad: "Float"=cast_fraction(1)) -> None:
@@ -226,6 +344,11 @@ def register_opt(callback: str):
 class Scalar(Op):
     is_scalar: bool = True
 
+    def infer_sign(self) -> "OpSign":
+        assert data is not None, "run set_data first"
+        return ZERO if self.data == Zero else \
+            (OpSign.POSITIVE if self.data > Zero else OpSign.NEGATIVE)
+
     def forward(self):
         pass
 
@@ -241,10 +364,9 @@ class Scalar(Op):
         self.diff = [OpDef.scalar(0)] * len(var_seq)
 
 
-@register_opt("topo_validate")
 @register_opt("topo_fuse")
-@register_opt("topo_standardize")
 @register_opt("topo_degenerate")
+@register_opt("topo_standardize")
 @register_op(0)
 class Var(Op):
     @classmethod
@@ -268,7 +390,7 @@ class AssertExceedZero(Op):
     @classmethod
     def fwd_func(cls, v: "Float") -> "Float":
         # TODO: unittest test_assert_exceed_zero.py
-        if v < Zero:
+        if v <= Zero:
             raise AssertExceedZeroError("value: {}".format(v))
         return Zero
 
@@ -287,9 +409,34 @@ class AssertNotZero(Op):
         return Zero
 
 
+class AssertNoLessThanZeroError(Exception):
+    pass
+
+
+@register_op(1, equiv_func=sequential_equiv_func)
+class AssertNoLessThanZero(Op):
+    @classmethod
+    def fwd_func(cls, v: "Float") -> "Float":
+        if v < Zero:
+            raise AssertNoLessThanZeroError("value: {}".format(v))
+        return Zero
+
 
 @register_op(None, equiv_func=sequential_equiv_func)
 class Polynomial(Op):
+    def infer_sign(self) -> "OpSign":
+        dep_signs = [dep.get_sign() for dep in self.deps]
+        signs = [dep_signs[0]]
+        for i in range(1, len(dep_signs), 2):
+            x_sign = dep_signs[i]
+            y_sign = dep_signs[i+1]
+            sign = infer_multiply_sign(x_sign, y_sign)
+            signs.append(sign)
+        sign = signs[0]
+        for cur_sign in signs[1:]:
+            sign = infer_add_sign(sign, cur_sign)
+        return sign
+
     @classmethod
     def fwd_func(cls, *v: "Float") -> "Float":
         summation = v[0]
@@ -303,6 +450,20 @@ class Polynomial(Op):
 
 @register_op(None, equiv_func=sequential_equiv_func)
 class Monomial(Op):
+    def infer_sign(self) -> "OpSign":
+        dep_signs = [dep.get_sign() for dep in self.deps]
+        signs = [dep_signs[0]]
+        for i in range(1, len(dep_signs), 2):
+            frac_sign = dep_signs[i]
+            exp = self.deps[i+1]
+            exp_data = exp.data
+            sign = infer_power_sign(frac_sign, exp_data)
+            signs.append(sign)
+        sign = signs[0]
+        for cur_sign in signs[1:]:
+            sign = infer_multiply_sign(sign, cur_sign)
+        return sign
+
     @classmethod
     def fwd_func(cls, *v: "Float") -> "Float":
         product = v[0]
@@ -426,6 +587,11 @@ def create_mial_op(m_dict: Dict[int,"Float"], op_type: str) -> "Op":
 class Negative(Op):
     fwd_func: FwdFuncType = lambda v: -v
 
+    def infer_sign(self) -> "OpSign":
+        dep_sign = self.deps[0].get_sign()
+        sign = infer_negative_sign(sign)
+        return sign
+
     @classmethod
     def topo_standardize(cls, deps: "Op") -> "Op":
         minus_one = OpDef.scalar(-1)
@@ -435,10 +601,9 @@ class Negative(Op):
 
 
 @register_opt("topo_fuse")
-@register_opt("topo_validate")
-@register_opt("topo_standardize")
 @register_opt("topo_toscalar")
 @register_opt("topo_degenerate")
+@register_opt("topo_standardize")
 @register_op(1, equiv_func=sequential_equiv_func)
 class Sin(Op):
     fwd_func: FwdFuncType = lambda v: np.sin(v)
@@ -460,6 +625,11 @@ class Sin(Op):
 class Abs(Op):
     fwd_func: FwdFuncType = lambda v: np.abs(v)
 
+    def infer_sign(self) -> "OpSign":
+        dep_sign = self.deps[0].get_sign()
+        sign = infer_abs_sign(dep_sign)
+        return sign
+
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x = self.deps[0]
         self.diff.clear()
@@ -476,7 +646,6 @@ class Cos(Op):
     fwd_func: FwdFuncType = lambda v: np.cos(v)
 
 
-@register_opt("topo_validate")
 @register_opt("topo_standardize")
 @register_opt("topo_toscalar")
 @register_op(2, equiv_func=swappable_equiv_func)
@@ -486,6 +655,11 @@ class Add(Op):
         lambda grad: grad,
     ]
     fwd_func: FwdFuncType = lambda v0, v1: v0 + v1
+
+    def infer_sign(self) -> "OpSign":
+        x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        sign = infer_add_sign(x_sign, y_sign)
+        return sign
 
     @classmethod
     def topo_fuse(cls, *deps: "Op") -> "Op":
@@ -532,6 +706,12 @@ class Add(Op):
 class Subtract(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 - v1
 
+    def infer_sign(self) -> "OpSign":
+        x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        ny_sign = infer_negative_sign(y_sign)
+        sign = infer_add_sign(x_sign, y_sign)
+        return sign
+
     @classmethod
     def topo_standardize(cls, *deps: "Op") -> "Op":
         x, y = deps
@@ -541,11 +721,15 @@ class Subtract(Op):
         return op
 
 
-@register_opt("topo_validate")
 @register_opt("topo_standardize")
 @register_op(2, equiv_func=swappable_equiv_func)
 class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
+
+    def infer_sign(self) -> "OpSign":
+        x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        sign = infer_multiply_sign(x_sign, y_sign)
+        return sign
 
     @classmethod
     def topo_fuse(cls, *deps: "Op") -> "Op":
@@ -569,36 +753,6 @@ class Multiply(Op):
             return ndeps[1]
         op = OpDef.monomial(*ndeps)
         return op
-
-    # @classmethod
-    # def topo_fusepower(cls, *deps: "Op") -> "Op":
-        # x, y = deps
-        # if isinstance(x, Power):
-            # xx, xy = x.deps
-            # if isinstance(y, Power):
-                # yx, yy = y.deps
-                # if xx.id == yx.id:
-                    # nscalar = OpDef.scalar(xy.data+yy.data)
-                    # op = OpDef.power(xx, nscalar)
-                    # return op
-            # elif isinstance(y, Var):
-                # if xx.id == y.id:
-                    # nscalar = OpDef.scalar(xy.data+1)
-                    # op = OpDef.power(xx, nscalar)
-                    # return op
-        # elif isinstance(x, Var):
-            # if isinstance(y, Power):
-                # yx, yy = y.deps
-                # if x.id == yx.id:
-                    # nscalar = OpDef.scalar(1+yy.data)
-                    # op = OpDef.power(x, nscalar)
-                    # return op
-            # if isinstance(y, Var):
-                # if x.id == y.id:
-                    # nscalar = OpDef.scalar(2)
-                    # op = OpDef.power(x, nscalar)
-                    # return op
-        # return cls.default_op(*deps)
 
     @classmethod
     def topo_toscalar(cls, *deps: "Op") -> "Op":
@@ -643,10 +797,16 @@ class ExpContradictError(Exception):
 
 
 @register_opt("topo_standardize")
-@register_opt("topo_validate")
 @register_op(2, equiv_func=sequential_equiv_func)
 class Power(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0**v1
+
+    def infer_sign(self) -> "OpSign":
+        frac, exp = deps
+        exp_data = exp.data
+        frac_sign = frac.get_sign()
+        sign = infer_power_sign(frac_sign, exp_data)
+        return sign
 
     @classmethod
     def topo_fuse(cls, *deps: "Op") -> "Op":
@@ -676,7 +836,7 @@ class Power(Op):
                     continue
                 assert isinstance(data, Fraction)
                 deno_in, nume_in = data.denominator, data.numerator
-                if nume_in < 0:
+                if nume_in >= 0:
                     continue
                 op = OpDef.get_op(op_id)
                 OpDef.assertnotzero(op)
@@ -799,6 +959,22 @@ class Power(Op):
             return x
         return cls.default_op(*deps)
 
+    @classmethod
+    def topo_validate(cls, *deps: "Op") -> None:
+        frac, exp = deps
+        assert isinstance(exp, Scalar), \
+            "type of deps[1]: {} must be scalar".format(
+                type(exp).__class__.__name__)
+        exp_data = exp.data
+        deno = exp_data.numerator
+        if nume < 0:
+            OpDef.assertnotzero(frac)
+        deno = exp_data.denominator
+        if deno > 1:
+            sign = OpSign.NON_NEGATIVE
+            frac.set_sign(sign)
+            OpDef.assertexceedzero(frac)
+
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x, y = self.deps
         d = x.diff
@@ -811,17 +987,16 @@ class Power(Op):
             dop = OpDef.multiply(mul_scalar, d[i])
             self.diff.append(dop)
 
-    @classmethod
-    def validate(cls, *deps: "Op") -> None:
-        x, y = deps
-        assert isinstance(y, Scalar), \
-            "type of deps[1]: {} must be scalar".format(
-                type(y).__class__.__name__)
-
 
 @register_op(2, equiv_func=sequential_equiv_func)
 class Divide(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 / v1
+
+    def infer_sign(self) -> "OpSign":
+        x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        ny_sign = infer_power_sign(y_sign, MinusOne)
+        sign = infer_multiply_sign(x_sign, ny_sign)
+        return sign
 
     @classmethod
     def topo_standardize(cls, *deps: "Op") -> None:
@@ -851,11 +1026,19 @@ def cnd_topo_degenerate(
 
 @register_opt("topo_standardize")
 @register_opt("topo_toscalar")
-@register_opt("topo_validate")
 @register_opt("topo_fuse")
 @register_op(4, equiv_func=default_equiv_func)
 class LessThan(Op):
     fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 < v1 else v3
+
+    def infer_sign(self) -> "OpSign":
+        a_sign, b_sign, x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        if infer_lessthan(a_sign, b_sign):
+            return x_sign
+        if infer_nomorethan(b_sign, a_sign):
+            return y_sign
+        sign = infer_mutual_sign(x_sign, y_sign)
+        return sign
 
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> "Op":
@@ -868,11 +1051,19 @@ class LessThan(Op):
 
 @register_opt("topo_standardize")
 @register_opt("topo_toscalar")
-@register_opt("topo_validate")
 @register_opt("topo_fuse")
 @register_op(4, equiv_func=default_equiv_func)
 class NoMoreThan(Op):
     fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 <= v1 else v3
+
+    def infer_sign(self) -> "OpSign":
+        a_sign, b_sign, x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        if infer_nomorethan(a_sign, b_sign):
+            return x_sign
+        if infer_lessthan(b_sign, a_sign):
+            return y_sign
+        sign = infer_mutual_sign(x_sign, y_sign)
+        return sign
 
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> "Op":
@@ -890,8 +1081,11 @@ def register_op_def(cls):
         op: "Op" = Scalar()
         OpDef.set_id(op)
         op.set_data(nv)
+        op_id = op.id
         OpDef.scalar_map[nv] = op
         OpDef.id_map[op.id] = op
+        sign = op.infer_sign()
+        OpDef.set_sign(sign)
         return op
 
     def op_func(op_cls):
@@ -901,7 +1095,6 @@ def register_op_def(cls):
                 if equiv in OpDef.equiv_map:
                     equiv_op: "Op" = OpDef.equiv_map[equiv]
                     return equiv_op
-            op_cls.validate(*deps)
             op: "Op" = op_cls(*deps)
             OpDef.set_id(op)
             for equiv in equivs:
@@ -910,8 +1103,9 @@ def register_op_def(cls):
             OpDef.id_map[op_id] = op
             op_type = getattr(op_cls, "op_type")
             if op_type.startswith("assert"):
-                assert op_id not in OpDef.assert_set
-                OpDef.assert_set.add(op_id)
+                OpDef.set_assert(op_id)
+            sign = op.infer_sign()
+            OpDef.set_sign(op_id, sign)
             return op
         return wrapper
 
@@ -931,6 +1125,7 @@ class OpDef(object):
     id_map: Dict[int, "Op"] = {}
     scalar_map: Dict["Fraction", "Op"] = {}
     assert_set: Set[int] = set()
+    sign_map: Dict[int, "OpSign"] = {}
 
     @staticmethod
     def get_assert_ops() -> List["Op"]:
@@ -944,6 +1139,25 @@ class OpDef(object):
         OpDef.id_map.clear()
         OpDef.scalar_map.clear()
         OpDef.assert_set.clear()
+        OpDef.sign_map.clear()
+
+    @staticmethod
+    def set_sign(op_id: int, sign: "OpSign"):
+        assert op_id not in OpDef.sign_map, \
+            "duplicate op id: {}, sign_map: {}".format(op_id, OpDef.sign_map)
+
+    @staticmethod
+    def get_sign(op_id: int) -> "OpSign":
+        assert op_id in OpDef.sign_map, \
+            "op id: {} not in sign_map: {}".format(op_id, OpDef.sign_map)
+        return OpDef.sign_map[op_id]
+
+    @staticmethod
+    def set_assert(op_id: int):
+        assert op_id not in OpDef.assert_set, \
+            "duplicate op id: {}, assert_set: {}".format(op_id, OpDef.assert_set)
+        OpDef.assert_set.add(op_id)
+
 
     @staticmethod
     def set_id(op: "Op") -> None:

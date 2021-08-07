@@ -110,10 +110,6 @@ def op_to_sym(op: "Op") -> None:
     op.to_sym()
 
 @register_dfs
-def op_infer_sign(op: "Op") -> None:
-    op.infer_sign()
-
-@register_dfs
 def op_autograph_backward(op: "Op", **kwargs) -> None:
     op.autograph_backward(kwargs.get("var_seq"))
 
@@ -139,22 +135,18 @@ class Graph(object):
         self, inps: List["Op"], outs: List["Op"], assert_ops: List["Op"]=[],
         out_appends: Optional[List[str]]=None) -> None:
         # validate and set inps
-        graph_op_ids = {op.id for op in topo_sort(outs)}
         inp_ids = set()
         for inp in inps:
             inp_id = inp.id
-            assert inp_id in graph_op_ids, \
-                "inp_id: {} not found in graph_op_ids: {}".format(
-                    inp_id, graph_op_ids)
             assert inp_id not in inp_ids, \
                 "duplicate ops, inp_id: {}".format(inp_id)
+            inp_ids.add(inp_id)
         self.inps: List["Op"] = inps
         # validate and set outs
         out_ids = set()
         for out in outs:
             out_id = out.id
-            assert out_id not in out_ids, \
-                "duplicate ops, out_id: {}".format(out_id)
+            out_ids.add(out_id)
         self.outs: List["Op"] = outs
         # validate assert_ops
         self.assert_op_ids = set()
@@ -165,8 +157,10 @@ class Graph(object):
             self.assert_op_ids.add(op_id)
         self.assert_ops: List["Op"] = assert_ops
         # no overlapping between out_ids and assert_op_ids
-        total_out_ids = self.assert_op_ids.union(out_ids)
-        assert len(total_out_ids) == len(self.assert_op_ids) + len(out_ids)
+        for op_id in out_ids:
+            assert op_id not in self.assert_op_ids
+        for op_id in self.assert_op_ids:
+            assert op_id not in out_ids
         # out_appends: suffix that comes after "##" of the output symbol name
         self.out_appends: Optional[List[str]] = out_appends \
             if out_appends is not None else \
@@ -189,13 +183,6 @@ class Graph(object):
             op_reset(assert_op, visited)
         for out in self.outs:
             op_reset(out, visited)
-
-    def infer_sign(self) -> None:
-        visited = set()
-        for assert_op in self.assert_ops:
-            op_infer_sign(assert_op, visited)
-        for out in self.outs:
-            op_infer_sign(out, visited)
 
     def forward(self) -> List["Float"]:
         visited = set()
@@ -256,10 +243,27 @@ class Graph(object):
             self.inps, outs, out_appends=out_appends,
             assert_ops=self.assert_ops)
 
-    def pre_optimize(self) -> None:
+    def forward_optimize(self) -> None:
+        # var,scalar
+        # assertnotzero, assertexceedzero, assertnolessthanzero
+        # abs,sin,cos,lessthan,nomorethan
+        # polynomial,monomial
+        # add,power,multiply
+        # divide,negative,subtract
         self.standardize()
+        # var,scalar
+        # assertnotzero, assertexceedzero, assertnolessthanzero
+        # abs,sin,cos,lessthan,nomorethan
+        # polynomial,monomial
+        # add,power,multiply
         self.toscalar()
         self.degenerate()
+        self.infer_sign()
+        self.fuse()
+        # var,scalar
+        # assertnotzero, assertexceedzero, assertnolessthanzero
+        # abs,sin,cos,lessthan,nomorethan
+        # polynomial,monomial
 
     def graph_assertion(self) -> None:
         assert_ops = od.get_assert_ops()

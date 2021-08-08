@@ -51,7 +51,7 @@ class Op(object):
         flag = True
         datas = []
         for dep in deps:
-            if not isinstance(dep, OpDef.scalar_type()):
+            if not isinstance(dep, OpDef.get_op_cls("scalar")):
                 flag = False
                 break
             data = dep.data
@@ -228,11 +228,10 @@ class OpDef(object):
         return wrapper
 
     @staticmethod
-    def scalar_type():
-        op_type = "scalar"
+    def get_op_cls(op_type):
         assert op_type in OpDef.supported_ops, \
-            "please register Scalar Op first"
-        cls = OpDef.supported_ops["scalar"]
+            "please register Op: {} first".format(op_type)
+        cls = OpDef.supported_ops[op_type]
         return cls
 
     """status method

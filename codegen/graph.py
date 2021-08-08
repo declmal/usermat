@@ -59,7 +59,7 @@ def topo_visit(inps, outs, assert_ops, callback):
     od.reset() # reset the graph define here
     for op in topo_sort(outs + assert_ops):
         op_id = op.id
-        if isinstance(op, od.scalar_type()):
+        if isinstance(op, od.get_op_cls("scalar")):
             data = op.data
             nop = od.scalar(data)
             graph[op_id] = nop

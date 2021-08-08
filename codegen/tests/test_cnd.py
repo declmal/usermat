@@ -23,7 +23,7 @@ class TestCnd(unittest.TestCase):
         v7 = od.lessthan(v3, v4, v5, v6)
         v8 = od.multiply(v7, v2)
         g = Graph([v0, v1, v2], [v8])
-        g.forward_optimize()
+        g.optimize()
         # g.to_sym()
         for _ in range(10000):
             inp_size = g.get_inp_size()

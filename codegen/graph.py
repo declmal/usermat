@@ -239,7 +239,7 @@ class Graph(object):
             self.inps, outs, out_appends=out_appends,
             assert_ops=self.assert_ops)
 
-    def forward_optimize(self):
+    def optimize(self):
         # var,scalar
         # assertnotzero, assertexceedzero, assertnolessthanzero
         # abs,sin,cos,lessthan,nomorethan
@@ -267,5 +267,5 @@ class Graph(object):
                 self.assert_ops.append(op)
                 self.assert_op_ids.add(op_id)
 
-    def post_optimize(self):
+    def backward_optimize(self):
         pass

@@ -11,10 +11,13 @@ import mxnet as mx
 Float = Union[
     "int", "np.int32", "np.int64", "float",
     "np.float32", "np.float64", "Fraction"]
+FloatTypes = (
+    int, np.int32, np.int64, float, np.float32, np.float64, Fraction)
 GradFuncType = Callable[["np.float64"], "np.float64"]
 FwdFuncType = Callable[[List["np.float64"]], "np.float64"]
 EquivFuncType = Callable[[str, List["Op"]], List[str]]
 OpEquivFuncType = Callable[[List["Op"]], List[str]]
+ValidFuncType = Callable[[List["Op"]], None]
 """ equivalent functions
 """
 default_equiv_func: "EquivFuncType" = lambda op_type, ops: []
@@ -35,6 +38,9 @@ class OpSign(Enum):
     NON_ZERO = auto()
     ZERO = auto()
     INDEFINITE = auto()
+
+""" infer_sign functions
+"""
 
 def infer_negative_sign(sign: "OpSign") -> "OpSign":
     if sign == OpSign.POSITIVE:
@@ -100,7 +106,7 @@ def infer_multiply_sign(x_sign: "OpSign", y_sign: "OpSign") -> "OpSign":
     return sign
 
 def infer_power_sign(frac_sign: "Opsign", exp_data: "Fraction") -> "OpSign":
-    assert isinstance(exp_data, Fraction), exp_data
+    assert isinstance(exp_data, Fraction), type(exp_data)
     nume, deno = exp_data.numerator, exp_data.denominator
     if nume < 0:
         assert frac_sign != OpSign.ZERO
@@ -133,7 +139,7 @@ def infer_mutual_sign(x_sign: "OpSign", y_sign: "Opsign") -> "OpSign":
         return OpSign.NON_ZERO
     return OpSign.INDEFINITE
 
-def infer_lessthan(a_sign: "OpSign", b_sign: "OpSign") -> bool:
+def infer_lessthan_sign(a_sign: "OpSign", b_sign: "OpSign") -> bool:
     if a_sign == OpSign.NEGATIVE and \
         b_sign in [Opsign.ZERO, OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
         return True
@@ -141,17 +147,23 @@ def infer_lessthan(a_sign: "OpSign", b_sign: "OpSign") -> bool:
         return True
     return False
 
-def infer_nomorethan(a_sign: "OpSign", b_sign: "OpSign") -> bool:
+def infer_nomorethan_sign(a_sign: "OpSign", b_sign: "OpSign") -> bool:
     if a_sign in [OpSign.ZERO, OpSign.NON_POSITIVE, OpSign.NEGATIVE] and \
         b_sign in [OpSign.ZERO, OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
         return True
     return False
+
+""" scalar datas
+"""
 
 # Zero = np.float64(0.0)
 # One = np.float64(1.0)
 Zero = Fraction(0)
 One = Fraction(1)
 MinusOne = Fraction(-1)
+
+""" cast functions
+"""
 
 def cast_float(scalar: "Float") -> "np.float64":
     if isinstance(scalar, np.float64):
@@ -165,24 +177,79 @@ def cast_fraction(scalar: "Float") -> "Fraction":
     else:
         return Fraction(scalar)
 
+""" validate functions
+"""
+
+def default_valid_func(*deps: "Op") -> None:
+    return
+
+def num_valid_func(num_deps) -> "ValidFuncType":
+    def wrapper(*deps: "Op") -> None:
+        assert len(deps) == num_deps, \
+            "invalid deps number: {}, ".format(len(deps)) + \
+            "expected: {}".format(num_deps)
+        for dep in deps:
+            assert isinstance(dep, Op), \
+                "invalid type of dep: {}".format(type(dep))
+    return wrapper
+
+def power_valid_func(*deps: "Op") -> None:
+    validate_num_deps = num_valid_func(2)
+    validate_num_deps(*deps)
+    exp = deps[1]
+    assert isinstance(exp, Scalar), \
+        "type of deps[1]: {} must be scalar".format(type(exp))
+
+def mial_valid_func(mial_type: "str") -> "ValidFuncType":
+    assert mial_type in ["poly", "mono"]
+
+    def wrapper(*deps: "Op") -> None:
+        num_deps = len(deps)
+        assert num_deps >= 1 and num_deps % 2 == 1, \
+            "invalid number of deps: {}".format(num_deps)
+        for i in range(0, num_deps, 2):
+            dep = deps[i]
+            assert isinstance(dep, Scalar), \
+                "invalid type of dep: {}".format(type(dep))
+            data = dep.data
+            assert isinstance(data, FloatTypes), \
+                "invalid type of data: {}".format(type(data))
+        if mial_type == "poly" or num_deps == 1:
+            return
+        for i in range(2, num_deps, 2):
+            dep = deps[i]
+            data = dep.data
+            assert isinstance(data, Fraction), \
+                "invalid type of data: {}".format(type(data))
+
+    return wrapper
+
+""" registration manager
+"""
+
 supported_ops: Dict[str, type] = {}
 op_supported_opts: Dict[str, Set[str]] = {}
 
 def register_op(
-    num_deps: Optional[int],
+    valid_func: "ValidFuncType"=default_valid_func,
     equiv_func: "EquivFuncType"=default_equiv_func):
     def wrapper(cls):
         op_type: str = cls.__name__.lower()
         assert op_type not in supported_ops, \
             "op_type: {} has been registered".format(op_type)
         setattr(cls, "op_type", op_type)
-        setattr(cls, "num_deps", num_deps)
+
+        def op_valid_func(init_func):
+            def _wrapper(self, *deps: "Op") -> None:
+                valid_func(*deps)
+                init_func(self, *deps)
+            return _wrapper
+
+        init_func = getattr(cls, "__init__")
+        init_func = op_valid_func(init_func)
+        setattr(cls, "__init__", init_func)
 
         def op_equiv_func(ops: List["Op"]) -> List[str]:
-            if num_deps is not None:
-                assert len(ops) == num_deps, \
-                    "invalid number of ops: {}, expected: {}".format(
-                        len(ops), num_deps)
             return equiv_func(op_type, ops)
 
         setattr(cls, "op_equiv_func", op_equiv_func)
@@ -210,19 +277,13 @@ def get_opt(op: "Op", callback: str) -> "Op":
 class Op(object):
     _grad_fns: List["GradFuncType"] = []
     op_type: Optional[str] = None
-    num_deps: Optional[int] = None
     op_equiv_func: Optional["OpEquivFuncType"] = None
     fwd_func: FwdFuncType
     is_scalar: bool = False
 
     def __init__(self, *deps: "Op")-> None:
-        if self.num_deps is not None:
-            assert len(deps) == self.num_deps, \
-                "invalid deps number: {}, ".format(len(deps)) + \
-                "expected: {}".format(self.num_deps)
         self.deps: List["Op"] = list(deps)
         self.data: "Float" = cast_fraction(0)
-        self.grad: "Float" = cast_fraction(0)
         self.id: int = -1
         self.diff: List["Op"] = []
         self.sym: Optional["mx.sym.Symbol"] = None
@@ -270,10 +331,6 @@ class Op(object):
     def topo_fuse(cls, *deps: "Op") -> "Op":
         return cls.default_op(*deps)
 
-    @classmethod
-    def topo_validate(cls, *deps: "Op") -> "Op":
-        pass
-
     def reset(self) -> None:
         self.data = cast_fraction(0)
         self.diff.clear()
@@ -309,14 +366,6 @@ class Op(object):
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         raise NotImplementedError
 
-    # TODO: deprecate
-    def backward(self, grad: "Float"=cast_fraction(1)) -> None:
-        grad = cast_fraction(grad)
-        self.grad += grad
-        for i, dep in enumerate(self.deps):
-            backward_grad = self._grad_fns[i](grad)
-            dep.backward(backward_grad)
-
 supported_opts: Set[str] = { \
     k for k, v in Op.__dict__.items() \
     if k.startswith("topo_") and type(v).__name__ == "classmethod"
@@ -336,7 +385,7 @@ def register_opt(callback: str):
     return wrapper
 
 
-@register_op(0)
+@register_op()
 class Scalar(Op):
     is_scalar: bool = True
 
@@ -365,7 +414,7 @@ class Scalar(Op):
 
 @register_opt("topo_fuse")
 @register_opt("topo_standardize")
-@register_op(0)
+@register_op()
 class Var(Op):
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> "Op":
@@ -383,7 +432,9 @@ class AssertExceedZeroError(Exception):
     pass
 
 
-@register_op(1, equiv_func=swappable_equiv_func)
+@register_op(
+    valid_func=num_valid_func(1),
+    equiv_func=sequential_equiv_func)
 class AssertExceedZero(Op):
     @classmethod
     def fwd_func(cls, v: "Float") -> "Float":
@@ -397,7 +448,9 @@ class AssertNotZeroError(Exception):
     pass
 
 
-@register_op(1, equiv_func=swappable_equiv_func)
+@register_op(
+    valid_func=num_valid_func(1),
+    equiv_func=sequential_equiv_func)
 class AssertNotZero(Op):
     @classmethod
     def fwd_func(cls, v: "Float") -> "Float":
@@ -411,7 +464,9 @@ class AssertNoLessThanZeroError(Exception):
     pass
 
 
-@register_op(1, equiv_func=sequential_equiv_func)
+@register_op(
+    valid_func=num_valid_func(1),
+    equiv_func=sequential_equiv_func)
 class AssertNoLessThanZero(Op):
     @classmethod
     def fwd_func(cls, v: "Float") -> "Float":
@@ -420,14 +475,15 @@ class AssertNoLessThanZero(Op):
         return Zero
 
 
-@register_op(None, equiv_func=sequential_equiv_func)
+@register_op(
+    valid_func=mial_valid_func("poly"),
+    equiv_func=sequential_equiv_func)
 class Polynomial(Op):
     def infer_sign(self) -> "OpSign":
         dep_signs = [dep.get_sign() for dep in self.deps]
         signs = [dep_signs[0]]
         for i in range(1, len(dep_signs), 2):
-            x_sign = dep_signs[i]
-            y_sign = dep_signs[i+1]
+            x_sign, y_sign = dep_signs[i:i+2]
             sign = infer_multiply_sign(x_sign, y_sign)
             signs.append(sign)
         sign = signs[0]
@@ -445,8 +501,65 @@ class Polynomial(Op):
                 summation += v[i]*v[i+1]
         return summation
 
+    def autograph_backward(self, var_seq: Dict[int, int]) -> None:
+        assert len(self.deps) > 1, "invoke degenerate first"
+        scalar = self.deps[0]
+        scalar_data = scalar.data
+        if len(self.deps) == 3 and scalar_data == Zero:
+            coef = self.deps[2]
+            coef_data = coef.data
+            assert coef_data != One, "invoke degenerate first"
+        # create m_dict_ref
+        m_dict_ref = {-1: scalar_data}
+        for i in range(1, len(self.deps), 2):
+            var, coef = self.deps[i:i+2]
+            coef_data = coef.data
+            assert coef_data != Zero, "invoke degenerate first"
+            assert not isinstance(var, Scalar), "invoke degenerate first"
+            var_id = var.id
+            m_dict_ref[var_id] = coef_data
+        validate_polynomial_dict(m_dict_ref)
+        # differentials
+        diff_map = {}
+        for i in range(1, len(self.deps), 2):
+            dep = self.deps[i]
+            dep_id = dep.id
+            diff = dep.diff
+            diff_map[dep_id] = diff
+        ns = {len(diff) for diff in diff_map.values()}
+        assert len(ns) == 1, ns
+        n = list(ns)[0]
+        # backward propagation
+        self.diff.clear()
+        op_ids = list(diff_map.keys())
+        for i in range(n):
+            m_dict = {-1: Zero}
+            for op_id in op_ids:
+                diff_in = diff_map[op_id]
+                di = diff_in[i]
+                did = di.id
+                scalar_data = m_dict_ref[op_id]
+                m_dict[did] = scalar_data
+            diff = create_polynomial_op(m_dict)
+            self.diff.append(diff)
 
-@register_op(None, equiv_func=sequential_equiv_func)
+    @classmethod
+    def topo_degenerate(cls, *deps: "Op") -> "Op":
+        scalar = deps[0]
+        scalar_data = scalar.data
+        m_dict = {-1: scalar_data}
+        for i in range(1, len(self.deps), 2):
+            var, coef = self.deps[i:i+2]
+            var_id = var.id
+            coef_data = coef.data
+            m_dict[var_id] = coef_data
+        op = create_polynomial_op(m_dict)
+        return op
+
+
+@register_op(
+    valid_func=mial_valid_func("mono"),
+    equiv_func=sequential_equiv_func)
 class Monomial(Op):
     def infer_sign(self) -> "OpSign":
         dep_signs = [dep.get_sign() for dep in self.deps]
@@ -473,163 +586,256 @@ class Monomial(Op):
         return product
 
     def autograph_backward(self, var_seq: Dict[int, int]) -> None:
-        diffs = []
+        assert len(self.deps) > 1, "invoke degenerate first"
+        scalar = self.deps[0]
+        scalar_data = scalar.data
+        assert scalar_data != Zero, "invoke degenerate first"
+        if len(self.deps) == 3 and scalar_data == One:
+            exp = self.deps[2]
+            exp_data = exp.data
+            deno, nume = exp_data.denominator, exp_data.numerator
+            assert deno != 1 or nume != 1, "invoke degenerate first"
+        # create m_dict_ref
+        m_dict_ref = {-1: scalar_data}
+        for i in range(1, len(self.deps), 2):
+            frac, exp = self.deps[i:i+2]
+            exp_data = exp.data
+            nume = exp_data.numerator
+            assert nume != 0, "invoke degenerate first"
+            assert not isinstance(frac, Scalar), "invoke degenerate first"
+            frac_id = frac.id
+            m_dict_ref[frac_id] = exp_data
+        validate_monomial_dict(m_dict_ref)
+        # create m_dict_dict
+        m_dict_dict = {}
+        for op_id, exp_data in m_dict_ref.items():
+            if op_id == -1:
+                continue
+            m_dict = m_dict_ref.copy()
+            deno, nume = exp_data.denominator, exp_data.numerator
+            if deno == 1 and nume == 1:
+                del m_dict[op_id]
+            else:
+                scalar_data = m_dict[-1]
+                m_dict[-1] = scalar_data * exp_data
+                nexp_data = exp_data - One
+                m_dict[op_id] = nexp_data
+            m_dict_dict[op_id] = m_dict.copy()
+        # differentials
+        diff_map = {}
         for i in range(1, len(self.deps), 2):
             dep = self.deps[i]
+            dep_id = dep.id
             diff = dep.diff
-            diffs.append(diff)
-        assert len(diffs) > 0, "run degenerate first"
-        n = len(diffs[0])
-        scalar = self.deps[0]
-        # create m_dict_ref
+            diff_map[dep_id] = diff
+        ns = {len(diff) for diff in diff_map.values()}
+        assert len(ns) == 1, ns
+        n = list(ns)[0]
+        # backward propagation
         self.diff.clear()
-        raise NotImplementedError
+        op_ids = list(diff_map.keys())
+        for i in range(n):
+            m_dict = {-1: Zero}
+            for op_id in op_ids:
+                m_dict_partial = m_dict_dict[op_id]
+                diff_in = diff_map[op_id]
+                di = diff_in[i]
+                m_dict_diff = get_monomial_dict(di)
+                m_dict_in = merge_monomial_dict(
+                    m_dict_partial, m_dict_diff)
+                var = create_monomial_op(m_dict_in)
+                var_id = var.id
+                m_dict[var_id] = One
+            diff = create_polynomial_op(m_dict)
+            self.diff.append(diff)
 
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> "Op":
         scalar = deps[0]
-        if len(deps) == 1:
-            return scalar
         scalar_data = scalar.data
-        ndeps = []
-        for i in range(1, len(deps), 2):
-            frac, exp = deps[i], deps[i+1]
+        m_dict = {-1: scalar_data}
+        for i in range(1, len(self.deps), 2):
+            frac, exp = self.deps[i:i+2]
+            frac_id = frac.id
             exp_data = exp.data
-            assert isinstance(exp_data, Fraction), exp_data
-            nume = exp_data.numerator
-            if nume == 0:
-                continue
-            if isinstance(frac, Scalar):
-                frac_data = frac.data
-                validate_exp(frac_data, exp_data)
-                scalar_data_in = frac ** exp_data
-                scalar_data *= scalar_data_in
-                continue
-            ndeps.append(frac, exp)
-        if scalar_data == Zero:
-            # TODO: unittest
-            op = OpDef.scalar(Zero)
-            return op
-        if len(ndeps) == 2 and scalar_data == One:
-            frac, exp = ndeps
-            exp_data = exp.data
-            deno, nume = exp_data.denominator, exp_data.numerator
-            assert isinstance(exp_data, Fraction), exp_data
-            if deno == 1 and nume == 1:
-                # TODO: unittest
-                return frac
-        return cls.default_op(**deps)
+            m_dict[frac_id] = exp_data
+        op = create_monomial_op(m_dict)
+        return op
+
+def validate_monomial_dict(m_dict: Dict[int,"Float"]) -> None:
+    assert isinstance(m_dict, dict) and -1 in m_dict, m_dict
+    for op_id, exp_data in m_dict.items():
+        assert isinstance(op_id, int), type(op_id)
+        assert isinstance(exp_data, FloatTypes), type(exp_data)
+        if op_id == -1:
+            continue
+        assert isinstance(exp_data, Fraction), type(exp_data)
+        frac = OpDef.get_op(op_id)
 
 def get_monomial_dict(op: "Op") -> Dict[int,"Float"]:
     if isinstance(op, Monomial):
-        deps = op.deps
-        ret = {-1: deps[0].data}
-        for i in range(1, len(deps), 2):
-            dep_id = deps[i].id
-            assert dep_id not in ret
-            exp_data = deps[i+1].data
-            assert isinstance(exp_data, Fraction)
-            ret[dep_id] = exp_data
-        return ret
+        scalar = op.deps[0]
+        scalar_data = scalar.data
+        m_dict = {-1: scalar_data}
+        for i in range(1, len(op.deps), 2):
+            frac, exp = op.deps[i:i+2]
+            exp_data = exp.data
+            frac_id = frac.id
+            m_dict[frac_id] = exp_data
     elif isinstance(op, Scalar):
-        ret = {-1: op.data}
-        return ret
+        scalar_data = op.data
+        m_dict = {-1: scalar_data}
     else:
-        ret = {-1: One}
         op_id = op.id
-        assert op_id not in ret
-        ret[op_id] = Fraction(One)
-        return ret
+        m_dict = {-1: One, op_id: One}
+    validate_monomial_dict(m_dict)
+    return m_dict
 
 def merge_monomial_dict(
-    dict1: Dict[int,"Float"],
-    dict2: Dict[int,"Float"]) -> Dict[int,"Float"]:
-    ret = dict2
-    for op_id, scalar_data in dict1.items():
+    m_dict1: Dict[int,"Float"],
+    m_dict2: Dict[int,"Float"]) -> Dict[int,"Float"]:
+    validate_monomial_dict(m_dict1)
+    validate_monomial_dict(m_dict2)
+    m_dict = m_dict2.copy()
+    for op_id, scalar_data in m_dict1.items():
         if op_id == -1:
-            ret[-1] *= scalar_data
-            if ret[-1] == Zero:
-                return {-1: Zero}
+            m_dict[-1] *= scalar_data
+            if m_dict[-1] == Zero:
+                m_dict = {-1: Zero}
+                break
             continue
-        assert isinstance(scalar_data, Fraction)
-        if op_id not in ret:
-            ret[op_id] = scalar_data
+        if op_id not in m_dict:
+            m_dict[op_id] = scalar_data
             continue
-        scalar_data2 = ret[op_id]
-        assert isinstance(scalar_data2, Fraction)
-        if scalar_data2 + scalar_data == Zero:
-            del ret[op_id]
+        scalar_data2 = m_dict[op_id]
+        _sum = scalar_data2 + scalar_data
+        if _sum == Zero:
+            del m_dict[op_id]
         else:
-            ret[op_id] = scalar_data + scalar_data2
-    return ret
+            m_dict[op_id] = _sum
+    validate_monomial_dict(m_dict)
+    return m_dict
+
+def create_monomial_op(m_dict: Dict[int,"Float"]) -> "Op":
+    validate_monomial_dict(m_dict)
+    scalar_data = m_dict[-1]
+    if len(m_dict) == 1:
+        op = OpDef.scalar(scalar_data)
+        return op
+    deps = []
+    for op_id, exp_data in m_dict.items():
+        if op_id == -1:
+            continue
+        nume = exp_data.numerator
+        if nume == 0:
+            continue
+        frac = OpDef.get_op(op_id)
+        if isinstance(frac, Scalar):
+            frac_data = frac.data
+            validate_exp(frac_data, exp_data)
+            inc = frac_data ** exp_data
+            scalar_data *= inc
+            continue
+        deps.append(frac)
+        exp = OpDef.scalar(exp_data)
+        deps.append(exp)
+    if scalar_data == Zero:
+        op = OpDef.scalar(scalar_data)
+        return op
+    if len(deps) == 2 and scalar_data == One:
+        exp = deps[1]
+        exp_data = exp.data
+        deno, nume = exp_data.denominator, exp_data.numerator
+        if deno == 1 and nume == 1:
+            op = deps[0]
+            return op
+    op = OpDef.monomial(*deps)
+    return op
+
+def validate_polynomial_dict(m_dict: Dict[int,"Float"]) -> None:
+    assert isinstance(m_dict, dict) and -1 in m_dict, m_dict
+    for op_id, coef_data in m_dict.items():
+        assert isinstance(op_id, int), type(op_id)
+        assert isinstance(coef_data, FloatTypes), type(coef_data)
+        if op_id == -1:
+            continue
+        frac = OpDef.get_op(op_id)
 
 def get_polynomial_dict(op: "Op") -> Dict[int,"Float"]:
     if isinstance(op, Polynomial):
-        deps = op.deps
-        ret = {-1: deps[0].data}
-        for i in range(1, len(deps), 2):
-            dep_id = deps[0].id
-            assert dep_id not in ret
-            coef_data = deps[i+1].data
-            ret[dep_id] = coef_data
-        return ret
+        scalar = op.deps[0]
+        scalar_data = scalar.data
+        m_dict = {-1: scalar_data}
+        for i in range(1, len(op.deps), 2):
+            var, coef = op.deps[i:i+2]
+            coef_data = coef.data
+            var_id = var.id
+            m_dict[var_id] = coef_data
     elif isinstance(op, Scalar):
-        ret = {-1: op.data}
-        return ret
+        scalar_data = op.data
+        m_dict = {-1: scalar_data}
     else:
-        ret = {-1: Zero}
         op_id = op.id
-        assert op_id not in ret
-        ret[op_id] = One
-        return ret
+        m_dict = {-1: Zero, op_id: One}
+    validate_polynomial_dict(m_dict)
+    return m_dict
 
 def merge_polynomial_dict(
-    dict1: Dict[int,"Float"],
-    dict2: Dict[int,"Float"]) -> Dict[int,"Float"]:
-    ret = dict2
-    for op_id, scalar_data in dict1.items():
+    m_dict1: Dict[int,"Float"],
+    m_dict2: Dict[int,"Float"]) -> Dict[int,"Float"]:
+    validate_polynomial_dict(m_dict1)
+    validate_polynomial_dict(m_dict2)
+    m_dict = m_dict2.copy()
+    for op_id, scalar_data in m_dict1.items():
         if op_id == -1:
-            ret[-1] += scalar_data
+            m_dict[-1] += scalar_data
             continue
-        if op_id not in ret:
-            ret[op_id] = scalar_data
-        elif ret[op_id] + scalar_data == Zero:
-            del ret[op_id]
+        if op_id not in m_dict:
+            m_dict[op_id] = scalar_data
+            continue
+        scalar_data2 = m_dict[op_id]
+        _sum = scalar_data2 + scalar_data
+        if _sum == Zero:
+            del m_dict[op_id]
         else:
-            ret[op_id] += scalar_data
-    return ret
+            m_dict[op_id] = _sum
+    validate_polynomial_dict(m_dict)
+    return m_dict
 
-def create_mial_op(m_dict: Dict[int,"Float"], op_type: str) -> "Op":
-    assert op_type in ["polynomial", "monomial"], op_type
-    assert -1 in m_dict, m_dict.keys()
+def create_polynomial_op(m_dict: Dict[int,"Float"]) -> "Op":
+    validate_polynomial_dict(m_dict)
     scalar_data = m_dict[-1]
-    assert scalar_data != Zero, scalar_data
-    id_data = [
-        (op_id, data) for op_id, data in m_dict.items() if op_id != -1]
-    for _, data in id_data:
-        assert data != Zero, data
-    if len(id_data) == 1 and id_data[0][1] == One:
-        if op_type == "polynomial" and scalar_data == Zero or \
-            op_type == "monomial" and scalar_data == One:
-            op_id = id_data[0][0]
-            op = OpDef.get_op(op_id)
+    if len(m_dict) == 1:
+        op = OpDef.scalar(scalar_data)
+        return op
+    deps = []
+    for op_id, coef_data in m_dict.items():
+        if op_id == -1:
+            continue
+        if coef_data == Zero:
+            continue
+        var = OpDef.get_op(op_id)
+        if isinstance(var, Scalar):
+            var_data = var.data
+            inc = var_data * coef_data
+            scalar_data += inc
+            continue
+        deps.append(var)
+        coef = OpDef.scalar(coef_data)
+        deps.append(coef)
+    if len(deps) == 2 and scalar_data == Zero:
+        coef = deps[1]
+        coef_data = coef.data
+        if coef_data == One:
+            op = deps[0]
             return op
-    id_data.sort()
-    scalar = OpDef.scalar(scalar_data)
-    deps = [scalar]
-    for op_id, data in id_data:
-        if op_type == "monomial":
-            assert isinstance(data, Fraction), type(data)
-        cop = OpDef.get_op(op_id)
-        deps.append(cop)
-        scalar = OpDef.scalar(data)
-        deps.append(scalar)
-    od_func = getattr(OpDef, op_type)
-    op = od_func(*deps)
+    op = OpDef.polynomial(*deps)
     return op
 
 
-@register_op(1, equiv_func=sequential_equiv_func)
+@register_op(
+    valid_func=num_valid_func(1),
+    equiv_func=sequential_equiv_func)
 class Negative(Op):
     fwd_func: FwdFuncType = lambda v: -v
 
@@ -649,7 +855,9 @@ class Negative(Op):
 @register_opt("topo_fuse")
 @register_opt("topo_degenerate")
 @register_opt("topo_standardize")
-@register_op(1, equiv_func=sequential_equiv_func)
+@register_op(
+    valid_func=num_valid_func(1),
+    equiv_func=sequential_equiv_func)
 class Sin(Op):
     fwd_func: FwdFuncType = lambda v: np.sin(v)
 
@@ -665,7 +873,9 @@ class Sin(Op):
 @register_opt("topo_standardize")
 @register_opt("topo_degenerate")
 @register_opt("topo_fuse")
-@register_op(1, equiv_func=sequential_equiv_func)
+@register_op(
+    valid_func=num_valid_func(1),
+    equiv_func=sequential_equiv_func)
 class Abs(Op):
     fwd_func: FwdFuncType = lambda v: np.abs(v)
 
@@ -685,18 +895,18 @@ class Abs(Op):
 
 
 @register_opt("topo_fuse")
-@register_op(1, equiv_func=sequential_equiv_func)
+@register_op(
+    valid_func=num_valid_func(1),
+    equiv_func=sequential_equiv_func)
 class Cos(Op):
     fwd_func: FwdFuncType = lambda v: np.cos(v)
 
 
 @register_opt("topo_standardize")
-@register_op(2, equiv_func=swappable_equiv_func)
+@register_op(
+    valid_func=num_valid_func(2),
+    equiv_func=swappable_equiv_func)
 class Add(Op):
-    _grad_fns: List["GradFuncType"] = [
-        lambda grad: grad,
-        lambda grad: grad,
-    ]
     fwd_func: FwdFuncType = lambda v0, v1: v0 + v1
 
     def infer_sign(self) -> "OpSign":
@@ -745,7 +955,9 @@ class Add(Op):
             self.diff.append(dop)
 
 
-@register_op(2, equiv_func=sequential_equiv_func)
+@register_op(
+    valid_func=num_valid_func(2),
+    equiv_func=sequential_equiv_func)
 class Subtract(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 - v1
 
@@ -765,7 +977,9 @@ class Subtract(Op):
 
 
 @register_opt("topo_standardize")
-@register_op(2, equiv_func=swappable_equiv_func)
+@register_op(
+    valid_func=num_valid_func(2),
+    equiv_func=swappable_equiv_func)
 class Multiply(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 * v1
 
@@ -836,7 +1050,9 @@ class ExpContradictError(Exception):
 
 
 @register_opt("topo_standardize")
-@register_op(2, equiv_func=sequential_equiv_func)
+@register_op(
+    valid_func=power_valid_func,
+    equiv_func=sequential_equiv_func)
 class Power(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0**v1
 
@@ -931,7 +1147,7 @@ class Power(Op):
         for op_id, data in nm_dict.items():
             if op_id == -1:
                 continue
-            assert isinstance(data, Fraction), data
+            assert isinstance(data, Fraction), type(data)
             nume_in = data.numerator
             if nume_in % 2 == 0 and deno >= nume_in and \
                 deno % nume_in == 0:
@@ -944,7 +1160,7 @@ class Power(Op):
                 else:
                     # unittest test_power_2.py
                     m_dict[nid] += data
-                    assert isinstance(m_dict[nid], Fraction), m_dict[nid]
+                    assert isinstance(m_dict[nid], Fraction), type(m_dict[nid])
         # update m_dict by power
         nm_dict = m_dict.copy()
         for op_id, data in nm_dict.items():
@@ -953,7 +1169,7 @@ class Power(Op):
                 m_dict[-1] = scalar_data
                 continue
             ndata = data * exp_data
-            assert isinstance(ndata, Fraction), ndata
+            assert isinstance(ndata, Fraction), type(ndata)
             m_dict[op_id] = ndata
         # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
         # in case that en = Fraction(2*k, deno_in)
@@ -963,7 +1179,7 @@ class Power(Op):
         for op_id, data in nm_dict.items():
             if op_id == -1:
                 continue
-            assert isinstance(data, Fraction), data
+            assert isinstance(data, Fraction), type(data)
             nume_in = data.numerator
             op = OpDef.get_op(op_id)
             if nume_in % 2 == 0 and isinstance(op, Abs):
@@ -975,16 +1191,16 @@ class Power(Op):
                 else:
                     # unittest test_power_1.py
                     m_dict[sid] += data
-                    assert isinstance(m_dict[sid], Fraction)
+                    assert isinstance(m_dict[sid], Fraction), type(m_dict[sid])
         # create monomial op
-        op = create_mial_op(m_dict, "monomial")
+        op = create_monomial_op(m_dict, "monomial")
         return op
 
     @classmethod
     def topo_degenerate(cls, *deps: "Op") -> None:
         frac, exp = deps
         exp_data = exp.data
-        assert isinstance(exp_data, Fraction), exp_data
+        assert isinstance(exp_data, Fraction), type(exp_data)
         nume = exp_data.numerator
         if nume == 0:
             op = OpDef.scalar(One)
@@ -1000,13 +1216,6 @@ class Power(Op):
             return frac
         return cls.default_op(*deps)
 
-    @classmethod
-    def topo_validate(cls, *deps: "Op") -> None:
-        frac, exp = deps
-        assert isinstance(exp, Scalar), \
-            "type of deps[1]: {} must be scalar".format(
-                type(exp).__class__.__name__)
-
     def autograph_backward(self, var_seq: Dict[int,int]) -> None:
         x, y = self.deps
         d = x.diff
@@ -1020,7 +1229,9 @@ class Power(Op):
             self.diff.append(dop)
 
 
-@register_op(2, equiv_func=sequential_equiv_func)
+@register_op(
+    valid_func=num_valid_func(2),
+    equiv_func=sequential_equiv_func)
 class Divide(Op):
     fwd_func: FwdFuncType = lambda v0, v1: v0 / v1
 
@@ -1052,15 +1263,17 @@ def cnd_auto_backward(
 
 @register_opt("topo_standardize")
 @register_opt("topo_fuse")
-@register_op(4, equiv_func=default_equiv_func)
+@register_op(
+    valid_func=num_valid_func(4),
+    equiv_func=sequential_equiv_func)
 class LessThan(Op):
     fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 < v1 else v3
 
     def infer_sign(self) -> "OpSign":
         a_sign, b_sign, x_sign, y_sign = [dep.get_sign() for dep in self.deps]
-        if infer_lessthan(a_sign, b_sign):
+        if infer_lessthan_sign(a_sign, b_sign):
             return x_sign
-        if infer_nomorethan(b_sign, a_sign):
+        if infer_nomorethan_sign(b_sign, a_sign):
             return y_sign
         sign = infer_mutual_sign(x_sign, y_sign)
         return sign
@@ -1080,15 +1293,17 @@ class LessThan(Op):
 
 @register_opt("topo_standardize")
 @register_opt("topo_fuse")
-@register_op(4, equiv_func=default_equiv_func)
+@register_op(
+    valid_func=num_valid_func(4),
+    equiv_func=sequential_equiv_func)
 class NoMoreThan(Op):
     fwd_func: FwdFuncType = lambda v0, v1, v2, v3: v2 if v0 <= v1 else v3
 
     def infer_sign(self) -> "OpSign":
         a_sign, b_sign, x_sign, y_sign = [dep.get_sign() for dep in self.deps]
-        if infer_nomorethan(a_sign, b_sign):
+        if infer_nomorethan_sign(a_sign, b_sign):
             return x_sign
-        if infer_lessthan(b_sign, a_sign):
+        if infer_lessthan_sign(b_sign, a_sign):
             return y_sign
         sign = infer_mutual_sign(x_sign, y_sign)
         return sign

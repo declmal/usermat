@@ -4,7 +4,7 @@ import json
 import mxnet as mx
 
 from codegen.op_utils import cast_float
-from codegen.op_def import Op, OpDef as od, Scalar
+from codegen.op_def import Op, OpDef as od
 from codegen.sym_utils import sym_rename
 
 def topo_sort(op_group):
@@ -59,7 +59,7 @@ def topo_visit(inps, outs, assert_ops, callback):
     od.reset() # reset the graph define here
     for op in topo_sort(outs + assert_ops):
         op_id = op.id
-        if isinstance(op, Scalar):
+        if isinstance(op, od.scalar_type()):
             data = op.data
             nop = od.scalar(data)
             graph[op_id] = nop

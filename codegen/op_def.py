@@ -51,7 +51,7 @@ class Op(object):
         flag = True
         datas = []
         for dep in deps:
-            if not isinstance(dep, Scalar):
+            if not isinstance(dep, OpDef.scalar_type()):
                 flag = False
                 break
             data = dep.data
@@ -104,13 +104,16 @@ class Op(object):
 """ Op Manager
 """
 class OpDef(object):
-    # management variables
+    """registration variables
+    """
     supported_ops = {}
     op_supported_opts = {}
     supported_opts = { \
         k for k, v in Op.__dict__.items() \
         if k.startswith("topo_") and type(v).__name__ == "classmethod"}
-    # status variables
+
+    """status variables
+    """
     current_id = 0
     equiv_map = {}
     id_map = {}
@@ -118,6 +121,8 @@ class OpDef(object):
     assert_set = set()
     sign_map = {}
 
+    """registration method
+    """
     @staticmethod
     def _scalar_func(cls):
         def wrapper(data):
@@ -223,6 +228,16 @@ class OpDef(object):
         return wrapper
 
     @staticmethod
+    def scalar_type():
+        op_type = "scalar"
+        assert op_type in OpDef.supported_ops, \
+            "please register Scalar Op first"
+        cls = OpDef.supported_ops["scalar"]
+        return cls
+
+    """status method
+    """
+    @staticmethod
     def get_assert_ops():
         return list([OpDef.get_op(op_id) for op_id in OpDef.assert_set])
 
@@ -265,32 +280,3 @@ class OpDef(object):
     def get_op(op_id):
         assert op_id in OpDef.id_map, "invalid op_id: {}".format(op_id)
         return OpDef.id_map[op_id]
-
-
-""" Scalar
-"""
-@OpDef.register_op()
-class Scalar(Op):
-    is_scalar = True
-
-    def infer_sign(self):
-        assert self.data is not None, "run set_data first"
-        if self.data == Zero:
-            return OpSign.ZERO
-        if self.data > Zero:
-            return OpSign.POSITIVE
-        return OpSign.NEGATIVE
-
-    def forward(self):
-        pass
-
-    def reset(self):
-        self.diff.clear()
-        self.sym = None
-
-    def to_sym(self):
-        name = self.info()
-        self.sym = mx.sym.var(name=name)
-
-    def autograph_backward(self, var_seq):
-        self.diff = [OpDef.scalar(Zero)] * len(var_seq)

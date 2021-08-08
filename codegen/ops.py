@@ -5,11 +5,11 @@ import numpy as np
 from codegen.infer_utils import \
     infer_negative_sign, infer_nomorethan_sign, infer_abs_sign, \
     infer_add_sign, infer_power_sign, infer_mutual_sign, \
-    infer_lessthan_sign, infer_multiply_sign
+    infer_lessthan_sign, infer_multiply_sign, OpSign
 from codegen.op_utils import \
     One, MinusOne, Zero, validate_exp, \
     sequential_equiv_func, swappable_equiv_func
-from codegen.op_def import Op, OpDef as od, Scalar
+from codegen.op_def import Op, OpDef as od
 from codegen.mials import \
     create_monomial_op, get_monomial_dict, merge_monomial_dict, \
     get_polynomial_dict, merge_polynomial_dict
@@ -54,6 +54,33 @@ class ExpContradictError(Exception):
 
 """ ops
 """
+@od.register_op()
+class Scalar(Op):
+    is_scalar = True
+
+    def infer_sign(self):
+        assert self.data is not None, "run set_data first"
+        if self.data == Zero:
+            return OpSign.ZERO
+        if self.data > Zero:
+            return OpSign.POSITIVE
+        return OpSign.NEGATIVE
+
+    def forward(self):
+        pass
+
+    def reset(self):
+        self.diff.clear()
+        self.sym = None
+
+    def to_sym(self):
+        name = self.info()
+        self.sym = mx.sym.var(name=name)
+
+    def autograph_backward(self, var_seq):
+        self.diff = [od.scalar(Zero)] * len(var_seq)
+
+
 @od.register_opt("topo_fuse")
 @od.register_opt("topo_standardize")
 @od.register_op()

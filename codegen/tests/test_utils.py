@@ -1,6 +1,6 @@
 import logging
 
-from codegen.ops import OpDef as od
+from codegen.op_def import OpDef as od
 
 def register_test(cls):
     def info_func(self, s: str) -> None:

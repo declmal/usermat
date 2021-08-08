@@ -1,26 +1,24 @@
-from typing import List, Set, Dict, Any, Optional
 from os import path
 import json
 
 import mxnet as mx
 
-from codegen.ops import OpDef as od, Op, \
-    Scalar, Var, get_opt
+from codegen.op_utils import cast_float
+from codegen.op_def import Op, OpDef as od, Scalar
 from codegen.sym_utils import sym_rename
-from codegen.op_utils import Float, cast_float
 
-def topo_sort(op_group: List["Op"]) -> List["Op"]:
-    visited: Set[int] = set()
-    sops: List["Op"] = []
-    nxt: Dict[int,Set[int]] = {}
+def topo_sort(op_group):
+    visited = set()
+    sops = []
+    nxt = {}
     for op in op_group:
         op_id = op.id
         nxt[op_id] = set()
         visited.add(op_id)
         sops.append(op)
-    res: Dict[int,int] = {}
-    op_map: Dict[int,"Op"] = {}
-    zero_deps: List[int] = []
+    res = {}
+    op_map = {}
+    zero_deps = []
     while sops:
         cop = sops.pop()
         cid = cop.id
@@ -40,7 +38,7 @@ def topo_sort(op_group: List["Op"]) -> List["Op"]:
                 continue
             visited.add(dep_id)
             sops.append(dep)
-    topo_seq: List["Op"] = []
+    topo_seq = []
     while zero_deps:
         cid = zero_deps.pop()
         cop = op_map[cid]
@@ -53,9 +51,7 @@ def topo_sort(op_group: List["Op"]) -> List["Op"]:
                 del res[nid]
     return topo_seq
 
-def topo_visit(
-    inps: List["Op"], outs: List["Op"], assert_ops: List["Op"],
-    callback: str) -> List["Op"]:
+def topo_visit(inps, outs, assert_ops, callback):
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
     assert_op_ids = [op.id for op in assert_ops]
@@ -75,7 +71,7 @@ def topo_visit(
                     "dep_id: {}, op_id: {}".format(dep_id, op_id)
                 ndep = graph[dep_id]
                 ndeps.append(ndep)
-            topo_func = get_opt(op, callback)
+            topo_func = od.get_opt(op, callback)
             nop = topo_func(*ndeps)
             graph[op_id] = nop
     ninps = [graph[op_id] for op_id in inp_ids]
@@ -84,7 +80,7 @@ def topo_visit(
     return ninps, nouts, nassert_ops
 
 def register_dfs(impl):
-    def dfs(op: "Op", visited: Set[int], **kwargs) -> None:
+    def dfs(op, visited, **kwargs):
         assert op.id != -1, "invalid id: {}".format(op.id)
         if op.id in visited:
             return
@@ -95,30 +91,30 @@ def register_dfs(impl):
     return dfs
 
 @register_dfs
-def op_forward(op: "Op") -> None:
+def op_forward(op):
     op.forward()
 
 @register_dfs
-def op_reset(op: "Op") -> None:
+def op_reset(op):
     op.reset()
 
 @register_dfs
-def op_display(op: "Op") -> None:
+def op_display(op):
     op.display()
 
 @register_dfs
-def op_to_sym(op: "Op") -> None:
+def op_to_sym(op):
     op.to_sym()
 
 @register_dfs
-def op_autograph_backward(op: "Op", **kwargs) -> None:
+def op_autograph_backward(op, **kwargs):
     op.autograph_backward(kwargs.get("var_seq"))
 
 def register_graph_opt(cls):
     def graph_topo(callback):
         def wrapper(self):
-            self.inps, self.outs, self.assert_ops = \
-                topo_visit(self.inps, self.outs, self.assert_ops, callback)
+            self.inps, self.outs, self.assert_ops = topo_visit(
+                self.inps, self.outs, self.assert_ops, callback)
             self.assert_op_ids = {op.id for op in self.assert_ops}
             assert len(self.assert_ops) == len(self.assert_op_ids)
             self.graph_assertion()
@@ -133,8 +129,7 @@ def register_graph_opt(cls):
 @register_graph_opt
 class Graph(object):
     def __init__(
-        self, inps: List["Op"], outs: List["Op"], assert_ops: List["Op"]=[],
-        out_appends: Optional[List[str]]=None) -> None:
+        self, inps, outs, assert_ops=[], out_appends=None):
         # validate and set inps
         inp_ids = set()
         for inp in inps:
@@ -142,13 +137,13 @@ class Graph(object):
             assert inp_id not in inp_ids, \
                 "duplicate ops, inp_id: {}".format(inp_id)
             inp_ids.add(inp_id)
-        self.inps: List["Op"] = inps
+        self.inps = inps
         # validate and set outs
         out_ids = set()
         for out in outs:
             out_id = out.id
             out_ids.add(out_id)
-        self.outs: List["Op"] = outs
+        self.outs = outs
         # validate assert_ops
         self.assert_op_ids = set()
         for op in assert_ops:
@@ -156,14 +151,15 @@ class Graph(object):
             assert op_id not in self.assert_op_ids, \
                 "duplicate ops, op_id: {}".format(op_id)
             self.assert_op_ids.add(op_id)
-        self.assert_ops: List["Op"] = assert_ops
+        self.assert_ops = assert_ops
         # no overlapping between out_ids and assert_op_ids
         for op_id in out_ids:
             assert op_id not in self.assert_op_ids
         for op_id in self.assert_op_ids:
             assert op_id not in out_ids
-        # out_appends: suffix that comes after "##" of the output symbol name
-        self.out_appends: Optional[List[str]] = out_appends \
+        # out_appends: suffix that comes
+        # after "##" of the output symbol name
+        self.out_appends = out_appends \
             if out_appends is not None else \
             ["Out:{}".format(i) for i in range(len(self.outs))]
         self.reset()
@@ -171,21 +167,21 @@ class Graph(object):
     def get_inp_size(self):
         return len(self.inps)
 
-    def set_input(self, *datas: "Float") -> None:
+    def set_input(self, *datas):
         assert len(datas) == len(self.inps), \
             "invalid number of datas: {}, expected: {}".format(
                 len(datas), len(self.inps))
         for i, inp in enumerate(self.inps):
             inp.set_data(cast_float(datas[i]))
 
-    def reset(self) -> None:
+    def reset(self):
         visited = set()
         for assert_op in self.assert_ops:
             op_reset(assert_op, visited)
         for out in self.outs:
             op_reset(out, visited)
 
-    def forward(self) -> List["Float"]:
+    def forward(self):
         visited = set()
         for assert_op in self.assert_ops:
             op_forward(assert_op, visited)
@@ -193,14 +189,14 @@ class Graph(object):
             op_forward(out, visited)
         return [out.data for out in self.outs]
 
-    def display(self) -> None:
+    def display(self):
         visited = set()
         for assert_op in self.assert_ops:
             op_display(assert_op, visited)
         for out in self.outs:
             op_display(out, visited)
 
-    def to_sym(self, json_path: str=path.expanduser("~/mx.json")) -> None:
+    def to_sym(self, json_path=path.expanduser("~/mx.json")):
         visited = set()
         for out in self.outs:
             op_to_sym(out, visited)
@@ -218,8 +214,8 @@ class Graph(object):
             sym = sym_rename(out.sym, name)
             sym_outs.append(sym)
         sym = mx.sym.Group(sym_outs)
-        arr: Dict[str, Any] = json.loads(sym.tojson())
-        nodes: List[Dict[str, Any]] = arr["nodes"]
+        arr = json.loads(sym.tojson())
+        nodes = arr["nodes"]
         for node in nodes:
             op_type = node["op"]
             if op_type == "add_n":
@@ -227,11 +223,10 @@ class Graph(object):
         with open(json_path, "w") as f:
             f.write(json.dumps(arr, indent=4))
 
-    def autograph_backward(self) -> "Graph":
-        var_seq: Dict[int, int] = \
-            {self.inps[i].id: i for i in range(len(self.inps))}
+    def autograph_backward(self):
+        var_seq = {self.inps[i].id: i for i in range(len(self.inps))}
         visited = set()
-        out_appends: List[str] = []
+        out_appends = []
         for i, out in enumerate(self.outs):
             op_autograph_backward(out, visited, var_seq=var_seq)
             for j, o in enumerate(out.diff):
@@ -244,7 +239,7 @@ class Graph(object):
             self.inps, outs, out_appends=out_appends,
             assert_ops=self.assert_ops)
 
-    def forward_optimize(self) -> None:
+    def forward_optimize(self):
         # var,scalar
         # assertnotzero, assertexceedzero, assertnolessthanzero
         # abs,sin,cos,lessthan,nomorethan
@@ -264,7 +259,7 @@ class Graph(object):
         # abs,sin,cos,lessthan,nomorethan
         # polynomial,monomial
 
-    def graph_assertion(self) -> None:
+    def graph_assertion(self):
         assert_ops = od.get_assert_ops()
         for op in assert_ops:
             op_id = op.id
@@ -272,5 +267,5 @@ class Graph(object):
                 self.assert_ops.append(op)
                 self.assert_op_ids.add(op_id)
 
-    def post_optimize(self) -> None:
+    def post_optimize(self):
         pass

@@ -4,10 +4,11 @@ from fractions import Fraction
 
 import numpy as np
 
-from codegen.ops import OpDef as od, Zero
+from codegen.ops import OpDef as od
 from codegen.graph import Graph
 from codegen.utils import random_array
 from codegen.tests.test_utils import register_test
+from codegen.op_utils import Zero
 
 
 @register_test

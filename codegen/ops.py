@@ -43,6 +43,9 @@ def mial_valid_func(mial_type: "str") -> "ValidFuncType":
         num_deps = len(deps)
         assert num_deps >= 1 and num_deps % 2 == 1, \
             "invalid number of deps: {}".format(num_deps)
+        for dep in deps:
+            assert isinstance(dep, Op), \
+                "invalid type of dep: {}".format(type(dep))
         for i in range(0, num_deps, 2):
             dep = deps[i]
             assert isinstance(dep, Scalar), \

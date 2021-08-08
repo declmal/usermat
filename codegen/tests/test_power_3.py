@@ -6,7 +6,7 @@ import numpy as np
 
 from codegen.op_def import OpDef as od
 from codegen.graph import Graph
-from codegen.ops import ExpContradictError
+from codegen.power import ExpContradictError
 from codegen.utils import random_array
 from codegen.tests.test_utils import register_test
 

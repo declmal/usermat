@@ -166,7 +166,8 @@ class Power(Op):
                 else:
                     # unittest test_power_1.py
                     m_dict[sid] += data
-                    assert isinstance(m_dict[sid], Fraction), type(m_dict[sid])
+                    assert isinstance(
+                        m_dict[sid], Fraction), type(m_dict[sid])
         # create monomial op
         op = create_monomial_op(m_dict)
         return op

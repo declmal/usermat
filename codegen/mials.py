@@ -393,3 +393,7 @@ def create_polynomial_op(m_dict):
     deps = [scalar] + deps
     op = od.polynomial(*deps)
     return op
+
+""" exp dist function
+"""
+# TODO(dev): exp dist function

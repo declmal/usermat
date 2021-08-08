@@ -15,6 +15,7 @@ class Op(object):
     op_equiv_func = None
     # fwd_func
     is_scalar = False
+    # TODO(dev): assert_sign
 
     def __init__(self, *deps):
         self.deps = list(deps)

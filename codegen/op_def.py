@@ -32,6 +32,18 @@ class Op(object):
     def infer_sign(self):
         return OpSign.INDEFINITE
 
+    def info(self, with_data=True):
+        deps_info = ""
+        if self.deps:
+            deps_info = "deps:" + \
+                ",".join([str(dep.id) for dep in self.deps])
+        data_info = ""
+        if with_data:
+            data_info = "data:{}".format(cast_float(self.data))
+        s = "id:{},op_type:{}".format(self.id, self.op_type)
+        _info = ",".join([s, data_info, deps_info])
+        return _info
+
     @classmethod
     def default_op(cls, *deps):
         od_func = getattr(OpDef, cls.op_type)
@@ -72,25 +84,15 @@ class Op(object):
         v = self.__class__.fwd_func(*vs)
         val_dict[op_id] = v
 
-    def dfs_info(self, with_data=True):
-        deps_info = ""
-        if self.deps:
-            deps_info = "deps:" + \
-                ",".join([str(dep.id) for dep in self.deps])
-        data_info = ""
-        if with_data:
-            data_info = "data:{}".format(cast_float(self.data))
-        s = "id:{},op_type:{}".format(self.id, self.op_type)
-        return ",".join([s, data_info, deps_info])
-
-    def dfs_display(self, logger=logging.getLogger("op_info")):
-        logger.debug(self.info())
+    def dfs_display(
+        self, logger=logging.getLogger("op_info"), with_data=True):
+        _info = self.info(with_data=with_data)
+        logger.debug(_info)
 
     def dfs_tosym(self, sym_dict):
         op_id = self.id
         assert op_id not in sym_dict
-        info_func = OpDef.get_opt(self, "dfs_info")
-        name = info_func(self, with_data=False)
+        name = self.info(with_data=False)
         dep_syms = []
         for dep in self.deps:
             dep_id = dep.id

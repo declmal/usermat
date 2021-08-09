@@ -37,7 +37,6 @@ def mial_valid_func(mial_type):
 
 """ mial ops
 """
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("dfs_forward")
 @od.register_op(
@@ -149,7 +148,6 @@ class Monomial(Op):
 
 
 @od.register_opt("dfs_forward")
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_op(
     valid_func=mial_valid_func("poly"), equiv_func=sequential_equiv_func)

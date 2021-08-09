@@ -26,7 +26,6 @@ class ExpContradictError(Exception):
 """ power op
 """
 @od.register_opt("dfs_forward")
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("topo_standardize")
 @od.register_op(

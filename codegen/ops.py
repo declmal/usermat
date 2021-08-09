@@ -28,7 +28,6 @@ def num_valid_func(num_deps):
 
 """ ops
 """
-@od.register_opt("dfs_info")
 @od.register_op()
 class Scalar(Op):
     def __init__(self, data):
@@ -51,8 +50,7 @@ class Scalar(Op):
     def dfs_tosym(self, sym_dict):
         op_id = self.id
         assert op_id not in sym_dict
-        info_func = od.get_opt(self, "dfs_info")
-        name = info_func(self, with_data=True)
+        name = self.info(with_data=True)
         sym = mx.sym.var(name=name)
         sym_dict[op_id] = sym
 
@@ -63,7 +61,6 @@ class Scalar(Op):
         diff_dict[cop_id] = cdiff
 
 
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("topo_fuse")
 @od.register_opt("topo_standardize")
@@ -103,7 +100,6 @@ class Negative(Op):
 
 
 @od.register_opt("dfs_forward")
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("topo_fuse")
 @od.register_opt("topo_degenerate")
@@ -128,7 +124,6 @@ class Sin(Op):
 
 
 @od.register_opt("dfs_forward")
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("topo_standardize")
 @od.register_opt("topo_degenerate")
@@ -166,7 +161,6 @@ class Cos(Op):
 
 
 @od.register_opt("dfs_forward")
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("topo_standardize")
 @od.register_op(
@@ -244,7 +238,6 @@ class Subtract(Op):
         return op
 
 
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("dfs_forward")
 @od.register_opt("topo_standardize")
@@ -308,7 +301,6 @@ class Multiply(Op):
         diff_dict[cop_id] = cdiff
 
 
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("dfs_forward")
 @od.register_op(
@@ -342,7 +334,6 @@ def cnd_auto_backward(deps, od_func, diff_dict, var_seq):
 
 
 @od.register_opt("dfs_forward")
-@od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("topo_standardize")
 @od.register_opt("topo_fuse")

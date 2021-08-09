@@ -10,15 +10,12 @@ from codegen.op_utils import Zero, cast_fraction, cast_float
 """ base
 """
 class Op(object):
-    _grad_fns = []
     op_type = None
     op_equiv_func = None
-    is_scalar = False
     # TODO(dev): assert_sign
 
     def __init__(self, *deps):
         self.deps = list(deps)
-        self.data = cast_fraction(0)
         self.id = -1
         self.diff = []
         self.sym = None
@@ -71,9 +68,16 @@ class Op(object):
         self.diff.clear()
         self.sym = None
 
-    def dfs_forward(self):
-        vs = [np.float64(dep.data) for dep in self.deps]
-        self.data = self.__class__.fwd_func(*vs)
+    def dfs_forward(self, val_dict):
+        op_id = self.id
+        assert op_id not in val_dict
+        vs = []
+        for dep in self.deps:
+            dep_id = dep.id
+            dep_v = val_dict[dep_id]
+            vs.append(dep_v)
+        v = self.__class__.fwd_func(*vs)
+        val_dict[op_id] = v
 
     def dfs_info(self, with_data=True):
         deps_info = ""

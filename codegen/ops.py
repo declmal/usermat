@@ -6,7 +6,8 @@ from codegen.infer_utils import \
     infer_add_sign, infer_power_sign, infer_mutual_sign, \
     infer_lessthan_sign, infer_multiply_sign, OpSign
 from codegen.op_utils import \
-    One, MinusOne, Zero, sequential_equiv_func, swappable_equiv_func
+    One, MinusOne, Zero, cast_fraction, \
+    sequential_equiv_func, swappable_equiv_func
 from codegen.op_def import Op, OpDef as od
 from codegen.mials import \
     get_monomial_dict, merge_monomial_dict, get_polynomial_dict, \
@@ -30,7 +31,12 @@ def num_valid_func(num_deps):
 @od.register_opt("dfs_info")
 @od.register_op()
 class Scalar(Op):
-    is_scalar = True
+    def __init__(self, *deps):
+        self.data = cast_fraction(0)
+        super().__init__(*deps)
+
+    def set_data(self, data):
+        self.data = data
 
     def infer_sign(self):
         assert self.data is not None, "run set_data first"
@@ -40,8 +46,10 @@ class Scalar(Op):
             return OpSign.POSITIVE
         return OpSign.NEGATIVE
 
-    def dfs_forward(self):
-        pass
+    def dfs_forward(self, val_dict):
+        op_id = self.id
+        assert self.id not in val_dict
+        val_dict[op_id] = self.data
 
     def dfs_reset(self):
         self.diff.clear()
@@ -67,7 +75,7 @@ class Var(Op):
     def topo_degenerate(cls, *deps):
         return cls.default_op(*deps)
 
-    def dfs_forward(self):
+    def dfs_forward(self, val_dict):
         pass
 
     def dfs_autograph_backward(self, var_seq):

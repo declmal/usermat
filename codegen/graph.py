@@ -127,23 +127,29 @@ class Graph(object):
     def get_inp_size(self):
         return len(self.inps)
 
-    def set_input(self, *datas):
-        assert len(datas) == len(self.inps), \
-            "invalid number of datas: {}, expected: {}".format(
-                len(datas), len(self.inps))
-        for i, inp in enumerate(self.inps):
-            inp.set_data(cast_float(datas[i]))
-
     def reset(self):
         visited = set()
         for out in self.outs:
             dfs_visit(out, visited, "dfs_reset")
 
-    def forward(self):
+    def forward(self, *datas):
+        assert len(datas) == len(self.inps), \
+            "invalid number of datas: {}, expected: {}".format(
+                len(datas), len(self.inps))
+        val_dict = {}
+        for i, inp in enumerate(self.inps):
+            inp_id = inp.id
+            inp_v = datas[i]
+            val_dict[inp_id] = inp_v
         visited = set()
         for out in self.outs:
-            dfs_visit(out, visited, "dfs_forward")
-        return [out.data for out in self.outs]
+            dfs_visit(out, visited, "dfs_forward", val_dict=val_dict)
+        ret = []
+        for out in self.outs:
+            out_id = out.id
+            out_v = val_dict[out_id]
+            ret.append(out_v)
+        return ret
 
     def display(self):
         visited = set()
@@ -172,13 +178,16 @@ class Graph(object):
             f.write(json.dumps(arr, indent=4))
 
     def autograph_backward(self):
-        var_seq = {self.inps[i].id: i for i in range(len(self.inps))}
+        var_seq = {}
+        for i in range(len(self.inps)):
+            inp = self.inps[i]
+            inp_id = inp.id
+            var_seq[inp_id] = i
         visited = set()
         out_appends = []
         for i, out in enumerate(self.outs):
             dfs_visit(
                 out, visited, "dfs_autograph_backward", var_seq=var_seq)
-            # op_autograph_backward(out, visited, var_seq=var_seq)
             for j, o in enumerate(out.diff):
                 assert o is not None, \
                     "invalid diff: {}, op: {}".format(o.info, out.info)

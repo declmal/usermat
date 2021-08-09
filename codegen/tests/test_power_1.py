@@ -25,7 +25,6 @@ class TestPower1(unittest.TestCase):
             datas = random_array([1], low=-100.0, high=100.0)
             a = datas[0]
             rets = [a**6]
-            g.set_input(*datas)
-            outs = g.forward()
+            outs = g.forward(*datas)
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=10)

@@ -28,8 +28,7 @@ class Test2(unittest.TestCase):
         g.optimize()
         g.tosym()
         a, b, c, d = [float(v) for v in [1, 2, 3, 4]]
-        g.set_input(a,b,c,d)
-        outs1 = g.forward()
+        outs1 = g.forward(a, b, c, d)
         self.assertEqual(outs1, [np.sin(a/b+c)*d*d*d])
         ng = g.autograph_backward()
         ng.fuse()

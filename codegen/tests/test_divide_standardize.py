@@ -26,7 +26,6 @@ class TestDivideStandardize(unittest.TestCase):
                 flag = datas[1] == Zero
             a, b = datas
             rets = [a/b]
-            g.set_input(*datas)
-            outs = g.forward()
+            outs = g.forward(*datas)
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=10)

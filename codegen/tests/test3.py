@@ -28,15 +28,13 @@ class Test3(unittest.TestCase):
         data = random_array([3], low=1000.0, high=123111443.0)
         self.info(
             "set input data: \n{}\n <end of input data>".format(data))
-        g.set_input(*data)
-        outs = g.forward()
+        outs = g.forward(*data)
         a, b, c = data
         self.assertAlmostEqual(outs[0], np.sin(a*b)*((a-np.float64(1))+b)/c)
         g.tosym()
         g.standardize()
         g.tosym()
         a, b, c = data
-        g.set_input(*data)
-        outs = g.forward()
+        outs = g.forward(*data)
         self.assertAlmostEqual(
             outs[0], np.sin(a*b)*((a-np.float64(1))+b)/c, places=10)

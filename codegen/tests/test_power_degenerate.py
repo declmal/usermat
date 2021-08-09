@@ -22,7 +22,6 @@ class TestPowerDegenerate(unittest.TestCase):
             datas = random_array([1], low=-1000.0, high=1000.0)
             a = datas[0]
             rets = [a]
-            g.set_input(*datas)
-            outs = g.forward()
+            outs = g.forward(*datas)
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=10)

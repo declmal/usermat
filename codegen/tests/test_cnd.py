@@ -32,8 +32,7 @@ class TestCnd(unittest.TestCase):
             rets = [
                 c*((b-1)**2 if b*(-c) < np.sin(a) else 2*(b-1))
             ]
-            g.set_input(*datas)
-            outs = g.forward()
+            outs = g.forward(*datas)
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)
         dg = g.autograph_backward()
@@ -46,7 +45,6 @@ class TestCnd(unittest.TestCase):
             a, b, c = datas
             rets = [0, 2*c*(b-1), (b-1)**2] if -b*c < np.sin(a) else \
                 [0, 2*c, 2*(b-1)]
-            dg.set_input(*datas)
-            outs = dg.forward()
+            outs = dg.forward(*datas)
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)

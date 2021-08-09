@@ -72,7 +72,6 @@ class Power(Op):
                 if nume_in >= 0:
                     continue
                 op = od.get_op(op_id)
-                od.assertnotzero(op)
         if deno % 2 == 0 or deno > 1:
             # in case that: exp = Fraction(odd_num, even_num)
             # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
@@ -100,12 +99,12 @@ class Power(Op):
                 if nume_in % 2 == 0 or deno_in % 2 == 0 or \
                     isinstance(cop, od.get_op_cls("abs")) or deno_in > 1:
                     if nume_in % 2 == 0:
-                        assert not isinstance(cop, od.get_op_cls("abs")), type(cop)
+                        assert not isinstance(cop, od.get_op_cls("abs")), \
+                            type(cop)
                     nm_dict[op_id] = data
                     continue
                 sm_dict[op_id] = data
             if len(sm_dict) > 1:
-                od.assertexceedzero(frac)
                 frac_id = frac.id
                 m_dict = {-1: One, frac_id: One}
             else:
@@ -115,7 +114,7 @@ class Power(Op):
                     # unittest test_power_3.py
                     raise ExpContradictError(
                         "contradictory exp_data: {}, ".format(exp_data) + \
-                        "dep_ids: {}".format([dep.id for dep in deps]))
+                            "dep_ids: {}".format([dep.id for dep in deps]))
                 m_dict = nm_dict
         # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
         # exp = Fraction(nume, deno)

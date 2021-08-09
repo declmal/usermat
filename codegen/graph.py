@@ -53,13 +53,12 @@ def topo_sort(op_group):
                 del res[nid]
     return topo_seq
 
-def topo_visit(inps, outs, assert_ops, callback, reverse=False):
+def topo_visit(inps, outs, callback, reverse=False):
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
-    assert_op_ids = [op.id for op in assert_ops]
     graph = {}
     od.reset() # reset the graph define here
-    for op in topo_sort(outs + assert_ops):
+    for op in topo_sort(outs):
         op_id = op.id
         if isinstance(op, od.get_op_cls("scalar")):
             data = op.data
@@ -78,8 +77,7 @@ def topo_visit(inps, outs, assert_ops, callback, reverse=False):
             graph[op_id] = nop
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
-    nassert_ops = [graph[op_id] for op_id in assert_op_ids]
-    return ninps, nouts, nassert_ops
+    return ninps, nouts
 
 def dfs_visit(op, visited, callback, **kwargs):
     assert op.id != -1, "invalid id: {}".format(op.id)
@@ -96,11 +94,8 @@ def dfs_visit(op, visited, callback, **kwargs):
 def register_graph_opt(cls):
     def graph_topo(callback):
         def wrapper(self):
-            self.inps, self.outs, self.assert_ops = topo_visit(
-                self.inps, self.outs, self.assert_ops, callback)
-            self.assert_op_ids = {op.id for op in self.assert_ops}
-            assert len(self.assert_ops) == len(self.assert_op_ids)
-            self.graph_assertion()
+            self.inps, self.outs = topo_visit(
+                self.inps, self.outs, callback)
         return wrapper
 
     for callback in dir(Op):
@@ -111,8 +106,7 @@ def register_graph_opt(cls):
 
 @register_graph_opt
 class Graph(object):
-    def __init__(
-        self, inps, outs, assert_ops=[], out_appends=None):
+    def __init__(self, inps, outs, out_appends=None):
         # validate and set inps
         inp_ids = set()
         for inp in inps:
@@ -121,25 +115,8 @@ class Graph(object):
                 "duplicate ops, inp_id: {}".format(inp_id)
             inp_ids.add(inp_id)
         self.inps = inps
-        # validate and set outs
-        out_ids = set()
-        for out in outs:
-            out_id = out.id
-            out_ids.add(out_id)
+        # set outs
         self.outs = outs
-        # validate assert_ops
-        self.assert_op_ids = set()
-        for op in assert_ops:
-            op_id = op.id
-            assert op_id not in self.assert_op_ids, \
-                "duplicate ops, op_id: {}".format(op_id)
-            self.assert_op_ids.add(op_id)
-        self.assert_ops = assert_ops
-        # no overlapping between out_ids and assert_op_ids
-        for op_id in out_ids:
-            assert op_id not in self.assert_op_ids
-        for op_id in self.assert_op_ids:
-            assert op_id not in out_ids
         # out_appends: suffix that comes
         # after "##" of the output symbol name
         self.out_appends = out_appends \
@@ -159,45 +136,25 @@ class Graph(object):
 
     def reset(self):
         visited = set()
-        for assert_op in self.assert_ops:
-            dfs_visit(assert_op, visited, "dfs_reset")
-            # op_reset(assert_op, visited)
         for out in self.outs:
             dfs_visit(out, visited, "dfs_reset")
-            # op_reset(out, visited)
 
     def forward(self):
         visited = set()
-        for assert_op in self.assert_ops:
-            dfs_visit(assert_op, visited, "dfs_forward")
-            # op_forward(assert_op, visited)
         for out in self.outs:
             dfs_visit(out, visited, "dfs_forward")
-            # op_forward(out, visited)
         return [out.data for out in self.outs]
 
     def display(self):
         visited = set()
-        for assert_op in self.assert_ops:
-            dfs_visit(assert_op, visited, "dfs_display")
-            # op_display(assert_op, visited)
         for out in self.outs:
             dfs_visit(out, visited, "dfs_display")
-            # op_display(out, visited)
 
     def tosym(self, json_path=path.expanduser("~/mx.json")):
         visited = set()
-        for assert_op in self.assert_ops:
-            dfs_visit(assert_op, visited, "dfs_tosym")
-            # op_to_sym(assert_op, visited)
         for out in self.outs:
             dfs_visit(out, visited, "dfs_tosym")
-            # op_to_sym(out, visited)
         sym_outs = []
-        for assert_op in self.assert_ops:
-            assert assert_op is not None and out.sym is not None
-            sym = assert_op.sym
-            sym_outs.append(sym)
         for i, out in enumerate(self.outs):
             assert out is not None and out.sym is not None
             name = "{}##{}".format(
@@ -228,34 +185,21 @@ class Graph(object):
                 name = "Diff:{},{}".format(i, j)
                 out_appends.append(name)
         outs = [o for o in out.diff for out in self.outs]
-        return Graph(
-            self.inps, outs, out_appends=out_appends,
-            assert_ops=self.assert_ops)
+        return Graph(self.inps, outs, out_appends=out_appends)
 
     def optimize(self):
         # var,scalar
-        # assertnotzero, assertexceedzero, assertnolessthanzero
         # abs,sin,cos,lessthan,nomorethan
         # polynomial,monomial
         # add,power,multiply
         # divide,negative,subtract
         self.standardize()
         # var,scalar
-        # assertnotzero, assertexceedzero, assertnolessthanzero
         # abs,sin,cos,lessthan,nomorethan
         # polynomial,monomial
         # add,power,multiply
         self.degenerate()
         self.fuse()
         # var,scalar
-        # assertnotzero, assertexceedzero, assertnolessthanzero
         # abs,sin,cos,lessthan,nomorethan
         # polynomial,monomial
-
-    def graph_assertion(self):
-        assert_ops = od.get_assert_ops()
-        for op in assert_ops:
-            op_id = op.id
-            if op_id not in self.assert_op_ids:
-                self.assert_ops.append(op)
-                self.assert_op_ids.add(op_id)

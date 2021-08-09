@@ -25,24 +25,6 @@ def num_valid_func(num_deps):
     return wrapper
 
 
-""" error definition
-"""
-class AssertExceedZeroError(Exception):
-    pass
-
-
-class AssertNotZeroError(Exception):
-    pass
-
-
-class AssertNoLessThanZeroError(Exception):
-    pass
-
-
-class ExpContradictError(Exception):
-    pass
-
-
 """ ops
 """
 @od.register_opt("dfs_info")
@@ -91,40 +73,6 @@ class Var(Op):
     def dfs_autograph_backward(self, var_seq):
         self.diff = [od.scalar(Zero)] * len(var_seq)
         self.diff[var_seq[self.id]] = od.scalar(One)
-
-
-@od.register_opt("dfs_info")
-@od.register_opt("dfs_tosym")
-@od.register_op(
-    valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class AssertExceedZero(Op):
-    @classmethod
-    def fwd_func(cls, v):
-        # TODO: unittest test_assert_exceed_zero.py
-        if v <= Zero:
-            raise AssertExceedZeroError("value: {}".format(v))
-        return Zero
-
-
-@od.register_op(
-    valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class AssertNotZero(Op):
-    @classmethod
-    def fwd_func(cls, v):
-        # TODO: unittest test_assert_not_zero.py
-        if v == Zero:
-            raise AssertNotZeroError("value: {}".format(v))
-        return Zero
-
-
-@od.register_op(
-    valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class AssertNoLessThanZero(Op):
-    @classmethod
-    def fwd_func(cls, v):
-        if v < Zero:
-            raise AssertNoLessThanZeroError("value: {}".format(v))
-        return Zero
 
 
 @od.register_opt("dfs_reset")

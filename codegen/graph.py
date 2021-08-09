@@ -122,15 +122,9 @@ class Graph(object):
         self.out_appends = out_appends \
             if out_appends is not None else \
             ["Out:{}".format(i) for i in range(len(self.outs))]
-        self.reset()
 
     def get_inp_size(self):
         return len(self.inps)
-
-    def reset(self):
-        visited = set()
-        for out in self.outs:
-            dfs_visit(out, visited, "dfs_reset")
 
     def forward(self, *datas):
         assert len(datas) == len(self.inps), \
@@ -163,7 +157,6 @@ class Graph(object):
             dfs_visit(out, visited, "dfs_tosym", sym_dict=sym_dict)
         sym_outs = []
         for i, out in enumerate(self.outs):
-            assert out is not None
             out_id = out.id
             out_sym = sym_dict[out_id]
             name = "{}##{}".format(
@@ -188,16 +181,26 @@ class Graph(object):
             var_seq[inp_id] = i
         visited = set()
         out_appends = []
+        diff_dict = {}
         for i, out in enumerate(self.outs):
             dfs_visit(
-                out, visited, "dfs_autograph_backward", var_seq=var_seq)
-            for j, o in enumerate(out.diff):
+                out, visited, "dfs_autograph_backward",
+                diff_dict=diff_dict, var_seq=var_seq)
+            out_id = out.id
+            out_diff = diff_dict[out_id]
+            for j, o in enumerate(out_diff):
                 assert o is not None, \
                     "invalid diff: {}, op: {}".format(o.info, out.info)
                 name = "Diff:{},{}".format(i, j)
                 out_appends.append(name)
-        outs = [o for o in out.diff for out in self.outs]
-        return Graph(self.inps, outs, out_appends=out_appends)
+        outs = []
+        for out in self.outs:
+            out_id = out.id
+            out_diff = diff_dict[out_id]
+            for o in out_diff:
+                outs.append(o)
+        dg = Graph(self.inps, outs, out_appends=out_appends)
+        return dg
 
     def optimize(self):
         # var,scalar

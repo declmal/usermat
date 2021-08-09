@@ -17,7 +17,6 @@ class Op(object):
     def __init__(self, *deps):
         self.deps = list(deps)
         self.id = -1
-        self.diff = []
 
     def set_id(self, op_id):
         self.id = op_id
@@ -58,9 +57,6 @@ class Op(object):
     @classmethod
     def topo_fuse(cls, *deps):
         return cls.default_op(*deps)
-
-    def dfs_reset(self):
-        self.diff.clear()
 
     def dfs_forward(self, val_dict):
         op_id = self.id
@@ -103,7 +99,7 @@ class Op(object):
             sym = mx.sym.add_n(*dep_syms, name=name)
         sym_dict[op_id] = sym
 
-    def dfs_autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, diff_dict, var_seq):
         raise NotImplementedError
 
 

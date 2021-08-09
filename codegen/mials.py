@@ -37,7 +37,6 @@ def mial_valid_func(mial_type):
 
 """ mial ops
 """
-@od.register_opt("dfs_reset")
 @od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
 @od.register_opt("dfs_forward")
@@ -68,7 +67,9 @@ class Monomial(Op):
                 product *= v[i]**v[i+1]
         return product
 
-    def dfs_autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, diff_dict, var_seq):
+        cop_id = self.id
+        assert cop_id not in diff_dict
         assert len(self.deps) > 1, "invoke degenerate first"
         scalar = self.deps[0]
         scalar_data = scalar.data
@@ -109,13 +110,13 @@ class Monomial(Op):
         for i in range(1, len(self.deps), 2):
             dep = self.deps[i]
             dep_id = dep.id
-            diff = dep.diff
+            diff = diff_dict[dep_id]
             diff_map[dep_id] = diff
         ns = {len(diff) for diff in diff_map.values()}
         assert len(ns) == 1, ns
         n = list(ns)[0]
         # backward propagation
-        self.diff.clear()
+        cdiff = []
         op_ids = list(diff_map.keys())
         for i in range(n):
             m_dict = {-1: Zero}
@@ -130,7 +131,8 @@ class Monomial(Op):
                 var_id = var.id
                 m_dict[var_id] = One
             diff = create_polynomial_op(m_dict)
-            self.diff.append(diff)
+            cdiff.append(diff)
+        diff_dict[cop_id] = cdiff
 
     @classmethod
     def topo_degenerate(cls, *deps):
@@ -146,7 +148,6 @@ class Monomial(Op):
         return op
 
 
-@od.register_opt("dfs_reset")
 @od.register_opt("dfs_forward")
 @od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
@@ -175,7 +176,9 @@ class Polynomial(Op):
                 summation += v[i]*v[i+1]
         return summation
 
-    def dfs_autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, diff_dict, var_seq):
+        cop_id = self.id
+        assert cop_id not in diff_dict
         assert len(self.deps) > 1, "invoke degenerate first"
         scalar = self.deps[0]
         scalar_data = scalar.data
@@ -198,13 +201,13 @@ class Polynomial(Op):
         for i in range(1, len(self.deps), 2):
             dep = self.deps[i]
             dep_id = dep.id
-            diff = dep.diff
+            diff = diff_dict[dep_id]
             diff_map[dep_id] = diff
         ns = {len(diff) for diff in diff_map.values()}
         assert len(ns) == 1, ns
         n = list(ns)[0]
         # backward propagation
-        self.diff.clear()
+        cdiff = []
         op_ids = list(diff_map.keys())
         for i in range(n):
             m_dict = {-1: Zero}
@@ -215,7 +218,8 @@ class Polynomial(Op):
                 scalar_data = m_dict_ref[op_id]
                 m_dict[did] = scalar_data
             diff = create_polynomial_op(m_dict)
-            self.diff.append(diff)
+            cdiff.append(diff)
+        diff_dict[cop_id] = cdiff
 
     @classmethod
     def topo_degenerate(cls, *deps):

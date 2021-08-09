@@ -25,7 +25,6 @@ class ExpContradictError(Exception):
 
 """ power op
 """
-@od.register_opt("dfs_reset")
 @od.register_opt("dfs_forward")
 @od.register_opt("dfs_info")
 @od.register_opt("dfs_tosym")
@@ -195,14 +194,18 @@ class Power(Op):
             return frac
         return cls.default_op(*deps)
 
-    def dfs_autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, diff_dict, var_seq):
+        cop_id = self.id
+        assert cop_id not in diff_dict
         x, y = self.deps
-        d = x.diff
-        assert any([dd is not None for dd in d])
-        self.diff.clear()
+        xid = x.id
+        xdiff = diff_dict[xid]
+        assert any([dd is not None for dd in xdiff])
         nscalar = od.scalar(y.data-1)
         npower = od.power(x, nscalar)
         mul_scalar = od.multiply(y, npower)
-        for i in range(len(d)):
-            dop = od.multiply(mul_scalar, d[i])
-            self.diff.append(dop)
+        cdiff = []
+        for i in range(len(xdiff)):
+            dop = od.multiply(mul_scalar, xdiff[i])
+            cdiff.append(dop)
+        diff_dict[cop_id] = cdiff

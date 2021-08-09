@@ -1,4 +1,5 @@
 import numpy as np
+import mxnet as mx
 
 from codegen.infer_utils import \
     infer_negative_sign, infer_nomorethan_sign, infer_abs_sign, \
@@ -44,6 +45,7 @@ class ExpContradictError(Exception):
 
 """ ops
 """
+@od.register_opt("dfs_info")
 @od.register_op()
 class Scalar(Op):
     is_scalar = True
@@ -56,21 +58,25 @@ class Scalar(Op):
             return OpSign.POSITIVE
         return OpSign.NEGATIVE
 
-    def forward(self):
+    def dfs_forward(self):
         pass
 
-    def reset(self):
+    def dfs_reset(self):
         self.diff.clear()
         self.sym = None
 
-    def to_sym(self):
-        name = self.info()
+    def dfs_tosym(self):
+        info_func = od.get_opt(self, "dfs_info")
+        name = info_func(self)
         self.sym = mx.sym.var(name=name)
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         self.diff = [od.scalar(Zero)] * len(var_seq)
 
 
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
 @od.register_opt("topo_fuse")
 @od.register_opt("topo_standardize")
 @od.register_op()
@@ -79,14 +85,16 @@ class Var(Op):
     def topo_degenerate(cls, *deps):
         return cls.default_op(*deps)
 
-    def forward(self):
+    def dfs_forward(self):
         pass
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         self.diff = [od.scalar(Zero)] * len(var_seq)
         self.diff[var_seq[self.id]] = od.scalar(One)
 
 
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
 @od.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertExceedZero(Op):
@@ -119,6 +127,7 @@ class AssertNoLessThanZero(Op):
         return Zero
 
 
+@od.register_opt("dfs_reset")
 @od.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Negative(Op):
@@ -137,6 +146,10 @@ class Negative(Op):
         return op
 
 
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_forward")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
 @od.register_opt("topo_fuse")
 @od.register_opt("topo_degenerate")
 @od.register_opt("topo_standardize")
@@ -145,7 +158,7 @@ class Negative(Op):
 class Sin(Op):
     fwd_func = lambda v: np.sin(v)
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         x = self.deps[0]
         y = od.cos(x)
         self.diff.clear()
@@ -154,6 +167,10 @@ class Sin(Op):
             self.diff.append(dop)
 
 
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_forward")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
 @od.register_opt("topo_standardize")
 @od.register_opt("topo_degenerate")
 @od.register_opt("topo_fuse")
@@ -167,7 +184,7 @@ class Abs(Op):
         sign = infer_abs_sign(dep_sign)
         return sign
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         x = self.deps[0]
         self.diff.clear()
         for di in x.diff:
@@ -177,6 +194,7 @@ class Abs(Op):
             self.diff.append(dop)
 
 
+@od.register_opt("dfs_reset")
 @od.register_opt("topo_fuse")
 @od.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
@@ -184,6 +202,10 @@ class Cos(Op):
     fwd_func = lambda v: np.cos(v)
 
 
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_forward")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
 @od.register_opt("topo_standardize")
 @od.register_op(
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
@@ -227,7 +249,7 @@ class Add(Op):
             return x
         return super().topo_degenerate(*deps)
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         x0, x1 = self.deps
         d0, d1 = x0.diff, x1.diff
         self.diff.clear()
@@ -236,6 +258,7 @@ class Add(Op):
             self.diff.append(dop)
 
 
+@od.register_opt("dfs_reset")
 @od.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class Subtract(Op):
@@ -256,6 +279,10 @@ class Subtract(Op):
         return op
 
 
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
+@od.register_opt("dfs_forward")
 @od.register_opt("topo_standardize")
 @od.register_op(
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
@@ -302,7 +329,7 @@ class Multiply(Op):
             return x
         return super().topo_degenerate(*deps)
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         x0, x1 = self.deps
         d0, d1 = x0.diff, x1.diff
         self.diff.clear()
@@ -313,6 +340,10 @@ class Multiply(Op):
             self.diff.append(dop)
 
 
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
+@od.register_opt("dfs_forward")
 @od.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class Divide(Op):
@@ -342,6 +373,10 @@ def cnd_auto_backward(deps, od_func, var_seq):
     return diff
 
 
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_forward")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
 @od.register_opt("topo_standardize")
 @od.register_opt("topo_fuse")
 @od.register_op(
@@ -367,7 +402,7 @@ class LessThan(Op):
             return lv
         return super().topo_degenerate(*deps)
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         od_func = getattr(od, self.op_type)
         self.diff = cnd_auto_backward(self.deps, od_func, var_seq)
 
@@ -397,6 +432,6 @@ class NoMoreThan(Op):
             return lv
         return super().topo_degenerate(*deps)
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         od_func = getattr(od, self.op_type)
         self.diff = cnd_auto_backward(self.deps, od_func, var_seq)

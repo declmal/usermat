@@ -24,7 +24,7 @@ class TestCnd(unittest.TestCase):
         v8 = od.multiply(v7, v2)
         g = Graph([v0, v1, v2], [v8])
         g.optimize()
-        # g.to_sym()
+        g.tosym()
         for _ in range(10000):
             inp_size = g.get_inp_size()
             datas = random_array([inp_size], low=-1000.0, high=1000.0)
@@ -37,10 +37,9 @@ class TestCnd(unittest.TestCase):
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)
         dg = g.autograph_backward()
-        # dg.to_sym(json_path=path.expanduser("~/mx2.json"))
         dg.degenerate()
         dg.fuse()
-        # dg.to_sym()
+        dg.tosym()
         for _ in range(10000):
             inp_size = g.get_inp_size()
             datas = random_array([inp_size], low=-1000.0, high=1000.0)

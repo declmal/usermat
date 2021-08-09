@@ -32,9 +32,9 @@ class Test3(unittest.TestCase):
         outs = g.forward()
         a, b, c = data
         self.assertAlmostEqual(outs[0], np.sin(a*b)*((a-np.float64(1))+b)/c)
-        # g.to_sym()
+        g.tosym()
         g.standardize()
-        # g.to_sym(json_path=path.expanduser("~/Desktop/mx2.json"))
+        g.tosym()
         a, b, c = data
         g.set_input(*data)
         outs = g.forward()

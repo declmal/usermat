@@ -13,7 +13,6 @@ class Op(object):
     _grad_fns = []
     op_type = None
     op_equiv_func = None
-    # fwd_func
     is_scalar = False
     # TODO(dev): assert_sign
 
@@ -67,16 +66,16 @@ class Op(object):
     def topo_fuse(cls, *deps):
         return cls.default_op(*deps)
 
-    def reset(self):
+    def dfs_reset(self):
         self.data = cast_fraction(0)
         self.diff.clear()
         self.sym = None
 
-    def forward(self):
+    def dfs_forward(self):
         vs = [np.float64(dep.data) for dep in self.deps]
         self.data = self.__class__.fwd_func(*vs)
 
-    def info(self, with_data=True):
+    def dfs_info(self, with_data=True):
         deps_info = ""
         if self.deps:
             deps_info = "deps:" + \
@@ -87,18 +86,19 @@ class Op(object):
         s = "id:{},op_type:{}".format(self.id, self.op_type)
         return ",".join([s, data_info, deps_info])
 
-    def display(self, logger=logging.getLogger("op_info")):
+    def dfs_display(self, logger=logging.getLogger("op_info")):
         logger.debug(self.info())
 
-    def to_sym(self):
-        name = self.info(with_data=False)
+    def dfs_tosym(self):
+        info_func = OpDef.get_opt(self, "dfs_info")
+        name = info_func(self, with_data=False)
         dep_syms = [dep.sym for dep in self.deps]
         if not dep_syms:
             self.sym = mx.sym.var(name=name)
         else:
             self.sym = mx.sym.add_n(*dep_syms, name=name)
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         raise NotImplementedError
 
 
@@ -111,7 +111,7 @@ class OpDef(object):
     op_supported_opts = {}
     supported_opts = { \
         k for k, v in Op.__dict__.items() \
-        if k.startswith("topo_") and type(v).__name__ == "classmethod"}
+        if k.startswith("topo_") or k.startswith("dfs_")}
 
     """status variables
     """
@@ -190,8 +190,7 @@ class OpDef(object):
             OpDef.supported_ops[op_type] = cls
             _op_supported_opts = OpDef.op_supported_opts[op_type] = set()
             for k, v in cls.__dict__.items():
-                if k.startswith("topo_") and \
-                    type(v).__name__ == "classmethod":
+                if k.startswith("topo_") or k.startswith("dfs_"):
                     _op_supported_opts.add(k)
             # set up op_def
             if op_type == "scalar":

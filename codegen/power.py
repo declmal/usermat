@@ -25,6 +25,10 @@ class ExpContradictError(Exception):
 
 """ power op
 """
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_forward")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
 @od.register_opt("topo_standardize")
 @od.register_op(
     valid_func=power_valid_func, equiv_func=sequential_equiv_func)
@@ -192,7 +196,7 @@ class Power(Op):
             return frac
         return cls.default_op(*deps)
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         x, y = self.deps
         d = x.diff
         assert any([dd is not None for dd in d])

@@ -37,6 +37,10 @@ def mial_valid_func(mial_type):
 
 """ mial ops
 """
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
+@od.register_opt("dfs_forward")
 @od.register_op(
     valid_func=mial_valid_func("mono"), equiv_func=sequential_equiv_func)
 class Monomial(Op):
@@ -64,7 +68,7 @@ class Monomial(Op):
                 product *= v[i]**v[i+1]
         return product
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         assert len(self.deps) > 1, "invoke degenerate first"
         scalar = self.deps[0]
         scalar_data = scalar.data
@@ -142,6 +146,10 @@ class Monomial(Op):
         return op
 
 
+@od.register_opt("dfs_reset")
+@od.register_opt("dfs_forward")
+@od.register_opt("dfs_info")
+@od.register_opt("dfs_tosym")
 @od.register_op(
     valid_func=mial_valid_func("poly"), equiv_func=sequential_equiv_func)
 class Polynomial(Op):
@@ -167,7 +175,7 @@ class Polynomial(Op):
                 summation += v[i]*v[i+1]
         return summation
 
-    def autograph_backward(self, var_seq):
+    def dfs_autograph_backward(self, var_seq):
         assert len(self.deps) > 1, "invoke degenerate first"
         scalar = self.deps[0]
         scalar_data = scalar.data

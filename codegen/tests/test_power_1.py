@@ -20,7 +20,7 @@ class TestPower1(unittest.TestCase):
         v4 = od.power(v3, od.scalar(4))
         g = Graph([v0], [v4])
         g.fuse()
-        # g.to_sym()
+        g.tosym()
         for _ in range(10000):
             datas = random_array([1], low=-100.0, high=100.0)
             a = datas[0]

@@ -51,7 +51,7 @@ def topo_sort(op_group):
                 del res[nid]
     return topo_seq
 
-def topo_visit(inps, outs, assert_ops, callback):
+def topo_visit(inps, outs, assert_ops, callback, reverse=False):
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
     assert_op_ids = [op.id for op in assert_ops]
@@ -79,36 +79,15 @@ def topo_visit(inps, outs, assert_ops, callback):
     nassert_ops = [graph[op_id] for op_id in assert_op_ids]
     return ninps, nouts, nassert_ops
 
-def register_dfs(impl):
-    def dfs(op, visited, **kwargs):
-        assert op.id != -1, "invalid id: {}".format(op.id)
-        if op.id in visited:
-            return
-        visited.add(op.id)
-        for dep in op.deps:
-            dfs(dep, visited, **kwargs)
-        impl(op, **kwargs)
-    return dfs
-
-@register_dfs
-def op_forward(op):
-    op.forward()
-
-@register_dfs
-def op_reset(op):
-    op.reset()
-
-@register_dfs
-def op_display(op):
-    op.display()
-
-@register_dfs
-def op_to_sym(op):
-    op.to_sym()
-
-@register_dfs
-def op_autograph_backward(op, **kwargs):
-    op.autograph_backward(kwargs.get("var_seq"))
+def dfs_visit(op, visited, callback, **kwargs):
+    assert op.id != -1, "invalid id: {}".format(op.id)
+    if op.id in visited:
+        return
+    visited.add(op.id)
+    for dep in op.deps:
+        dfs_visit(dep, visited, callback, **kwargs)
+    dfs_func = od.get_opt(op, callback)
+    dfs_func(op, **kwargs)
 
 def register_graph_opt(cls):
     def graph_topo(callback):
@@ -177,31 +156,39 @@ class Graph(object):
     def reset(self):
         visited = set()
         for assert_op in self.assert_ops:
-            op_reset(assert_op, visited)
+            dfs_visit(assert_op, visited, "dfs_reset")
+            # op_reset(assert_op, visited)
         for out in self.outs:
-            op_reset(out, visited)
+            dfs_visit(out, visited, "dfs_reset")
+            # op_reset(out, visited)
 
     def forward(self):
         visited = set()
         for assert_op in self.assert_ops:
-            op_forward(assert_op, visited)
+            dfs_visit(assert_op, visited, "dfs_forward")
+            # op_forward(assert_op, visited)
         for out in self.outs:
-            op_forward(out, visited)
+            dfs_visit(out, visited, "dfs_forward")
+            # op_forward(out, visited)
         return [out.data for out in self.outs]
 
     def display(self):
         visited = set()
         for assert_op in self.assert_ops:
-            op_display(assert_op, visited)
+            dfs_visit(assert_op, visited, "dfs_display")
+            # op_display(assert_op, visited)
         for out in self.outs:
-            op_display(out, visited)
+            dfs_visit(out, visited, "dfs_display")
+            # op_display(out, visited)
 
-    def to_sym(self, json_path=path.expanduser("~/mx.json")):
+    def tosym(self, json_path=path.expanduser("~/mx.json")):
         visited = set()
-        for out in self.outs:
-            op_to_sym(out, visited)
         for assert_op in self.assert_ops:
-            op_to_sym(assert_op, visited)
+            dfs_visit(assert_op, visited, "dfs_tosym")
+            # op_to_sym(assert_op, visited)
+        for out in self.outs:
+            dfs_visit(out, visited, "dfs_tosym")
+            # op_to_sym(out, visited)
         sym_outs = []
         for assert_op in self.assert_ops:
             assert assert_op is not None and out.sym is not None
@@ -228,7 +215,9 @@ class Graph(object):
         visited = set()
         out_appends = []
         for i, out in enumerate(self.outs):
-            op_autograph_backward(out, visited, var_seq=var_seq)
+            dfs_visit(
+                out, visited, "dfs_autograph_backward", var_seq=var_seq)
+            # op_autograph_backward(out, visited, var_seq=var_seq)
             for j, o in enumerate(out.diff):
                 assert o is not None, \
                     "invalid diff: {}, op: {}".format(o.info, out.info)

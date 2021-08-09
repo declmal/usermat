@@ -6,7 +6,7 @@ from codegen.infer_utils import \
     infer_add_sign, infer_power_sign, infer_mutual_sign, \
     infer_lessthan_sign, infer_multiply_sign, OpSign
 from codegen.op_utils import \
-    One, MinusOne, Zero, cast_fraction, \
+    One, MinusOne, Zero, FloatTypes, cast_fraction, \
     sequential_equiv_func, swappable_equiv_func
 from codegen.op_def import Op, OpDef as od
 from codegen.mials import \
@@ -28,18 +28,16 @@ def num_valid_func(num_deps):
 
 """ ops
 """
+@od.register_opt("dfs_reset")
 @od.register_opt("dfs_info")
 @od.register_op()
 class Scalar(Op):
-    def __init__(self, *deps):
-        self.data = cast_fraction(0)
-        super().__init__(*deps)
-
-    def set_data(self, data):
-        self.data = data
+    def __init__(self, data):
+        assert isinstance(data, FloatTypes)
+        self.data = cast_fraction(data)
+        super().__init__()
 
     def infer_sign(self):
-        assert self.data is not None, "run set_data first"
         if self.data == Zero:
             return OpSign.ZERO
         if self.data > Zero:
@@ -50,10 +48,6 @@ class Scalar(Op):
         op_id = self.id
         assert self.id not in val_dict
         val_dict[op_id] = self.data
-
-    def dfs_reset(self):
-        self.diff.clear()
-        self.sym = None
 
     def dfs_tosym(self):
         info_func = od.get_opt(self, "dfs_info")

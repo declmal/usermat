@@ -23,9 +23,6 @@ class Op(object):
     def set_id(self, op_id):
         self.id = op_id
 
-    def set_data(self, data):
-        self.data = data
-
     def get_sign(self):
         op_id = self.id
         sign = OpDef.get_sign(op_id)
@@ -64,7 +61,6 @@ class Op(object):
         return cls.default_op(*deps)
 
     def dfs_reset(self):
-        self.data = cast_fraction(0)
         self.diff.clear()
         self.sym = None
 
@@ -134,9 +130,8 @@ class OpDef(object):
             nv = cast_fraction(data)
             if nv in OpDef.scalar_map:
                 return OpDef.scalar_map[nv]
-            op = cls()
+            op = cls(data)
             OpDef.set_id(op)
-            op.set_data(nv)
             op_id = op.id
             OpDef.scalar_map[nv] = op
             OpDef.id_map[op.id] = op

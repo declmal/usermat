@@ -18,7 +18,6 @@ class Op(object):
         self.deps = list(deps)
         self.id = -1
         self.diff = []
-        self.sym = None
 
     def set_id(self, op_id):
         self.id = op_id
@@ -62,7 +61,6 @@ class Op(object):
 
     def dfs_reset(self):
         self.diff.clear()
-        self.sym = None
 
     def dfs_forward(self, val_dict):
         op_id = self.id

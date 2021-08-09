@@ -124,7 +124,6 @@ class OpDef(object):
     equiv_map = {}
     id_map = {}
     scalar_map = {}
-    assert_set = set()
     sign_map = {}
 
     """registration method
@@ -160,8 +159,6 @@ class OpDef(object):
             op_id = op.id
             OpDef.id_map[op_id] = op
             op_type = getattr(cls, "op_type")
-            if op_type.startswith("assert"):
-                OpDef.set_assert(op_id)
             sign = op.infer_sign()
             OpDef.set_sign(op_id, sign)
             return op
@@ -241,16 +238,11 @@ class OpDef(object):
     """status method
     """
     @staticmethod
-    def get_assert_ops():
-        return list([OpDef.get_op(op_id) for op_id in OpDef.assert_set])
-
-    @staticmethod
     def reset():
         OpDef.current_id = 0
         OpDef.equiv_map.clear()
         OpDef.id_map.clear()
         OpDef.scalar_map.clear()
-        OpDef.assert_set.clear()
         OpDef.sign_map.clear()
 
     @staticmethod
@@ -265,13 +257,6 @@ class OpDef(object):
         assert op_id in OpDef.sign_map, \
             "op id: {} not in sign_map: {}".format(op_id, OpDef.sign_map)
         return OpDef.sign_map[op_id]
-
-    @staticmethod
-    def set_assert(op_id):
-        assert op_id not in OpDef.assert_set, \
-            "duplicate op id: {}, assert_set: {}".format(
-                op_id, OpDef.assert_set)
-        OpDef.assert_set.add(op_id)
 
     @staticmethod
     def set_id(op):

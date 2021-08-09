@@ -270,7 +270,6 @@ class OpDef(object):
                 op_id, OpDef.assert_set)
         OpDef.assert_set.add(op_id)
 
-
     @staticmethod
     def set_id(op):
         op.set_id(OpDef.current_id)

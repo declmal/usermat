@@ -7,7 +7,7 @@ import numpy as np
 from codegen.op_def import OpDef as od
 from codegen.graph import Graph
 from codegen.utils import random_array
-from codegen.tests.test_utils import register_test
+from codegen.test_utils import register_test
 
 
 @register_test

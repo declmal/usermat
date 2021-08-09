@@ -7,6 +7,8 @@ from codegen.op_utils import cast_float
 from codegen.op_def import Op, OpDef as od
 from codegen.sym_utils import sym_rename
 
+""" visit passes
+"""
 def topo_sort(op_group):
     visited = set()
     sops = []
@@ -89,6 +91,8 @@ def dfs_visit(op, visited, callback, **kwargs):
     dfs_func = od.get_opt(op, callback)
     dfs_func(op, **kwargs)
 
+""" graph
+"""
 def register_graph_opt(cls):
     def graph_topo(callback):
         def wrapper(self):
@@ -255,6 +259,3 @@ class Graph(object):
             if op_id not in self.assert_op_ids:
                 self.assert_ops.append(op)
                 self.assert_op_ids.add(op_id)
-
-    def backward_optimize(self):
-        pass

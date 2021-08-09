@@ -12,11 +12,14 @@ from codegen.op_utils import Zero, cast_fraction, cast_float
 class Op(object):
     op_type = None
     op_equiv_func = None
-    # TODO(dev): assert_sign
 
     def __init__(self, *deps):
         self.deps = list(deps)
         self.id = -1
+        self.assert_signs = []
+
+    def insert_assert_sign(sign):
+        self.assert_signs.append(sign)
 
     def set_id(self, op_id):
         self.id = op_id

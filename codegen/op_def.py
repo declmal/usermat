@@ -89,14 +89,21 @@ class Op(object):
     def dfs_display(self, logger=logging.getLogger("op_info")):
         logger.debug(self.info())
 
-    def dfs_tosym(self):
+    def dfs_tosym(self, sym_dict):
+        op_id = self.id
+        assert op_id not in sym_dict
         info_func = OpDef.get_opt(self, "dfs_info")
         name = info_func(self, with_data=False)
-        dep_syms = [dep.sym for dep in self.deps]
-        if not dep_syms:
-            self.sym = mx.sym.var(name=name)
+        dep_syms = []
+        for dep in self.deps:
+            dep_id = dep.id
+            dep_sym = sym_dict[dep_id]
+            dep_syms.append(dep_sym)
+        if len(dep_syms) == 0:
+            sym = mx.sym.var(name=name)
         else:
-            self.sym = mx.sym.add_n(*dep_syms, name=name)
+            sym = mx.sym.add_n(*dep_syms, name=name)
+        sym_dict[op_id] = sym
 
     def dfs_autograph_backward(self, var_seq):
         raise NotImplementedError

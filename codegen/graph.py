@@ -158,14 +158,17 @@ class Graph(object):
 
     def tosym(self, json_path=path.expanduser("~/mx.json")):
         visited = set()
+        sym_dict = {}
         for out in self.outs:
-            dfs_visit(out, visited, "dfs_tosym")
+            dfs_visit(out, visited, "dfs_tosym", sym_dict=sym_dict)
         sym_outs = []
         for i, out in enumerate(self.outs):
-            assert out is not None and out.sym is not None
+            assert out is not None
+            out_id = out.id
+            out_sym = sym_dict[out_id]
             name = "{}##{}".format(
-                out.sym.attr("name"), self.out_appends[i])
-            sym = sym_rename(out.sym, name)
+                out_sym.attr("name"), self.out_appends[i])
+            sym = sym_rename(out_sym, name)
             sym_outs.append(sym)
         sym = mx.sym.Group(sym_outs)
         arr = json.loads(sym.tojson())

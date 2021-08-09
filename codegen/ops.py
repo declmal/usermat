@@ -49,10 +49,13 @@ class Scalar(Op):
         assert self.id not in val_dict
         val_dict[op_id] = self.data
 
-    def dfs_tosym(self):
+    def dfs_tosym(self, sym_dict):
+        op_id = self.id
+        assert op_id not in sym_dict
         info_func = od.get_opt(self, "dfs_info")
-        name = info_func(self)
-        self.sym = mx.sym.var(name=name)
+        name = info_func(self, with_data=True)
+        sym = mx.sym.var(name=name)
+        sym_dict[op_id] = sym
 
     def dfs_autograph_backward(self, var_seq):
         self.diff = [od.scalar(Zero)] * len(var_seq)

@@ -87,15 +87,23 @@ def revtopo_visit(outs, callback):
         revtopo_func = od.get_opt(op, callback)
         revtopo_func(op)
 
-def dfs_visit(op, visited, callback, **kwargs):
-    assert op.id != -1, "invalid id: {}".format(op.id)
-    if op.id in visited:
+def dfs(op, visited, callback, **kwargs):
+    op_id = op.id
+    assert op_id != -1, "invalid id: {}".format(op.id)
+    if op_id in visited:
         return
-    visited.add(op.id)
+    visited.add(op_id)
     for dep in op.deps:
-        dfs_visit(dep, visited, callback, **kwargs)
+        dfs(dep, visited, callback, **kwargs)
     dfs_func = od.get_opt(op, callback)
     dfs_func(op, **kwargs)
+
+def dfs_visit(outs, callback, init_val_dict={}, **kwargs):
+    visited = set()
+    val_dict = init_val_dict.copy()
+    for out in outs:
+        dfs(out, visited, callback, val_dict=val_dict, **kwargs)
+    return val_dict
 
 """ graph
 """
@@ -143,9 +151,8 @@ class Graph(object):
             inp_id = inp.id
             inp_v = datas[i]
             val_dict[inp_id] = inp_v
-        visited = set()
-        for out in self.outs:
-            dfs_visit(out, visited, "dfs_forward", val_dict=val_dict)
+        val_dict = dfs_visit(
+            self.outs, "dfs_forward", init_val_dict=val_dict)
         ret = []
         for out in self.outs:
             out_id = out.id
@@ -154,15 +161,10 @@ class Graph(object):
         return ret
 
     def display(self):
-        visited = set()
-        for out in self.outs:
-            dfs_visit(out, visited, "dfs_display")
+        dfs_visit(self.outs, "dfs_display")
 
     def tosym(self, json_path=path.expanduser("~/mx.json")):
-        visited = set()
-        sym_dict = {}
-        for out in self.outs:
-            dfs_visit(out, visited, "dfs_tosym", sym_dict=sym_dict)
+        sym_dict = dfs_visit(self.outs, "dfs_tosym")
         sym_outs = []
         for i, out in enumerate(self.outs):
             out_id = out.id
@@ -187,13 +189,10 @@ class Graph(object):
             inp = self.inps[i]
             inp_id = inp.id
             var_seq[inp_id] = i
-        visited = set()
         out_appends = []
-        diff_dict = {}
+        diff_dict = dfs_visit(
+            self.outs, "dfs_autograph_backward", var_seq=var_seq)
         for i, out in enumerate(self.outs):
-            dfs_visit(
-                out, visited, "dfs_autograph_backward",
-                diff_dict=diff_dict, var_seq=var_seq)
             out_id = out.id
             out_diff = diff_dict[out_id]
             for j, o in enumerate(out_diff):
@@ -223,10 +222,7 @@ class Graph(object):
         # var,scalar
         # abs,sin,cos,lessthan,nomorethan
         # add,power,multiply
-        sign_dict = {}
-        visited = set()
-        for out in self.outs:
-            dfs_visit(out, visited, "dfs_infer_sign", sign_dict=sign_dict)
+        sign_dict = dfs_visit(self.outs, "dfs_infer_sign")
 
     def merge(self):
         # var,scalar

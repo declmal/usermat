@@ -185,12 +185,12 @@ class Power(Op):
             return frac
         return cls.default_op(*deps)
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
-        assert cop_id not in diff_dict
+        assert cop_id not in val_dict
         x, y = self.deps
         xid = x.id
-        xdiff = diff_dict[xid]
+        xdiff = val_dict[xid]
         assert any([dd is not None for dd in xdiff])
         nscalar = od.scalar(y.data-1)
         npower = od.power(x, nscalar)
@@ -199,16 +199,16 @@ class Power(Op):
         for i in range(len(xdiff)):
             dop = od.multiply(mul_scalar, xdiff[i])
             cdiff.append(dop)
-        diff_dict[cop_id] = cdiff
+        val_dict[cop_id] = cdiff
 
-    def dfs_infer_sign(self, sign_dict):
+    def dfs_infer_sign(self, val_dict):
         frac, exp = self.deps
         frac_id = frac.id
-        frac_sign = sign_dict[frac_id]
+        frac_sign = val_dict[frac_id]
         exp_data = exp.data
         sign = infer_power_sign(frac_sign, exp_data)
         cop_id = self.id
-        if cop_id in sign_dict:
-            osign = sign_dict
+        if cop_id in val_dict:
+            osign = val_dict
             sign = merge_sign(sign, osign)
-        sign_dict[cop_id] = sign
+        val_dict[cop_id] = sign

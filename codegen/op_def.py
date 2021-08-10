@@ -69,46 +69,47 @@ class Op(object):
         pass
 
     def dfs_forward(self, val_dict):
-        op_id = self.id
-        assert op_id not in val_dict
+        cop_id = self.id
+        assert cop_id not in val_dict
         vs = []
         for dep in self.deps:
             dep_id = dep.id
             dep_v = val_dict[dep_id]
             vs.append(dep_v)
         v = self.__class__.fwd_func(*vs)
-        val_dict[op_id] = v
+        val_dict[cop_id] = v
 
     def dfs_display(
-        self, logger=logging.getLogger("op_info"), with_data=True):
+        self, val_dict,
+        logger=logging.getLogger("op_info"), with_data=True):
         _info = self.info(with_data=with_data)
         logger.debug(_info)
 
-    def dfs_tosym(self, sym_dict):
-        op_id = self.id
-        assert op_id not in sym_dict
+    def dfs_tosym(self, val_dict):
+        cop_id = self.id
+        assert cop_id not in val_dict
         name = self.info(with_data=False)
         dep_syms = []
         for dep in self.deps:
             dep_id = dep.id
-            dep_sym = sym_dict[dep_id]
+            dep_sym = val_dict[dep_id]
             dep_syms.append(dep_sym)
         if len(dep_syms) == 0:
             sym = mx.sym.var(name=name)
         else:
             sym = mx.sym.add_n(*dep_syms, name=name)
-        sym_dict[op_id] = sym
+        val_dict[cop_id] = sym
 
-    def dfs_infer_sign(self, sign_dict):
+    def dfs_infer_sign(self, val_dict):
         cop_id = self.id
-        if cop_id in sign_dict:
-            osign = sign_dict[cop_id]
+        if cop_id in val_dict:
+            osign = val_dict[cop_id]
             sign = merge_sign(OpSign.INDEFINITE, osign)
         else:
             sign = OpSign.INDEFINITE
-        sign_dict[cop_id] = sign
+        val_dict[cop_id] = sign
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         raise NotImplementedError
 
 

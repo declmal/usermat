@@ -37,24 +37,24 @@ class Scalar(Op):
         super().__init__()
 
     def dfs_forward(self, val_dict):
-        op_id = self.id
-        assert self.id not in val_dict
-        val_dict[op_id] = self.data
+        cop_id = self.id
+        assert cop_id not in val_dict
+        val_dict[cop_id] = self.data
 
-    def dfs_tosym(self, sym_dict):
-        op_id = self.id
-        assert op_id not in sym_dict
+    def dfs_tosym(self, val_dict):
+        cop_id = self.id
+        assert cop_id not in val_dict
         name = self.info(with_data=True)
         sym = mx.sym.var(name=name)
-        sym_dict[op_id] = sym
+        val_dict[cop_id] = sym
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
-        assert cop_id not in diff_dict
+        assert cop_id not in val_dict
         cdiff = [od.scalar(Zero)] * len(var_seq)
-        diff_dict[cop_id] = cdiff
+        val_dict[cop_id] = cdiff
 
-    def dfs_infer_sign(self, sign_dict):
+    def dfs_infer_sign(self, val_dict):
         if self.data == Zero:
             sign = OpSign.ZERO
         elif self.data > Zero:
@@ -62,10 +62,10 @@ class Scalar(Op):
         else:
             sign = OpSign.NEGATIVE
         cop_id = self.id
-        if cop_id in sign_dict:
-            osign = sign_dict
+        if cop_id in val_dict:
+            osign = val_dict
             sign = merge_sign(sign, osign)
-        sign_dict[cop_id] = sign
+        val_dict[cop_id] = sign
 
 
 @od.register_opt("dfs_infer_sign")
@@ -81,12 +81,12 @@ class Var(Op):
     def dfs_forward(self, val_dict):
         pass
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
-        assert cop_id not in diff_dict
+        assert cop_id not in val_dict
         cdiff = [od.scalar(Zero)] * len(var_seq)
         cdiff[var_seq[cop_id]] = od.scalar(One)
-        diff_dict[cop_id] = cdiff
+        val_dict[cop_id] = cdiff
 
     def revtopo_propagate_assertion(self):
         pass
@@ -116,18 +116,18 @@ class Negative(Op):
 class Sin(Op):
     fwd_func = lambda v: np.sin(v)
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
-        assert cop_id not in diff_dict
+        assert cop_id not in val_dict
         x = self.deps[0]
         y = od.cos(x)
         xid = x.id
-        xdiff = diff_dict[xid]
+        xdiff = val_dict[xid]
         cdiff = []
         for di in xdiff:
             dop = od.multiply(y, di)
             cdiff.append(dop)
-        diff_dict[cop_id] = cdiff
+        val_dict[cop_id] = cdiff
 
 
 @od.register_opt("dfs_forward")
@@ -140,30 +140,30 @@ class Sin(Op):
 class Abs(Op):
     fwd_func = lambda v: np.abs(v)
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
-        assert cop_id not in diff_dict
+        assert cop_id not in val_dict
         x = self.deps[0]
         xid = x.id
-        xdiff = diff_dict[xid]
+        xdiff = val_dict[xid]
         cdiff = []
         for di in xdiff:
             zero_op = od.scalar(0)
             neg_op = od.negative(di)
             dop = od.lessthan(di, zero_op, neg_op, di)
             cdiff.append(dop)
-        diff_dict[cop_id] = cdiff
+        val_dict[cop_id] = cdiff
 
-    def dfs_infer_sign(self, sign_dict):
+    def dfs_infer_sign(self, val_dict):
         dep = self.deps[0]
         dep_id = dep.id
-        dep_sign = sign_dict[dep_id]
+        dep_sign = val_dict[dep_id]
         sign = infer_abs_sign(dep_sign)
         cop_id = self.id
-        if cop_id in sign_dict:
-            osign = sign_dict
+        if cop_id in val_dict:
+            osign = val_dict
             sign = merge_sign(sign, osign)
-        sign_dict[cop_id] = sign
+        val_dict[cop_id] = sign
 
 
 @od.register_opt("dfs_forward")
@@ -206,16 +206,16 @@ class Add(Op):
         op = od.polynomial(*ndeps)
         return op
 
-    def dfs_infer_sign(self, sign_dict):
+    def dfs_infer_sign(self, val_dict):
         x, y = self.deps
         xid, yid = x.id, y.id
-        x_sign, y_sign = sign_dict[xid], sign_dict[yid]
+        x_sign, y_sign = val_dict[xid], val_dict[yid]
         sign = infer_add_sign(x_sign, y_sign)
         cop_id = self.id
-        if cop_id in sign_dict:
-            osign = sign_dict
+        if cop_id in val_dict:
+            osign = val_dict
             sign = merge_sign(sign, osign)
-        sign_dict[cop_id] = sign
+        val_dict[cop_id] = sign
 
     @classmethod
     def topo_degenerate(cls, *deps):
@@ -226,17 +226,17 @@ class Add(Op):
             return x
         return super().topo_degenerate(*deps)
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
-        assert cop_id not in diff_dict
+        assert cop_id not in val_dict
         x0, x1 = self.deps
         x0id, x1id = x0.id, x1.id
-        d0, d1 = diff_dict[x0id], diff_dict[x1id]
+        d0, d1 = val_dict[x0id], val_dict[x1id]
         cdiff = []
         for i in range(len(var_seq)):
             dop = od.add(d0[i], d1[i])
             cdiff.append(dop)
-        diff_dict[cop_id] = cdiff
+        val_dict[cop_id] = cdiff
 
     def revtopo_propagate_(self):
         self.assertions = merge_assertions(self.assertions)
@@ -300,30 +300,30 @@ class Multiply(Op):
             return x
         return super().topo_degenerate(*deps)
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
-        assert cop_id not in diff_dict
+        assert cop_id not in val_dict
         x0, x1 = self.deps
         x0id, x1id = x0.id, x1.id
-        d0, d1 = diff_dict[x0id], diff_dict[x1id]
+        d0, d1 = val_dict[x0id], val_dict[x1id]
         cdiff = []
         for i in range(len(d0)):
             mul0 = od.multiply(x1, d0[i])
             mul1 = od.multiply(x0, d1[i])
             dop = od.add(mul0, mul1)
             cdiff.append(dop)
-        diff_dict[cop_id] = cdiff
+        val_dict[cop_id] = cdiff
 
-    def dfs_infer_sign(self, sign_dict):
+    def dfs_infer_sign(self, val_dict):
         x, y = self.deps
         xid, yid = x.id, y.id
-        x_sign, y_sign = sign_dict[xid], sign_dict[yid]
+        x_sign, y_sign = val_dict[xid], val_dict[yid]
         sign = infer_multiply_sign(x_sign, y_sign)
         cop_id = self.id
-        if cop_id in sign_dict:
-            osign = sign_dict[cop_id]
+        if cop_id in val_dict:
+            osign = val_dict[cop_id]
             sign = merge_sign(sign, osign)
-        sign_dict[cop_id] = sign
+        val_dict[cop_id] = sign
 
 
 @od.register_opt("dfs_tosym")
@@ -341,10 +341,10 @@ class Divide(Op):
         op = od.multiply(x, _pow)
         return op
 
-def cnd_auto_backward(deps, od_func, diff_dict, var_seq):
+def cnd_auto_backward(deps, od_func, val_dict, var_seq):
     lhs, rhs, lv, rv = deps
     lv_id, rv_id = lv.id, rv.id
-    dl, dr = diff_dict[lv_id], diff_dict[rv_id]
+    dl, dr = val_dict[lv_id], val_dict[rv_id]
     cdiff = []
     for i in range(len(dl)):
         dop = od_func(lhs, rhs, dl[i], dr[i])
@@ -369,16 +369,16 @@ class LessThan(Op):
             return lv
         return super().topo_degenerate(*deps)
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
-        assert cop_id not in diff_dict
+        assert cop_id not in val_dict
         od_func = getattr(od, self.op_type)
-        cdiff = cnd_auto_backward(self.deps, od_func, diff_dict, var_seq)
-        diff_dict[cop_id] = cdiff
+        cdiff = cnd_auto_backward(self.deps, od_func, val_dict, var_seq)
+        val_dict[cop_id] = cdiff
 
-    def dfs_infer_sign(self, sign_dict):
+    def dfs_infer_sign(self, val_dict):
         ids = [dep.id for dep in self.deps]
-        a_sign, b_sign, x_sign, y_sign = [sign_dict[i] for i in ids]
+        a_sign, b_sign, x_sign, y_sign = [val_dict[i] for i in ids]
         if infer_lessthan_sign(a_sign, b_sign):
             sign = x_sign
         elif infer_nomorethan_sign(b_sign, a_sign):
@@ -386,10 +386,10 @@ class LessThan(Op):
         else:
             sign = infer_mutual_sign(x_sign, y_sign)
         cop_id = self.id
-        if cop_id in sign_dict:
-            osign = sign_dict[cop_id]
+        if cop_id in val_dict:
+            osign = val_dict[cop_id]
             sign = merge_sign(sign, osign)
-        sign_dict[cop_id] = sign
+        val_dict[cop_id] = sign
 
 
 @od.register_opt("topo_standardize")
@@ -407,16 +407,16 @@ class NoMoreThan(Op):
             return lv
         return super().topo_degenerate(*deps)
 
-    def dfs_autograph_backward(self, diff_dict, var_seq):
+    def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
-        assert cop_id not in diff_dict
+        assert cop_id not in val_dict
         od_func = getattr(od, self.op_type)
-        cdiff = cnd_auto_backward(self.deps, od_func, diff_dict, var_seq)
-        diff_dict[cop_id] = cdiff
+        cdiff = cnd_auto_backward(self.deps, od_func, val_dict, var_seq)
+        val_dict[cop_id] = cdiff
 
-    def dfs_infer_sign(self, sign_dict):
+    def dfs_infer_sign(self, val_dict):
         ids = [dep.id for dep in self.deps]
-        a_sign, b_sign, x_sign, y_sign = [sign_dict[i] for i in ids]
+        a_sign, b_sign, x_sign, y_sign = [val_dict[i] for i in ids]
         if infer_nomorethan_sign(a_sign, b_sign):
             sign = x_sign
         elif infer_lessthan_sign(b_sign, a_sign):
@@ -424,7 +424,7 @@ class NoMoreThan(Op):
         else:
             sign = infer_mutual_sign(x_sign, y_sign)
         cop_id = self.id
-        if cop_id in sign_dict:
-            osign = sign_dict[cop_id]
+        if cop_id in val_dict:
+            osign = val_dict[cop_id]
             sign = merge_sign(sign, osign)
-        sign_dict[cop_id] = sign
+        val_dict[cop_id] = sign

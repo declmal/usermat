@@ -224,7 +224,7 @@ class Graph(object):
         # var,scalar
         # abs,sin,cos,lessthan,nomorethan
         # add,power,multiply
-        sign_dict = dfs_visit(self.outs, "dfs_infer_sign")
+        self.infer_sign()
 
     def merge(self):
         # var,scalar
@@ -234,3 +234,6 @@ class Graph(object):
         # var,scalar
         # abs,sin,cos,lessthan,nomorethan
         # polynomial,monomial
+
+    def infer_sign(self):
+        sign_dict = dfs_visit(self.outs, "dfs_infer_sign")

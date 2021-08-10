@@ -10,6 +10,7 @@ from codegen.op_utils import \
     One, MinusOne, Zero, FloatTypes, cast_fraction, \
     sequential_equiv_func, swappable_equiv_func
 from codegen.op_def import OpDef as od
+from codegen.op_reg import OpReg as org
 from codegen.base import Op
 from codegen.mials import \
     get_monomial_dict, merge_monomial_dict, get_polynomial_dict, \
@@ -30,7 +31,7 @@ def num_valid_func(num_deps):
 
 """ ops
 """
-@od.register_op()
+@org.register_op()
 class Scalar(Op):
     def __init__(self, data):
         assert isinstance(data, FloatTypes)
@@ -69,11 +70,11 @@ class Scalar(Op):
         val_dict[cop_id] = sign
 
 
-@od.register_opt("dfs_infer_sign")
-@od.register_opt("dfs_tosym")
-@od.register_opt("topo_fuse")
-@od.register_opt("topo_standardize")
-@od.register_op()
+@org.register_opt("dfs_infer_sign")
+@org.register_opt("dfs_tosym")
+@org.register_opt("topo_fuse")
+@org.register_opt("topo_standardize")
+@org.register_op()
 class Var(Op):
     @classmethod
     def topo_degenerate(cls, *deps):
@@ -93,7 +94,7 @@ class Var(Op):
         pass
 
 
-@od.register_op(
+@org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Negative(Op):
     fwd_func = lambda v: -v
@@ -106,13 +107,13 @@ class Negative(Op):
         return op
 
 
-@od.register_opt("dfs_infer_sign")
-@od.register_opt("dfs_forward")
-@od.register_opt("dfs_tosym")
-@od.register_opt("topo_fuse")
-@od.register_opt("topo_degenerate")
-@od.register_opt("topo_standardize")
-@od.register_op(
+@org.register_opt("dfs_infer_sign")
+@org.register_opt("dfs_forward")
+@org.register_opt("dfs_tosym")
+@org.register_opt("topo_fuse")
+@org.register_opt("topo_degenerate")
+@org.register_opt("topo_standardize")
+@org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Sin(Op):
     fwd_func = lambda v: np.sin(v)
@@ -131,12 +132,12 @@ class Sin(Op):
         val_dict[cop_id] = cdiff
 
 
-@od.register_opt("dfs_forward")
-@od.register_opt("dfs_tosym")
-@od.register_opt("topo_standardize")
-@od.register_opt("topo_degenerate")
-@od.register_opt("topo_fuse")
-@od.register_op(
+@org.register_opt("dfs_forward")
+@org.register_opt("dfs_tosym")
+@org.register_opt("topo_standardize")
+@org.register_opt("topo_degenerate")
+@org.register_opt("topo_fuse")
+@org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Abs(Op):
     fwd_func = lambda v: np.abs(v)
@@ -167,19 +168,19 @@ class Abs(Op):
         val_dict[cop_id] = sign
 
 
-@od.register_opt("dfs_forward")
-@od.register_opt("dfs_tosym")
-@od.register_opt("topo_fuse")
-@od.register_op(
+@org.register_opt("dfs_forward")
+@org.register_opt("dfs_tosym")
+@org.register_opt("topo_fuse")
+@org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Cos(Op):
     fwd_func = lambda v: np.cos(v)
 
 
-@od.register_opt("dfs_forward")
-@od.register_opt("dfs_tosym")
-@od.register_opt("topo_standardize")
-@od.register_op(
+@org.register_opt("dfs_forward")
+@org.register_opt("dfs_tosym")
+@org.register_opt("topo_standardize")
+@org.register_op(
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
 class Add(Op):
     fwd_func = lambda v0, v1: v0 + v1
@@ -244,7 +245,7 @@ class Add(Op):
         sign = self.assertions[0]
 
 
-@od.register_op(
+@org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class Subtract(Op):
     fwd_func = lambda v0, v1: v0 - v1
@@ -258,10 +259,10 @@ class Subtract(Op):
         return op
 
 
-@od.register_opt("dfs_tosym")
-@od.register_opt("dfs_forward")
-@od.register_opt("topo_standardize")
-@od.register_op(
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_forward")
+@org.register_opt("topo_standardize")
+@org.register_op(
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
 class Multiply(Op):
     fwd_func = lambda v0, v1: v0 * v1
@@ -327,9 +328,9 @@ class Multiply(Op):
         val_dict[cop_id] = sign
 
 
-@od.register_opt("dfs_tosym")
-@od.register_opt("dfs_forward")
-@od.register_op(
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_forward")
+@org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class Divide(Op):
     fwd_func = lambda v0, v1: v0 / v1
@@ -353,11 +354,11 @@ def cnd_auto_backward(deps, od_func, val_dict, var_seq):
     return cdiff
 
 
-@od.register_opt("dfs_forward")
-@od.register_opt("dfs_tosym")
-@od.register_opt("topo_standardize")
-@od.register_opt("topo_fuse")
-@od.register_op(
+@org.register_opt("dfs_forward")
+@org.register_opt("dfs_tosym")
+@org.register_opt("topo_standardize")
+@org.register_opt("topo_fuse")
+@org.register_op(
     valid_func=num_valid_func(4), equiv_func=sequential_equiv_func)
 class LessThan(Op):
     fwd_func = lambda v0, v1, v2, v3: v2 if v0 < v1 else v3
@@ -393,9 +394,9 @@ class LessThan(Op):
         val_dict[cop_id] = sign
 
 
-@od.register_opt("topo_standardize")
-@od.register_opt("topo_fuse")
-@od.register_op(
+@org.register_opt("topo_standardize")
+@org.register_opt("topo_fuse")
+@org.register_op(
     valid_func=num_valid_func(4), equiv_func=sequential_equiv_func)
 class NoMoreThan(Op):
     fwd_func = lambda v0, v1, v2, v3: v2 if v0 <= v1 else v3

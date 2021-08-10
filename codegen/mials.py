@@ -4,6 +4,7 @@ from codegen.sign_utils import \
 from codegen.op_utils import \
     One, Zero, FloatTypes, validate_exp, sequential_equiv_func
 from codegen.op_def import OpDef as od
+from codegen.op_reg import OpReg as org
 from codegen.base import Op
 
 """ mial validate function
@@ -20,7 +21,7 @@ def mial_valid_func(mial_type):
                 "invalid type of dep: {}".format(type(dep))
         for i in range(0, num_deps, 2):
             dep = deps[i]
-            assert isinstance(dep, od.get_op_cls("scalar")), \
+            assert isinstance(dep, org.get_op_cls("scalar")), \
                 "invalid type of dep: {}".format(type(dep))
             data = dep.data
             assert isinstance(data, FloatTypes), \
@@ -38,9 +39,9 @@ def mial_valid_func(mial_type):
 
 """ mial ops
 """
-@od.register_opt("dfs_tosym")
-@od.register_opt("dfs_forward")
-@od.register_op(
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_forward")
+@org.register_op(
     valid_func=mial_valid_func("mono"), equiv_func=sequential_equiv_func)
 class Monomial(Op):
     @classmethod
@@ -67,9 +68,9 @@ class Monomial(Op):
         return op
 
 
-@od.register_opt("dfs_forward")
-@od.register_opt("dfs_tosym")
-@od.register_op(
+@org.register_opt("dfs_forward")
+@org.register_opt("dfs_tosym")
+@org.register_op(
     valid_func=mial_valid_func("poly"), equiv_func=sequential_equiv_func)
 class Polynomial(Op):
     @classmethod
@@ -117,7 +118,7 @@ def get_monomial_dict(op):
             exp_data = exp.data
             frac_id = frac.id
             m_dict[frac_id] = exp_data
-    elif isinstance(op, od.get_op_cls("scalar")):
+    elif isinstance(op, org.get_op_cls("scalar")):
         scalar_data = op.data
         m_dict = {-1: scalar_data}
     else:
@@ -163,7 +164,7 @@ def create_monomial_op(m_dict):
         if nume == 0:
             continue
         frac = od.get_op(op_id)
-        if isinstance(frac, od.get_op_cls("scalar")):
+        if isinstance(frac, org.get_op_cls("scalar")):
             frac_data = frac.data
             validate_exp(frac_data, exp_data)
             inc = frac_data ** exp_data
@@ -206,7 +207,7 @@ def get_polynomial_dict(op):
             coef_data = coef.data
             var_id = var.id
             m_dict[var_id] = coef_data
-    elif isinstance(op, od.get_op_cls("scalar")):
+    elif isinstance(op, org.get_op_cls("scalar")):
         scalar_data = op.data
         m_dict = {-1: scalar_data}
     else:
@@ -248,7 +249,7 @@ def create_polynomial_op(m_dict):
         if coef_data == Zero:
             continue
         var = od.get_op(op_id)
-        if isinstance(var, od.get_op_cls("scalar")):
+        if isinstance(var, org.get_op_cls("scalar")):
             var_data = var.data
             inc = var_data * coef_data
             scalar_data += inc

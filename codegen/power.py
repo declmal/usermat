@@ -5,6 +5,7 @@ from codegen.op_utils import \
     One, MinusOne, Zero, validate_exp, ContradictError, \
     sequential_equiv_func
 from codegen.op_def import OpDef as od
+from codegen.op_reg import OpReg as org
 from codegen.base import Op
 from codegen.mials import create_monomial_op, get_monomial_dict
 from codegen.ops import num_valid_func
@@ -15,7 +16,7 @@ def power_valid_func(*deps):
     validate_num_deps = num_valid_func(2)
     validate_num_deps(*deps)
     exp = deps[1]
-    assert isinstance(exp, od.get_op_cls("scalar")), \
+    assert isinstance(exp, org.get_op_cls("scalar")), \
         "type of deps[1]: {} must be scalar".format(type(exp))
 
 """ exp dist function
@@ -25,10 +26,10 @@ def power_valid_func(*deps):
 
 """ power op
 """
-@od.register_opt("dfs_forward")
-@od.register_opt("dfs_tosym")
-@od.register_opt("topo_standardize")
-@od.register_op(
+@org.register_opt("dfs_forward")
+@org.register_opt("dfs_tosym")
+@org.register_opt("topo_standardize")
+@org.register_op(
     valid_func=power_valid_func, equiv_func=sequential_equiv_func)
 class Power(Op):
     fwd_func = lambda v0, v1: v0**v1
@@ -88,9 +89,9 @@ class Power(Op):
                 deno_in, nume_in = data.denominator, data.numerator
                 cop = od.get_op(op_id)
                 if nume_in % 2 == 0 or deno_in % 2 == 0 or \
-                    isinstance(cop, od.get_op_cls("abs")) or deno_in > 1:
+                    isinstance(cop, org.get_op_cls("abs")) or deno_in > 1:
                     if nume_in % 2 == 0:
-                        assert not isinstance(cop, od.get_op_cls("abs")), \
+                        assert not isinstance(cop, org.get_op_cls("abs")), \
                             type(cop)
                     nm_dict[op_id] = data
                     continue
@@ -151,7 +152,7 @@ class Power(Op):
             assert isinstance(data, Fraction), type(data)
             nume_in = data.numerator
             op = od.get_op(op_id)
-            if nume_in % 2 == 0 and isinstance(op, od.get_op_cls("abs")):
+            if nume_in % 2 == 0 and isinstance(op, org.get_op_cls("abs")):
                 del m_dict[op_id]
                 sop = op.deps[0]
                 sid = sop.id
@@ -175,7 +176,7 @@ class Power(Op):
         if nume == 0:
             op = od.scalar(One)
             return op
-        if isinstance(frac, od.get_op_cls("scalar")):
+        if isinstance(frac, org.get_op_cls("scalar")):
             frac_data = frac.data
             validate_exp(frac_data, exp_data)
             scalar_data = frac_data ** exp_data

@@ -5,6 +5,7 @@ import mxnet as mx
 
 from codegen.op_utils import cast_float
 from codegen.op_def import OpDef as od
+from codegen.op_reg import OpReg as org
 from codegen.base import Op
 from codegen.sym_utils import sym_rename
 
@@ -62,7 +63,7 @@ def topo_visit(inps, outs, callback):
     od.reset()
     for op in topo_sort(outs):
         op_id = op.id
-        if isinstance(op, od.get_op_cls("scalar")):
+        if isinstance(op, org.get_op_cls("scalar")):
             data = op.data
             nop = od.scalar(data)
             graph[op_id] = nop
@@ -74,7 +75,7 @@ def topo_visit(inps, outs, callback):
                     "dep_id: {}, op_id: {}".format(dep_id, op_id)
                 ndep = graph[dep_id]
                 ndeps.append(ndep)
-            topo_func = od.get_opt(op, callback)
+            topo_func = org.get_opt(op, callback)
             nop = topo_func(*ndeps)
             graph[op_id] = nop
     ninps = [graph[op_id] for op_id in inp_ids]
@@ -85,7 +86,7 @@ def revtopo_visit(outs, callback):
     topo_seq = topo_sort(outs)
     topo_seq.reverse()
     for op in topo_seq:
-        revtopo_func = od.get_opt(op, callback)
+        revtopo_func = org.get_opt(op, callback)
         revtopo_func(op)
 
 def dfs(op, visited, callback, **kwargs):
@@ -96,7 +97,7 @@ def dfs(op, visited, callback, **kwargs):
     visited.add(op_id)
     for dep in op.deps:
         dfs(dep, visited, callback, **kwargs)
-    dfs_func = od.get_opt(op, callback)
+    dfs_func = org.get_opt(op, callback)
     dfs_func(op, **kwargs)
 
 def dfs_visit(outs, callback, init_val_dict={}, **kwargs):

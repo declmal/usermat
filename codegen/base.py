@@ -5,10 +5,11 @@ import mxnet as mx
 from codegen.sign_utils import OpSign, merge_sign
 from codegen.op_utils import cast_float
 from codegen.op_def import OpDef as od
+from codegen.op_reg import OpReg as org
 
 """ base Op
 """
-@od.register_supported_opts
+@org.register_supported_opts
 class Op(object):
     op_type = None
     op_equiv_func = None
@@ -52,7 +53,7 @@ class Op(object):
         flag = True
         datas = []
         for dep in deps:
-            if not isinstance(dep, od.get_op_cls("scalar")):
+            if not isinstance(dep, org.get_op_cls("scalar")):
                 flag = False
                 break
             data = dep.data

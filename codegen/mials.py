@@ -55,7 +55,7 @@ class Monomial(Op):
         return product
 
     @classmethod
-    def topo_degenerate(cls, *deps):
+    def topo_degenerate(cls, sign_dict, *deps):
         scalar = deps[0]
         scalar_data = scalar.data
         m_dict = {-1: scalar_data}
@@ -84,7 +84,7 @@ class Polynomial(Op):
         return summation
 
     @classmethod
-    def topo_degenerate(cls, *deps):
+    def topo_degenerate(cls, sign_dict, *deps):
         scalar = deps[0]
         scalar_data = scalar.data
         m_dict = {-1: scalar_data}

@@ -77,7 +77,7 @@ class Scalar(Op):
 @org.register_op()
 class Var(Op):
     @classmethod
-    def topo_degenerate(cls, *deps):
+    def topo_degenerate(cls, sign_dict, *deps):
         return cls.default_op(*deps)
 
     def dfs_forward(self, val_dict):
@@ -90,19 +90,17 @@ class Var(Op):
         cdiff[var_seq[cop_id]] = od.scalar(One)
         val_dict[cop_id] = cdiff
 
-    def revtopo_propagate_assertion(self):
-        pass
 
-
+@org.register_opt("dfs_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Negative(Op):
     fwd_func = lambda v: -v
 
     @classmethod
-    def topo_standardize(cls, deps):
+    def topo_standardize(cls, sign_dict, *deps):
         minus_one = od.scalar(-1)
-        x = deps
+        x = deps[0]
         op = od.multiply(x, minus_one)
         return op
 
@@ -168,6 +166,7 @@ class Abs(Op):
         val_dict[cop_id] = sign
 
 
+@org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
 @org.register_opt("topo_fuse")
@@ -185,8 +184,31 @@ class Cos(Op):
 class Add(Op):
     fwd_func = lambda v0, v1: v0 + v1
 
+    def dfs_infer_sign(self, val_dict):
+        x, y = self.deps
+        xid, yid = x.id, y.id
+        x_sign, y_sign = val_dict[xid], val_dict[yid]
+        sign = infer_add_sign(x_sign, y_sign)
+        cop_id = self.id
+        if cop_id in val_dict:
+            osign = val_dict
+            sign = merge_sign(sign, osign)
+        val_dict[cop_id] = sign
+
+    def dfs_autograph_backward(self, val_dict, var_seq):
+        cop_id = self.id
+        assert cop_id not in val_dict
+        x0, x1 = self.deps
+        x0id, x1id = x0.id, x1.id
+        d0, d1 = val_dict[x0id], val_dict[x1id]
+        cdiff = []
+        for i in range(len(var_seq)):
+            dop = od.add(d0[i], d1[i])
+            cdiff.append(dop)
+        val_dict[cop_id] = cdiff
+
     @classmethod
-    def topo_fuse(cls, *deps):
+    def topo_fuse(cls, sign_dict, *deps):
         x, y = deps
         x_dict = get_polynomial_dict(x)
         y_dict = get_polynomial_dict(y)
@@ -208,50 +230,24 @@ class Add(Op):
         op = od.polynomial(*ndeps)
         return op
 
-    def dfs_infer_sign(self, val_dict):
-        x, y = self.deps
-        xid, yid = x.id, y.id
-        x_sign, y_sign = val_dict[xid], val_dict[yid]
-        sign = infer_add_sign(x_sign, y_sign)
-        cop_id = self.id
-        if cop_id in val_dict:
-            osign = val_dict
-            sign = merge_sign(sign, osign)
-        val_dict[cop_id] = sign
-
     @classmethod
-    def topo_degenerate(cls, *deps):
+    def topo_degenerate(cls, sign_dict, *deps):
         x, y = deps
         if isinstance(x, Scalar) and x.data == Zero:
             return y
         if isinstance(y, Scalar) and y.data == Zero:
             return x
-        return super().topo_degenerate(*deps)
-
-    def dfs_autograph_backward(self, val_dict, var_seq):
-        cop_id = self.id
-        assert cop_id not in val_dict
-        x0, x1 = self.deps
-        x0id, x1id = x0.id, x1.id
-        d0, d1 = val_dict[x0id], val_dict[x1id]
-        cdiff = []
-        for i in range(len(var_seq)):
-            dop = od.add(d0[i], d1[i])
-            cdiff.append(dop)
-        val_dict[cop_id] = cdiff
-
-    def revtopo_propagate_(self):
-        self.assertions = merge_assertions(self.assertions)
-        sign = self.assertions[0]
+        return super().topo_degenerate(sign_dict, *deps)
 
 
+@org.register_opt("dfs_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class Subtract(Op):
     fwd_func = lambda v0, v1: v0 - v1
 
     @classmethod
-    def topo_standardize(cls, *deps):
+    def topo_standardize(cls, sign_dict, *deps):
         x, y = deps
         minus_one = od.scalar(-1)
         minus_y = od.multiply(minus_one, y)
@@ -266,41 +262,6 @@ class Subtract(Op):
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
 class Multiply(Op):
     fwd_func = lambda v0, v1: v0 * v1
-
-    @classmethod
-    def topo_fuse(cls, *deps):
-        x, y = deps
-        x_dict = get_monomial_dict(x)
-        y_dict = get_monomial_dict(y)
-        m_dict = merge_monomial_dict(x_dict, y_dict)
-        scalar = od.scalar(m_dict[-1])
-        if len(m_dict) == 1:
-            return scalar
-        ndeps = [scalar]
-        for op_id, scalar_data in m_dict.items():
-            if op_id == -1:
-                continue
-            dep = od.get_op(op_id)
-            ndeps.append(dep)
-            exp = od.scalar(scalar_data)
-            ndeps.append(exp)
-        if len(ndeps) == 3 and ndeps[0].data == One and \
-            ndeps[2].data == One:
-            return ndeps[1]
-        op = od.monomial(*ndeps)
-        return op
-
-    @classmethod
-    def topo_degenerate(cls, *deps):
-        x, y = deps
-        if isinstance(x, Scalar) and x.data == Zero or \
-            isinstance(y, Scalar) and y.data == Zero:
-            return od.scalar(0)
-        if isinstance(x, Scalar) and x.data == One:
-            return y
-        if isinstance(y, Scalar) and y.data == One:
-            return x
-        return super().topo_degenerate(*deps)
 
     def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
@@ -327,7 +288,43 @@ class Multiply(Op):
             sign = merge_sign(sign, osign)
         val_dict[cop_id] = sign
 
+    @classmethod
+    def topo_fuse(cls, sign_dict, *deps):
+        x, y = deps
+        x_dict = get_monomial_dict(x)
+        y_dict = get_monomial_dict(y)
+        m_dict = merge_monomial_dict(x_dict, y_dict)
+        scalar = od.scalar(m_dict[-1])
+        if len(m_dict) == 1:
+            return scalar
+        ndeps = [scalar]
+        for op_id, scalar_data in m_dict.items():
+            if op_id == -1:
+                continue
+            dep = od.get_op(op_id)
+            ndeps.append(dep)
+            exp = od.scalar(scalar_data)
+            ndeps.append(exp)
+        if len(ndeps) == 3 and ndeps[0].data == One and \
+            ndeps[2].data == One:
+            return ndeps[1]
+        op = od.monomial(*ndeps)
+        return op
 
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        x, y = deps
+        if isinstance(x, Scalar) and x.data == Zero or \
+            isinstance(y, Scalar) and y.data == Zero:
+            return od.scalar(0)
+        if isinstance(x, Scalar) and x.data == One:
+            return y
+        if isinstance(y, Scalar) and y.data == One:
+            return x
+        return super().topo_degenerate(sign_dict, *deps)
+
+
+@org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_forward")
 @org.register_op(
@@ -336,7 +333,7 @@ class Divide(Op):
     fwd_func = lambda v0, v1: v0 / v1
 
     @classmethod
-    def topo_standardize(cls, *deps):
+    def topo_standardize(cls, sign_dict, *deps):
         x, y = deps
         minus_one = od.scalar(-1)
         _pow = od.power(y, minus_one)
@@ -363,14 +360,6 @@ def cnd_auto_backward(deps, od_func, val_dict, var_seq):
 class LessThan(Op):
     fwd_func = lambda v0, v1, v2, v3: v2 if v0 < v1 else v3
 
-    @classmethod
-    def topo_degenerate(cls, *deps):
-        lhs, rhs, lv, rv = deps
-        if lv.id == rv.id:
-            # TODO: unittest
-            return lv
-        return super().topo_degenerate(*deps)
-
     def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
@@ -393,6 +382,14 @@ class LessThan(Op):
             sign = merge_sign(sign, osign)
         val_dict[cop_id] = sign
 
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        lhs, rhs, lv, rv = deps
+        if lv.id == rv.id:
+            # TODO: unittest
+            return lv
+        return super().topo_degenerate(sign_dict, *deps)
+
 
 @org.register_opt("topo_standardize")
 @org.register_opt("topo_fuse")
@@ -402,12 +399,12 @@ class NoMoreThan(Op):
     fwd_func = lambda v0, v1, v2, v3: v2 if v0 <= v1 else v3
 
     @classmethod
-    def topo_degenerate(cls, *deps):
+    def topo_degenerate(cls, sign_dict, *deps):
         lhs, rhs, lv, rv = deps
         if lv.id == rv.id:
             # TODO: unittest
             return lv
-        return super().topo_degenerate(*deps)
+        return super().topo_degenerate(sign_dict, *deps)
 
     def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id

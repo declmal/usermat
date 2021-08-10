@@ -45,11 +45,11 @@ class Op(object):
         return od_func(*deps)
 
     @classmethod
-    def topo_standardize(cls, *deps):
+    def topo_standardize(cls, sign_dict, *deps):
         return cls.default_op(*deps)
 
     @classmethod
-    def topo_degenerate(cls, *deps):
+    def topo_degenerate(cls, sign_dict, *deps):
         flag = True
         datas = []
         for dep in deps:
@@ -65,7 +65,7 @@ class Op(object):
         return op
 
     @classmethod
-    def topo_fuse(cls, *deps):
+    def topo_fuse(cls, sign_dict, *deps):
         return cls.default_op(*deps)
 
     def revtopo_propagate_assertion(self):

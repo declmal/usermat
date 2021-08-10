@@ -55,7 +55,8 @@ def topo_sort(op_group):
                 del res[nid]
     return topo_seq
 
-def topo_visit(inps, outs, callback):
+def topo_visit(inps, outs, callback, sign_dict_ref={}):
+    sign_dict = sign_dict_ref.copy()
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
     graph = {}
@@ -76,7 +77,7 @@ def topo_visit(inps, outs, callback):
                 ndep = graph[dep_id]
                 ndeps.append(ndep)
             topo_func = org.get_opt(op, callback)
-            nop = topo_func(*ndeps)
+            nop = topo_func(sign_dict, *ndeps)
             graph[op_id] = nop
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
@@ -112,8 +113,9 @@ def dfs_visit(outs, callback, init_val_dict={}, **kwargs):
 def register_graph_topo(cls):
     def graph_topo(callback):
         def wrapper(self):
+            sign_dict = self.infer_sign()
             self.inps, self.outs = topo_visit(
-                self.inps, self.outs, callback)
+                self.inps, self.outs, callback, sign_dict_ref=sign_dict)
         return wrapper
 
     for callback in dir(Op):
@@ -237,3 +239,4 @@ class Graph(object):
 
     def infer_sign(self):
         sign_dict = dfs_visit(self.outs, "dfs_infer_sign")
+        return sign_dict

@@ -35,7 +35,7 @@ class Power(Op):
     fwd_func = lambda v0, v1: v0**v1
 
     @classmethod
-    def topo_fuse(cls, *deps):
+    def topo_fuse(cls, sign_dict, *deps):
         frac, exp = deps
         exp_data = exp.data
         assert isinstance(exp_data, Fraction) and \
@@ -168,7 +168,7 @@ class Power(Op):
         return op
 
     @classmethod
-    def topo_degenerate(cls, *deps):
+    def topo_degenerate(cls, sign_dict, *deps):
         frac, exp = deps
         exp_data = exp.data
         assert isinstance(exp_data, Fraction), type(exp_data)

@@ -16,10 +16,12 @@ class Op(object):
     def __init__(self, *deps):
         self.deps = list(deps)
         self.id = -1
-        self.assertions = []
+        self.sign = OpSign.INDEFINITE
 
-    def insert_assertion(sign):
-        self.assertions.append(sign)
+    def insert_assertion(self, sign):
+        csign = self.sign
+        sign = merge_sign(sign, csign)
+        self.sign = sign
 
     def set_id(self, op_id):
         self.id = op_id
@@ -113,7 +115,7 @@ class Op(object):
         raise NotImplementedError
 
 
-""" Op Manager
+""" Op Registration and Definition Manager
 """
 class OpDef(object):
     """registration variables
@@ -125,7 +127,7 @@ class OpDef(object):
         if k.startswith("topo_") or k.startswith("dfs_") or \
             k.startswith("revtopo_")}
 
-    """status variables
+    """definition variables
     """
     current_id = 0
     equiv_map = {}
@@ -239,7 +241,7 @@ class OpDef(object):
         cls = OpDef.supported_ops[op_type]
         return cls
 
-    """status method
+    """definition method
     """
     @staticmethod
     def reset():

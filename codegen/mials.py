@@ -1,5 +1,5 @@
 from fractions import Fraction
-from codegen.infer_utils import \
+from codegen.sign_utils import \
     infer_power_sign, infer_multiply_sign, infer_add_sign
 from codegen.op_utils import \
     One, Zero, FloatTypes, validate_exp, sequential_equiv_func
@@ -43,7 +43,7 @@ def mial_valid_func(mial_type):
     valid_func=mial_valid_func("mono"), equiv_func=sequential_equiv_func)
 class Monomial(Op):
     def infer_sign(self):
-        dep_signs = [dep.get_sign() for dep in self.deps]
+        dep_signs = [dep.get_infer_sign() for dep in self.deps]
         signs = [dep_signs[0]]
         for i in range(1, len(dep_signs), 2):
             frac_sign = dep_signs[i]
@@ -153,7 +153,7 @@ class Monomial(Op):
     valid_func=mial_valid_func("poly"), equiv_func=sequential_equiv_func)
 class Polynomial(Op):
     def infer_sign(self):
-        dep_signs = [dep.get_sign() for dep in self.deps]
+        dep_signs = [dep.get_infer_sign() for dep in self.deps]
         signs = [dep_signs[0]]
         for i in range(1, len(dep_signs), 2):
             x_sign, y_sign = dep_signs[i:i+2]

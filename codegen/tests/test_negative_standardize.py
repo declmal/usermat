@@ -18,8 +18,7 @@ class TestNegativeStandardize(unittest.TestCase):
         g = Graph([v0], [v1])
         g.standardize()
         for _ in range(10000):
-            inp_size = g.get_inp_size()
-            datas = random_array([inp_size], low=-1000.0, high=1000.0)
+            datas = random_array([1], low=-1000.0, high=1000.0)
             a = datas[0]
             rets = [-a]
             outs = g.forward(*datas)

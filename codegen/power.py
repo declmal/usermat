@@ -1,8 +1,9 @@
 from fractions import Fraction
 
-from codegen.infer_utils import infer_power_sign
+from codegen.sign_utils import infer_power_sign
 from codegen.op_utils import \
-    One, MinusOne, Zero, validate_exp, sequential_equiv_func
+    One, MinusOne, Zero, validate_exp, ContradictError, \
+    sequential_equiv_func
 from codegen.op_def import Op, OpDef as od
 from codegen.mials import create_monomial_op, get_monomial_dict
 from codegen.ops import num_valid_func
@@ -15,12 +16,6 @@ def power_valid_func(*deps):
     exp = deps[1]
     assert isinstance(exp, od.get_op_cls("scalar")), \
         "type of deps[1]: {} must be scalar".format(type(exp))
-
-
-""" error definition
-"""
-class ExpContradictError(Exception):
-    pass
 
 
 """ power op
@@ -36,7 +31,7 @@ class Power(Op):
     def infer_sign(self):
         frac, exp = self.deps
         exp_data = exp.data
-        frac_sign = frac.get_sign()
+        frac_sign = frac.get_infer_sign()
         sign = infer_power_sign(frac_sign, exp_data)
         return sign
 
@@ -110,7 +105,7 @@ class Power(Op):
                 scalar_data = sm_dict[-1]
                 if scalar_data < Zero:
                     # unittest test_power_3.py
-                    raise ExpContradictError(
+                    raise ContradictError(
                         "contradictory exp_data: {}, ".format(exp_data) + \
                             "dep_ids: {}".format([dep.id for dep in deps]))
                 m_dict = nm_dict

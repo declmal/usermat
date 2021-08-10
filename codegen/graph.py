@@ -53,11 +53,12 @@ def topo_sort(op_group):
                 del res[nid]
     return topo_seq
 
-def topo_visit(inps, outs, callback, reverse=False):
+def topo_visit(inps, outs, callback):
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
     graph = {}
-    od.reset() # reset the graph define here
+    # reset the graph define here since graph structure changes
+    od.reset()
     for op in topo_sort(outs):
         op_id = op.id
         if isinstance(op, od.get_op_cls("scalar")):
@@ -79,6 +80,13 @@ def topo_visit(inps, outs, callback, reverse=False):
     nouts = [graph[op_id] for op_id in out_ids]
     return ninps, nouts
 
+def revtopo_visit(outs, callback):
+    topo_seq = topo_sort(outs)
+    topo_seq.reverse()
+    for op in topo_seq:
+        revtopo_func = od.get_opt(op, callback)
+        revtopo_func(op)
+
 def dfs_visit(op, visited, callback, **kwargs):
     assert op.id != -1, "invalid id: {}".format(op.id)
     if op.id in visited:
@@ -91,7 +99,7 @@ def dfs_visit(op, visited, callback, **kwargs):
 
 """ graph
 """
-def register_graph_opt(cls):
+def register_graph_topo(cls):
     def graph_topo(callback):
         def wrapper(self):
             self.inps, self.outs = topo_visit(
@@ -104,7 +112,7 @@ def register_graph_opt(cls):
     return cls
 
 
-@register_graph_opt
+@register_graph_topo
 class Graph(object):
     def __init__(self, inps, outs, out_appends=None):
         # validate and set inps
@@ -123,8 +131,8 @@ class Graph(object):
             if out_appends is not None else \
             ["Out:{}".format(i) for i in range(len(self.outs))]
 
-    def get_inp_size(self):
-        return len(self.inps)
+    def propagate_assertion(self):
+        revtopo_visit(self.outs, "revtopo_propagate_assertion")
 
     def forward(self, *datas):
         assert len(datas) == len(self.inps), \
@@ -205,15 +213,21 @@ class Graph(object):
     def optimize(self):
         # var,scalar
         # abs,sin,cos,lessthan,nomorethan
-        # polynomial,monomial
         # add,power,multiply
         # divide,negative,subtract
         self.standardize()
         # var,scalar
         # abs,sin,cos,lessthan,nomorethan
-        # polynomial,monomial
         # add,power,multiply
         self.degenerate()
+        # var,scalar
+        # abs,sin,cos,lessthan,nomorethan
+        # add,power,multiply
+
+    def merge(self):
+        # var,scalar
+        # abs,sin,cos,lessthan,nomorethan
+        # add,power,multiply
         self.fuse()
         # var,scalar
         # abs,sin,cos,lessthan,nomorethan

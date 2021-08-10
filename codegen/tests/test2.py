@@ -33,8 +33,7 @@ class Test2(unittest.TestCase):
         ng = g.autograph_backward()
         ng.fuse()
         ng.tosym()
-        ng.set_input(a,b,c,d)
-        outs2 = ng.forward()
+        outs2 = ng.forward(a,b,c,d)
         self.assertEqual(
             outs2, [
                 d*d*d*np.cos(a/b+c)/b,

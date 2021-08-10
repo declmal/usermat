@@ -1,10 +1,10 @@
 import numpy as np
 import mxnet as mx
 
-from codegen.infer_utils import \
+from codegen.sign_utils import \
     infer_negative_sign, infer_nomorethan_sign, infer_abs_sign, \
     infer_add_sign, infer_power_sign, infer_mutual_sign, \
-    infer_lessthan_sign, infer_multiply_sign, OpSign
+    infer_lessthan_sign, infer_multiply_sign, OpSign, merge_assertions
 from codegen.op_utils import \
     One, MinusOne, Zero, FloatTypes, cast_fraction, \
     sequential_equiv_func, swappable_equiv_func
@@ -80,6 +80,9 @@ class Var(Op):
         cdiff[var_seq[cop_id]] = od.scalar(One)
         diff_dict[cop_id] = cdiff
 
+    def revtopo_propagate_assertion(self):
+        pass
+
 
 @od.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
@@ -87,7 +90,7 @@ class Negative(Op):
     fwd_func = lambda v: -v
 
     def infer_sign(self):
-        dep_sign = self.deps[0].get_sign()
+        dep_sign = self.deps[0].get_infer_sign()
         sign = infer_negative_sign(dep_sign)
         return sign
 
@@ -134,7 +137,7 @@ class Abs(Op):
     fwd_func = lambda v: np.abs(v)
 
     def infer_sign(self):
-        dep_sign = self.deps[0].get_sign()
+        dep_sign = self.deps[0].get_infer_sign()
         sign = infer_abs_sign(dep_sign)
         return sign
 
@@ -153,6 +156,8 @@ class Abs(Op):
         diff_dict[cop_id] = cdiff
 
 
+@od.register_opt("dfs_forward")
+@od.register_opt("dfs_tosym")
 @od.register_opt("topo_fuse")
 @od.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
@@ -169,7 +174,7 @@ class Add(Op):
     fwd_func = lambda v0, v1: v0 + v1
 
     def infer_sign(self):
-        x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        x_sign, y_sign = [dep.get_infer_sign() for dep in self.deps]
         sign = infer_add_sign(x_sign, y_sign)
         return sign
 
@@ -217,6 +222,10 @@ class Add(Op):
             cdiff.append(dop)
         diff_dict[cop_id] = cdiff
 
+    def revtopo_propagate_(self):
+        self.assertions = merge_assertions(self.assertions)
+        sign = self.assertions[0]
+
 
 @od.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
@@ -224,7 +233,7 @@ class Subtract(Op):
     fwd_func = lambda v0, v1: v0 - v1
 
     def infer_sign(self):
-        x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        x_sign, y_sign = [dep.get_infer_sign() for dep in self.deps]
         ny_sign = infer_negative_sign(y_sign)
         sign = infer_add_sign(x_sign, y_sign)
         return sign
@@ -247,7 +256,7 @@ class Multiply(Op):
     fwd_func = lambda v0, v1: v0 * v1
 
     def infer_sign(self):
-        x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        x_sign, y_sign = [dep.get_infer_sign() for dep in self.deps]
         sign = infer_multiply_sign(x_sign, y_sign)
         return sign
 
@@ -292,7 +301,7 @@ class Multiply(Op):
         x0, x1 = self.deps
         x0id, x1id = x0.id, x1.id
         d0, d1 = diff_dict[x0id], diff_dict[x1id]
-        cdict = []
+        cdiff = []
         for i in range(len(d0)):
             mul0 = od.multiply(x1, d0[i])
             mul1 = od.multiply(x0, d1[i])
@@ -309,7 +318,7 @@ class Divide(Op):
     fwd_func = lambda v0, v1: v0 / v1
 
     def infer_sign(self):
-        x_sign, y_sign = [dep.get_sign() for dep in self.deps]
+        x_sign, y_sign = [dep.get_infer_sign() for dep in self.deps]
         ny_sign = infer_power_sign(y_sign, MinusOne)
         sign = infer_multiply_sign(x_sign, ny_sign)
         return sign
@@ -344,7 +353,7 @@ class LessThan(Op):
 
     def infer_sign(self):
         a_sign, b_sign, x_sign, y_sign = \
-            [dep.get_sign() for dep in self.deps]
+            [dep.get_infer_sign() for dep in self.deps]
         if infer_lessthan_sign(a_sign, b_sign):
             return x_sign
         if infer_nomorethan_sign(b_sign, a_sign):
@@ -377,7 +386,7 @@ class NoMoreThan(Op):
 
     def infer_sign(self):
         a_sign, b_sign, x_sign, y_sign = \
-            [dep.get_sign() for dep in self.deps]
+            [dep.get_infer_sign() for dep in self.deps]
         if infer_nomorethan_sign(a_sign, b_sign):
             return x_sign
         if infer_lessthan_sign(b_sign, a_sign):

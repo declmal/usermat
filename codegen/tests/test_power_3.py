@@ -6,7 +6,7 @@ import numpy as np
 
 from codegen.op_def import OpDef as od
 from codegen.graph import Graph
-from codegen.power import ExpContradictError
+from codegen.op_utils import ContradictError
 from codegen.utils import random_array
 from codegen.test_utils import register_test
 
@@ -26,4 +26,4 @@ class TestPower3(unittest.TestCase):
         g = Graph([v0,v4], [v8])
         g.standardize()
         g.degenerate()
-        self.assertRaises(ExpContradictError, g.fuse)
+        self.assertRaises(ContradictError, g.fuse)

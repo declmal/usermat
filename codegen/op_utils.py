@@ -49,3 +49,9 @@ def validate_exp(frac_data, exp_data):
         assert deno == 1, \
             "the denominator of exp must be one for negative fraction," + \
             " frac_data: {}, exp_data: {}".format(frac_data, exp_data)
+
+
+""" error definition
+"""
+class ContradictError(Exception):
+    pass

@@ -26,8 +26,7 @@ class TestCnd(unittest.TestCase):
         g.optimize()
         g.tosym()
         for _ in range(10000):
-            inp_size = g.get_inp_size()
-            datas = random_array([inp_size], low=-1000.0, high=1000.0)
+            datas = random_array([3], low=-1000.0, high=1000.0)
             a, b, c = datas
             rets = [
                 c*((b-1)**2 if b*(-c) < np.sin(a) else 2*(b-1))
@@ -40,8 +39,7 @@ class TestCnd(unittest.TestCase):
         dg.fuse()
         dg.tosym()
         for _ in range(10000):
-            inp_size = g.get_inp_size()
-            datas = random_array([inp_size], low=-1000.0, high=1000.0)
+            datas = random_array([3], low=-1000.0, high=1000.0)
             a, b, c = datas
             rets = [0, 2*c*(b-1), (b-1)**2] if -b*c < np.sin(a) else \
                 [0, 2*c, 2*(b-1)]

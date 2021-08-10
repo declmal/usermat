@@ -3,7 +3,7 @@ import logging
 import mxnet as mx
 import numpy as np
 
-from codegen.infer_utils import OpSign
+from codegen.sign_utils import OpSign
 from codegen.op_utils import Zero, cast_fraction, cast_float
 
 
@@ -16,18 +16,18 @@ class Op(object):
     def __init__(self, *deps):
         self.deps = list(deps)
         self.id = -1
-        self.assert_signs = []
+        self.assertions = []
 
-    def insert_assert_sign(sign):
-        self.assert_signs.append(sign)
+    def insert_assertion(sign):
+        self.assertions.append(sign)
 
-    def set_id(self, op_id):
-        self.id = op_id
-
-    def get_sign(self):
+    def get_infer_sign(self):
         op_id = self.id
         sign = OpDef.get_sign(op_id)
         return sign
+
+    def set_id(self, op_id):
+        self.id = op_id
 
     def infer_sign(self):
         return OpSign.INDEFINITE
@@ -73,6 +73,9 @@ class Op(object):
     def topo_fuse(cls, *deps):
         return cls.default_op(*deps)
 
+    def revtopo_propagate_assertion(self):
+        raise NotImplementedError
+
     def dfs_forward(self, val_dict):
         op_id = self.id
         assert op_id not in val_dict
@@ -117,7 +120,8 @@ class OpDef(object):
     op_supported_opts = {}
     supported_opts = { \
         k for k, v in Op.__dict__.items() \
-        if k.startswith("topo_") or k.startswith("dfs_")}
+        if k.startswith("topo_") or k.startswith("dfs_") or \
+            k.startswith("revtopo_")}
 
     """status variables
     """
@@ -192,7 +196,8 @@ class OpDef(object):
             OpDef.supported_ops[op_type] = cls
             _op_supported_opts = OpDef.op_supported_opts[op_type] = set()
             for k, v in cls.__dict__.items():
-                if k.startswith("topo_") or k.startswith("dfs_"):
+                if k.startswith("topo_") or k.startswith("dfs_") or \
+                    k.startswith("revtopo_"):
                     _op_supported_opts.add(k)
             # set up op_def
             if op_type == "scalar":

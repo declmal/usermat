@@ -1,6 +1,6 @@
 from fractions import Fraction
 
-from codegen.sign_utils import infer_power_sign
+from codegen.sign_utils import infer_power_sign, merge_sign
 from codegen.op_utils import \
     One, MinusOne, Zero, validate_exp, ContradictError, \
     sequential_equiv_func
@@ -17,6 +17,10 @@ def power_valid_func(*deps):
     assert isinstance(exp, od.get_op_cls("scalar")), \
         "type of deps[1]: {} must be scalar".format(type(exp))
 
+""" exp dist function
+"""
+# TODO(dev): exp dist function
+
 
 """ power op
 """
@@ -27,13 +31,6 @@ def power_valid_func(*deps):
     valid_func=power_valid_func, equiv_func=sequential_equiv_func)
 class Power(Op):
     fwd_func = lambda v0, v1: v0**v1
-
-    def infer_sign(self):
-        frac, exp = self.deps
-        exp_data = exp.data
-        frac_sign = frac.get_infer_sign()
-        sign = infer_power_sign(frac_sign, exp_data)
-        return sign
 
     @classmethod
     def topo_fuse(cls, *deps):
@@ -203,3 +200,15 @@ class Power(Op):
             dop = od.multiply(mul_scalar, xdiff[i])
             cdiff.append(dop)
         diff_dict[cop_id] = cdiff
+
+    def dfs_infer_sign(self, sign_dict):
+        frac, exp = self.deps
+        frac_id = frac.id
+        frac_sign = sign_dict[frac_id]
+        exp_data = exp.data
+        sign = infer_power_sign(frac_sign, exp_data)
+        cop_id = self.id
+        if cop_id in sign_dict:
+            osign = sign_dict
+            sign = merge_sign(sign, osign)
+        sign_dict[cop_id] = sign

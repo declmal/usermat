@@ -3,7 +3,7 @@ import logging
 import mxnet as mx
 import numpy as np
 
-from codegen.sign_utils import OpSign
+from codegen.sign_utils import OpSign, merge_sign
 from codegen.op_utils import Zero, cast_fraction, cast_float
 
 
@@ -21,16 +21,8 @@ class Op(object):
     def insert_assertion(sign):
         self.assertions.append(sign)
 
-    def get_infer_sign(self):
-        op_id = self.id
-        sign = OpDef.get_sign(op_id)
-        return sign
-
     def set_id(self, op_id):
         self.id = op_id
-
-    def infer_sign(self):
-        return OpSign.INDEFINITE
 
     def info(self, with_data=True):
         deps_info = ""
@@ -74,7 +66,7 @@ class Op(object):
         return cls.default_op(*deps)
 
     def revtopo_propagate_assertion(self):
-        raise NotImplementedError
+        pass
 
     def dfs_forward(self, val_dict):
         op_id = self.id
@@ -106,6 +98,15 @@ class Op(object):
         else:
             sym = mx.sym.add_n(*dep_syms, name=name)
         sym_dict[op_id] = sym
+
+    def dfs_infer_sign(self, sign_dict):
+        cop_id = self.id
+        if cop_id in sign_dict:
+            osign = sign_dict[cop_id]
+            sign = merge_sign(OpSign.INDEFINITE, osign)
+        else:
+            sign = OpSign.INDEFINITE
+        sign_dict[cop_id] = sign
 
     def dfs_autograph_backward(self, diff_dict, var_seq):
         raise NotImplementedError
@@ -144,8 +145,6 @@ class OpDef(object):
             op_id = op.id
             OpDef.scalar_map[nv] = op
             OpDef.id_map[op.id] = op
-            sign = op.infer_sign()
-            OpDef.set_sign(op_id, sign)
             return op
         return wrapper
 
@@ -164,8 +163,6 @@ class OpDef(object):
             op_id = op.id
             OpDef.id_map[op_id] = op
             op_type = getattr(cls, "op_type")
-            sign = op.infer_sign()
-            OpDef.set_sign(op_id, sign)
             return op
         return wrapper
 
@@ -250,13 +247,6 @@ class OpDef(object):
         OpDef.id_map.clear()
         OpDef.scalar_map.clear()
         OpDef.sign_map.clear()
-
-    @staticmethod
-    def set_sign(op_id, sign):
-        assert op_id not in OpDef.sign_map, \
-            "duplicate op id: {}, sign_map: {}".format(
-                op_id, OpDef.sign_map)
-        OpDef.sign_map[op_id] = sign
 
     @staticmethod
     def get_sign(op_id):

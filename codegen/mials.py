@@ -42,20 +42,6 @@ def mial_valid_func(mial_type):
 @od.register_op(
     valid_func=mial_valid_func("mono"), equiv_func=sequential_equiv_func)
 class Monomial(Op):
-    def infer_sign(self):
-        dep_signs = [dep.get_infer_sign() for dep in self.deps]
-        signs = [dep_signs[0]]
-        for i in range(1, len(dep_signs), 2):
-            frac_sign = dep_signs[i]
-            exp = self.deps[i+1]
-            exp_data = exp.data
-            sign = infer_power_sign(frac_sign, exp_data)
-            signs.append(sign)
-        sign = signs[0]
-        for cur_sign in signs[1:]:
-            sign = infer_multiply_sign(sign, cur_sign)
-        return sign
-
     @classmethod
     def fwd_func(cls, *v):
         product = v[0]
@@ -65,73 +51,6 @@ class Monomial(Op):
             else:
                 product *= v[i]**v[i+1]
         return product
-
-    def dfs_autograph_backward(self, diff_dict, var_seq):
-        cop_id = self.id
-        assert cop_id not in diff_dict
-        assert len(self.deps) > 1, "invoke degenerate first"
-        scalar = self.deps[0]
-        scalar_data = scalar.data
-        assert scalar_data != Zero, "invoke degenerate first"
-        if len(self.deps) == 3 and scalar_data == One:
-            exp = self.deps[2]
-            exp_data = exp.data
-            deno, nume = exp_data.denominator, exp_data.numerator
-            assert deno != 1 or nume != 1, "invoke degenerate first"
-        # create m_dict_ref
-        m_dict_ref = {-1: scalar_data}
-        for i in range(1, len(self.deps), 2):
-            frac, exp = self.deps[i:i+2]
-            exp_data = exp.data
-            nume = exp_data.numerator
-            assert nume != 0, "invoke degenerate first"
-            assert not isinstance(frac, od.get_op_cls("scalar")), "invoke degenerate first"
-            frac_id = frac.id
-            m_dict_ref[frac_id] = exp_data
-        validate_monomial_dict(m_dict_ref)
-        # create m_dict_dict
-        m_dict_dict = {}
-        for op_id, exp_data in m_dict_ref.items():
-            if op_id == -1:
-                continue
-            m_dict = m_dict_ref.copy()
-            deno, nume = exp_data.denominator, exp_data.numerator
-            if deno == 1 and nume == 1:
-                del m_dict[op_id]
-            else:
-                scalar_data = m_dict[-1]
-                m_dict[-1] = scalar_data * exp_data
-                nexp_data = exp_data - One
-                m_dict[op_id] = nexp_data
-            m_dict_dict[op_id] = m_dict.copy()
-        # differentials
-        diff_map = {}
-        for i in range(1, len(self.deps), 2):
-            dep = self.deps[i]
-            dep_id = dep.id
-            diff = diff_dict[dep_id]
-            diff_map[dep_id] = diff
-        ns = {len(diff) for diff in diff_map.values()}
-        assert len(ns) == 1, ns
-        n = list(ns)[0]
-        # backward propagation
-        cdiff = []
-        op_ids = list(diff_map.keys())
-        for i in range(n):
-            m_dict = {-1: Zero}
-            for op_id in op_ids:
-                m_dict_partial = m_dict_dict[op_id]
-                diff_in = diff_map[op_id]
-                di = diff_in[i]
-                m_dict_diff = get_monomial_dict(di)
-                m_dict_in = merge_monomial_dict(
-                    m_dict_partial, m_dict_diff)
-                var = create_monomial_op(m_dict_in)
-                var_id = var.id
-                m_dict[var_id] = One
-            diff = create_polynomial_op(m_dict)
-            cdiff.append(diff)
-        diff_dict[cop_id] = cdiff
 
     @classmethod
     def topo_degenerate(cls, *deps):
@@ -152,18 +71,6 @@ class Monomial(Op):
 @od.register_op(
     valid_func=mial_valid_func("poly"), equiv_func=sequential_equiv_func)
 class Polynomial(Op):
-    def infer_sign(self):
-        dep_signs = [dep.get_infer_sign() for dep in self.deps]
-        signs = [dep_signs[0]]
-        for i in range(1, len(dep_signs), 2):
-            x_sign, y_sign = dep_signs[i:i+2]
-            sign = infer_multiply_sign(x_sign, y_sign)
-            signs.append(sign)
-        sign = signs[0]
-        for cur_sign in signs[1:]:
-            sign = infer_add_sign(sign, cur_sign)
-        return sign
-
     @classmethod
     def fwd_func(cls, *v):
         summation = v[0]
@@ -173,51 +80,6 @@ class Polynomial(Op):
             else:
                 summation += v[i]*v[i+1]
         return summation
-
-    def dfs_autograph_backward(self, diff_dict, var_seq):
-        cop_id = self.id
-        assert cop_id not in diff_dict
-        assert len(self.deps) > 1, "invoke degenerate first"
-        scalar = self.deps[0]
-        scalar_data = scalar.data
-        if len(self.deps) == 3 and scalar_data == Zero:
-            coef = self.deps[2]
-            coef_data = coef.data
-            assert coef_data != One, "invoke degenerate first"
-        # create m_dict_ref
-        m_dict_ref = {-1: scalar_data}
-        for i in range(1, len(self.deps), 2):
-            var, coef = self.deps[i:i+2]
-            coef_data = coef.data
-            assert coef_data != Zero, "invoke degenerate first"
-            assert not isinstance(var, od.get_op_cls("scalar")), "invoke degenerate first"
-            var_id = var.id
-            m_dict_ref[var_id] = coef_data
-        validate_polynomial_dict(m_dict_ref)
-        # differentials
-        diff_map = {}
-        for i in range(1, len(self.deps), 2):
-            dep = self.deps[i]
-            dep_id = dep.id
-            diff = diff_dict[dep_id]
-            diff_map[dep_id] = diff
-        ns = {len(diff) for diff in diff_map.values()}
-        assert len(ns) == 1, ns
-        n = list(ns)[0]
-        # backward propagation
-        cdiff = []
-        op_ids = list(diff_map.keys())
-        for i in range(n):
-            m_dict = {-1: Zero}
-            for op_id in op_ids:
-                diff_in = diff_map[op_id]
-                di = diff_in[i]
-                did = di.id
-                scalar_data = m_dict_ref[op_id]
-                m_dict[did] = scalar_data
-            diff = create_polynomial_op(m_dict)
-            cdiff.append(diff)
-        diff_dict[cop_id] = cdiff
 
     @classmethod
     def topo_degenerate(cls, *deps):
@@ -403,7 +265,3 @@ def create_polynomial_op(m_dict):
     deps = [scalar] + deps
     op = od.polynomial(*deps)
     return op
-
-""" exp dist function
-"""
-# TODO(dev): exp dist function

@@ -223,6 +223,10 @@ class Graph(object):
         # var,scalar
         # abs,sin,cos,lessthan,nomorethan
         # add,power,multiply
+        sign_dict = {}
+        visited = set()
+        for out in self.outs:
+            dfs_visit(out, visited, "dfs_infer_sign", sign_dict=sign_dict)
 
     def merge(self):
         # var,scalar

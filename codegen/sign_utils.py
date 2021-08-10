@@ -131,12 +131,12 @@ def infer_nomorethan_sign(a_sign, b_sign):
 
 """ assertion util functions
 """
-def raise_sign_assertion_error(sign1, sign2):
+def raise_merge_sign_error(sign1, sign2):
     raise ContradictError(
         "contradictory assertion, sign1: {}, sign2: {}".format(
             sign1, sign2))
 
-def merge_assertion(sign1, sign2):
+def merge_sign(sign1, sign2):
     if sign1 == sign2:
         return sign1
     if sign1 == OpSign.INDEFINITE:
@@ -145,39 +145,39 @@ def merge_assertion(sign1, sign2):
         return sign1
     if sign1 == OpSign.NON_ZERO:
         if sign2 == OpSign.ZERO:
-            raise_sign_assertion_error(sign1, sign2)
+            raise_merge_sign_error(sign1, sign2)
         return sign2
     if sign2 == OpSign.NON_ZERO:
         if sign1 == OpSign.ZERO:
-            raise_sign_assertion_error(sign1, sign2)
+            raise_merge_sign_error(sign1, sign2)
         return sign1
     if sign1 == OpSign.NON_POSITIVE:
         if sign2 == OpSign.POSITIVE:
-            raise_sign_assertion_error(sign1, sign2)
+            raise_merge_sign_error(sign1, sign2)
         if sign2 == OpSign.NEGATIVE:
             return sign2
         return OpSign.ZERO
     if sign2 == OpSign.NON_POSITIVE:
         if sign1 == OpSign.POSITIVE:
-            raise_sign_assertion_error(sign1, sign2)
+            raise_merge_sign_error(sign1, sign2)
         if sign1 == OpSign.NEGATIVE:
             return sign1
         return OpSign.ZERO
     if sign1 == OpSign.NON_NEGATIVE:
         if sign2 == OpSign.NEGATIVE:
-            raise_sign_assertion_error(sign1, sign2)
+            raise_merge_sign_error(sign1, sign2)
         if sign2 == OpSign.POSITIVE:
             return sign2
         return OpSign.ZERO
     if sign2 == OpSign.NON_NEGATIVE:
         if sign1 == OpSign.NEGATIVE:
-            raise_sign_assertion_error(sign1, sign2)
+            raise_merge_sign_error(sign1, sign2)
         if sign1 == OpSign.POSITIVE:
             return sign1
         return OpSign.ZERO
-    raise_sign_assertion_error(sign1, sign2)
+    raise_merge_sign_error(sign1, sign2)
 
-def merge_assertions(signs):
+def merge_signs(signs):
     if len(signs) == 0:
         return []
     csign = signs[0]

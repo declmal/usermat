@@ -2,7 +2,7 @@ import logging
 
 import utils
 
-import codegen.op_def
+import codegen.base
 import codegen.mials
 import codegen.ops
 import codegen.power

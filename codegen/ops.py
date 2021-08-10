@@ -9,7 +9,8 @@ from codegen.sign_utils import \
 from codegen.op_utils import \
     One, MinusOne, Zero, FloatTypes, cast_fraction, \
     sequential_equiv_func, swappable_equiv_func
-from codegen.op_def import Op, OpDef as od
+from codegen.op_def import OpDef as od
+from codegen.base import Op
 from codegen.mials import \
     get_monomial_dict, merge_monomial_dict, get_polynomial_dict, \
     merge_polynomial_dict

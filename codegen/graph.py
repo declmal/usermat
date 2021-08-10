@@ -4,7 +4,8 @@ import json
 import mxnet as mx
 
 from codegen.op_utils import cast_float
-from codegen.op_def import Op, OpDef as od
+from codegen.op_def import OpDef as od
+from codegen.base import Op
 from codegen.sym_utils import sym_rename
 
 """ visit passes

@@ -3,7 +3,8 @@ from codegen.sign_utils import \
     infer_power_sign, infer_multiply_sign, infer_add_sign
 from codegen.op_utils import \
     One, Zero, FloatTypes, validate_exp, sequential_equiv_func
-from codegen.op_def import Op, OpDef as od
+from codegen.op_def import OpDef as od
+from codegen.base import Op
 
 """ mial validate function
 """

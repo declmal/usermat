@@ -4,7 +4,8 @@ from codegen.sign_utils import infer_power_sign, merge_sign
 from codegen.op_utils import \
     One, MinusOne, Zero, validate_exp, ContradictError, \
     sequential_equiv_func
-from codegen.op_def import Op, OpDef as od
+from codegen.op_def import OpDef as od
+from codegen.base import Op
 from codegen.mials import create_monomial_op, get_monomial_dict
 from codegen.ops import num_valid_func
 

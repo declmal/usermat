@@ -58,11 +58,12 @@ class Scalar(Op):
         val_dict[cop_id] = cdiff
 
     def dfs_infer_sign(self, val_dict):
-        sign = infer_scalar_sign(self.data)
+        data = self.data
+        sign = infer_scalar_sign(data)
         cop_id = self.id
         if cop_id in val_dict:
-            osign = val_dict
-            sign = merge_sign(sign, osign)
+            csign = val_dict[cop_id]
+            csign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
 
@@ -104,7 +105,6 @@ class Negative(Op):
         return op
 
 
-@org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
 @org.register_opt("topo_fuse")
@@ -128,9 +128,22 @@ class Sin(Op):
             cdiff.append(dop)
         val_dict[cop_id] = cdiff
 
+    def dfs_infer_sign(self, val_dict):
+        dep = self.deps[0]
+        dep_id = dep.id
+        dep_sign = val_dict[dep_id]
+        sign = OpSign.UNDEFINED
+        if dep_sign == OpSign.ZERO:
+            sign = OpSign.ZERO
+        cop_id = self.id
+        if cop_id in val_dict:
+            csign = val_dict[cop_id]
+            sign = merge_sign(sign, csign)
+        val_dict[cop_id] = sign
+
     def revtopo_infer_sign(self, sign_dict):
-        op_id = self.id
-        csign = sign_dict[op_id]
+        cop_id = self.id
+        csign = sign_dict[cop_id]
         if csign == OpSign.NON_ZERO:
             x = self.deps[0]
             xid = x.id
@@ -186,13 +199,13 @@ class Abs(Op):
         sign = infer_abs_sign(dep_sign)
         cop_id = self.id
         if cop_id in val_dict:
-            osign = val_dict
-            sign = merge_sign(sign, osign)
+            csign = val_dict[cop_id]
+            sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
     def revtopo_infer_sign(self, sign_dict):
-        op_id = self.id
-        csign = sign_dict[op_id]
+        cop_id = self.id
+        csign = sign_dict[cop_id]
         assert csign in \
             [OpSign.POSITIVE, OpSign.NON_NEGATIVE, OpSign.ZERO], csign
         dep = self.deps[0]
@@ -218,8 +231,8 @@ class Cos(Op):
     fwd_func = lambda v: np.cos(v)
 
     def revtopo_infer_sign(self, sign_dict):
-        op_id = self.id
-        csign = sign_dict[op_id]
+        cop_id = self.id
+        csign = sign_dict[cop_id]
         if csign == OpSign.ZERO:
             dep = self.deps[0]
             dep_id = dep.id
@@ -244,8 +257,8 @@ class Add(Op):
         sign = infer_add_sign(xsign, ysign)
         cop_id = self.id
         if cop_id in val_dict:
-            osign = val_dict
-            sign = merge_sign(sign, osign)
+            csign = val_dict[cop_id]
+            sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
     def dfs_autograph_backward(self, val_dict, var_seq):
@@ -270,10 +283,10 @@ class Add(Op):
         if len(m_dict) == 1:
             return scalar
         ndeps = [scalar]
-        for op_id, scalar_data in m_dict.items():
-            if op_id == -1:
+        for cop_id, scalar_data in m_dict.items():
+            if cop_id == -1:
                 continue
-            dep = od.get_op(op_id)
+            dep = od.get_op(cop_id)
             ndeps.append(dep)
             coef = od.scalar(scalar_data)
             ndeps.append(coef)
@@ -293,8 +306,8 @@ class Add(Op):
         return super().topo_degenerate(sign_dict, *deps)
 
     def revtopo_infer_sign(self, sign_dict):
-        op_id = self.id
-        csign = sign_dict[op_id]
+        cop_id = self.id
+        csign = sign_dict[cop_id]
         if csign == OpSign.UNDEFINED:
             return
         x, y = self.deps
@@ -460,8 +473,8 @@ class Multiply(Op):
         sign = infer_multiply_sign(xsign, ysign)
         cop_id = self.id
         if cop_id in val_dict:
-            osign = val_dict[cop_id]
-            sign = merge_sign(sign, osign)
+            csign = val_dict[cop_id]
+            sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
     @classmethod
@@ -474,10 +487,10 @@ class Multiply(Op):
         if len(m_dict) == 1:
             return scalar
         ndeps = [scalar]
-        for op_id, scalar_data in m_dict.items():
-            if op_id == -1:
+        for cop_id, scalar_data in m_dict.items():
+            if cop_id == -1:
                 continue
-            dep = od.get_op(op_id)
+            dep = od.get_op(cop_id)
             ndeps.append(dep)
             exp = od.scalar(scalar_data)
             ndeps.append(exp)
@@ -500,8 +513,8 @@ class Multiply(Op):
         return super().topo_degenerate(sign_dict, *deps)
 
     def revtopo_infer_sign(self, sign_dict):
-        op_id = self.id
-        csign = sign_dict[op_id]
+        cop_id = self.id
+        csign = sign_dict[cop_id]
         if csign == OpSign.UNDEFINED:
             return
         x, y = self.deps
@@ -661,8 +674,8 @@ class LessThan(Op):
             sign = infer_mutual_sign(xsign, ysign)
         cop_id = self.id
         if cop_id in val_dict:
-            osign = val_dict[cop_id]
-            sign = merge_sign(sign, osign)
+            csign = val_dict[cop_id]
+            sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
     @classmethod
@@ -674,8 +687,8 @@ class LessThan(Op):
         return super().topo_degenerate(sign_dict, *deps)
 
     def revtopo_infer_sign(self, sign_dict):
-        op_id = self.id
-        sign = sign_dict[op_id]
+        cop_id = self.id
+        sign = sign_dict[cop_id]
         ids = [dep.id for dep in self.deps]
         aid, bid, xid, yid = ids
         asign, bsign, xsign, ysign = [sign_dict[i] for i in ids]
@@ -722,13 +735,13 @@ class NoMoreThan(Op):
             sign = infer_mutual_sign(xsign, ysign)
         cop_id = self.id
         if cop_id in val_dict:
-            osign = val_dict[cop_id]
-            sign = merge_sign(sign, osign)
+            csign = val_dict[cop_id]
+            sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
     def revtopo_infer_sign(self, sign_dict):
-        op_id = self.id
-        sign = sign[op_id]
+        cop_id = self.id
+        sign = sign[cop_id]
         ids = [dep.id for dep in self.deps]
         aid, bid, xid, yid = ids
         asign, bsign, xsign, ysign = [sign_dict[i] for i in ids]

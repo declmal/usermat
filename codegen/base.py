@@ -103,12 +103,11 @@ class Op(object):
         val_dict[cop_id] = sym
 
     def dfs_infer_sign(self, val_dict):
+        sign = OpSign.UNDEFINED
         cop_id = self.id
         if cop_id in val_dict:
-            osign = val_dict[cop_id]
-            sign = merge_sign(OpSign.UNDEFINED, osign)
-        else:
-            sign = OpSign.UNDEFINED
+            csign = val_dict[cop_id]
+            sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
     def dfs_autograph_backward(self, val_dict, var_seq):

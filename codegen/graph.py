@@ -1,5 +1,6 @@
 from os import path
 import json
+import logging
 
 import mxnet as mx
 
@@ -246,10 +247,20 @@ class Graph(object):
         # abs,sin,cos,lessthan,nomorethan
         # polynomial,monomial
 
-    def infer_sign(self):
-        sign_dict = {}
-        sign_dict = dfs_visit(
-            self.outs, "dfs_infer_sign", init_val_dict=sign_dict)
-        sign_dict = revtopo_visit(
-            self.outs, "revtopo_infer_sign", sign_dict_ref=sign_dict)
-        return sign_dict
+    def infer_sign(self, logger=logging.getLogger("graph.infer_sign")):
+        sign_dict_1 = {}
+        cnt = 0
+        while True:
+            sign_dict_2 = dfs_visit(
+                self.outs, "dfs_infer_sign", init_val_dict=sign_dict_1)
+            flag1 = sign_dict_1 == sign_dict_2
+            sign_dict_3 = revtopo_visit(
+                self.outs, "revtopo_infer_sign", sign_dict_ref=sign_dict_2)
+            flag2 = sign_dict_2 == sign_dict_3
+            cnt += 1
+            if flag1 and flag2:
+                break
+            sign_dict_1 = sign_dict_3
+        logger.debug(
+            "graph infer_sign has been run for {} passes".format(cnt))
+        return sign_dict_1

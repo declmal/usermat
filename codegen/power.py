@@ -173,8 +173,8 @@ class Power(Op):
         exp_data = exp.data
         deno, nume = exp_data.denominator, exp_data.numerator
         frac_sign = sign_dict[frac_id]
-        op_id = self.id
-        csign = sign_dict[op_id]
+        cop_id = self.id
+        csign = sign_dict[cop_id]
         if nume == 0:
             assert csign == OpSign.POSITIVE
             return
@@ -237,6 +237,6 @@ class Power(Op):
         sign = infer_power_sign(frac_sign, exp_data)
         cop_id = self.id
         if cop_id in val_dict:
-            osign = val_dict
-            sign = merge_sign(sign, osign)
+            csign = val_dict[cop_id]
+            sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign

@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from fractions import Fraction
 
-from codegen.op_utils import ContradictError
+from codegen.op_utils import ContradictError, Zero
 
 
 """ Op Sign Types
@@ -13,10 +13,19 @@ class OpSign(Enum):
     NEGATIVE = auto()
     NON_ZERO = auto()
     ZERO = auto()
-    INDEFINITE = auto()
+    UNDEFINED = auto()
 
 """ infer_sign util functions
 """
+def infer_scalar_sign(data):
+    if data == Zero:
+        sign = OpSign.ZERO
+    elif data > Zero:
+        sign = OpSign.POSITIVE
+    else:
+        sign = OpSign.NEGATIVE
+    return sign
+
 def infer_negative_sign(sign):
     if sign == OpSign.POSITIVE:
         return OpSign.NEGATIVE
@@ -31,21 +40,21 @@ def infer_negative_sign(sign):
 def infer_add_sign(x_sign, y_sign):
     lst1 = [OpSign.POSITIVE, OpSign.NON_NEGATIVE]
     lst2 = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
-    if x_sign == OpSign.INDEFINITE or y_sign == OpSign.INDEFINITE:
-        return OpSign.INDEFINITE
+    if x_sign == OpSign.UNDEFINED or y_sign == OpSign.UNDEFINED:
+        return OpSign.UNDEFINED
     if x_sign == OpSign.ZERO:
         return y_sign
     if y_sign == OpSign.ZERO:
         return x_sign
     if x_sign == OpSign.NON_ZERO or y_sign == OpSign.NON_ZERO:
-        return OpSign.INDEFINITE
+        return OpSign.UNDEFINED
     if x_sign == y_sign:
         return x_sign
     if x_sign in lst1 and y_sign in lst1:
         return OpSign.POSITIVE
     if x_sign in lst2 and y_sign in lst2:
         return OpSign.NEGATIVE
-    return OpSign.INDEFINITE
+    return OpSign.UNDEFINED
 
 def infer_abs_sign(sign):
     if sign in [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]:
@@ -55,14 +64,14 @@ def infer_abs_sign(sign):
 def infer_multiply_sign(x_sign, y_sign):
     if x_sign == OpSign.ZERO or y_sign == OpSign.ZERO:
         return OpSign.ZERO
-    if x_sign == OpSign.INDEFINITE or y_sign == OpSign.INDEFINITE:
-        return OpSign.INDEFINITE
+    if x_sign == OpSign.UNDEFINED or y_sign == OpSign.UNDEFINED:
+        return OpSign.UNDEFINED
     lst1 = [OpSign.POSITIVE, OpSign.NEGATIVE, OpSign.NON_ZERO]
     if x_sign == OpSign.NON_ZERO:
-        sign = OpSign.NON_ZERO if y_sign in lst1 else OpSign.INDEFINITE
+        sign = OpSign.NON_ZERO if y_sign in lst1 else OpSign.UNDEFINED
         return sign
     if y_sign == OpSign.NON_ZERO:
-        sign = OpSign.NON_ZERO if x_sign in lst1 else OpSign.INDEFINITE
+        sign = OpSign.NON_ZERO if x_sign in lst1 else OpSign.UNDEFINED
         return sign
     lst2 = [OpSign.POSITIVE, OpSign.NON_NEGATIVE]
     if x_sign == OpSign.NON_NEGATIVE:
@@ -92,6 +101,8 @@ def infer_power_sign(frac_sign, exp_data):
     if nume % 2 == 0 or deno > 1:
         sign = infer_abs_sign(frac_sign) if nume > 0 else OpSign.POSITIVE
         return sign
+    if nume == 1 and deno == 1:
+        return frac_sign
     if frac_sign == OpSign.NON_NEGATIVE:
         sign = OpSign.NON_NEGATIVE if nume > 0 else OpSign.POSITIVE
         return sign
@@ -112,9 +123,9 @@ def infer_mutual_sign(x_sign, y_sign):
     lst3 = [OpSign.POSITIVE, OpSign.NEGATIVE, OpSign.NON_ZERO]
     if x_sign in lst3 and y_sign in lst3:
         return OpSign.NON_ZERO
-    return OpSign.INDEFINITE
+    return OpSign.UNDEFINED
 
-def infer_lessthan_sign(a_sign, b_sign):
+def infer_lessthan(a_sign, b_sign):
     if a_sign == OpSign.NEGATIVE and \
         b_sign in [Opsign.ZERO, OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
         return True
@@ -123,7 +134,7 @@ def infer_lessthan_sign(a_sign, b_sign):
         return True
     return False
 
-def infer_nomorethan_sign(a_sign, b_sign):
+def infer_nomorethan(a_sign, b_sign):
     if a_sign in [OpSign.ZERO, OpSign.NON_POSITIVE, OpSign.NEGATIVE] and \
         b_sign in [OpSign.ZERO, OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
         return True
@@ -139,9 +150,9 @@ def raise_merge_sign_error(sign1, sign2):
 def merge_sign(sign1, sign2):
     if sign1 == sign2:
         return sign1
-    if sign1 == OpSign.INDEFINITE:
+    if sign1 == OpSign.UNDEFINED:
         return sign2
-    if sign2 == OpSign.INDEFINITE:
+    if sign2 == OpSign.UNDEFINED:
         return sign1
     if sign1 == OpSign.NON_ZERO:
         if sign2 == OpSign.ZERO:
@@ -183,6 +194,6 @@ def merge_signs(signs):
     csign = signs[0]
     for sign in signs[1:]:
         csign = merge_assertion(csign, sign)
-    if csign == OpSign.INDEFINITE:
+    if csign == OpSign.UNDEFINED:
         return []
     return [csign]

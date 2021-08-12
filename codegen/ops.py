@@ -2,10 +2,10 @@ import numpy as np
 import mxnet as mx
 
 from codegen.sign_utils import \
-    infer_negative_sign, infer_nomorethan_sign, infer_abs_sign, \
+    infer_negative_sign, infer_nomorethan, infer_abs_sign, \
     infer_add_sign, infer_power_sign, infer_mutual_sign, \
-    infer_lessthan_sign, infer_multiply_sign, OpSign, merge_signs, \
-    merge_sign
+    infer_lessthan, infer_multiply_sign, infer_scalar_sign, \
+    OpSign, merge_signs, merge_sign
 from codegen.op_utils import \
     One, MinusOne, Zero, FloatTypes, cast_fraction, \
     sequential_equiv_func, swappable_equiv_func
@@ -31,6 +31,7 @@ def num_valid_func(num_deps):
 
 """ ops
 """
+@org.register_opt("revtopo_infer_sign")
 @org.register_op()
 class Scalar(Op):
     def __init__(self, data):
@@ -57,12 +58,7 @@ class Scalar(Op):
         val_dict[cop_id] = cdiff
 
     def dfs_infer_sign(self, val_dict):
-        if self.data == Zero:
-            sign = OpSign.ZERO
-        elif self.data > Zero:
-            sign = OpSign.POSITIVE
-        else:
-            sign = OpSign.NEGATIVE
+        sign = infer_scalar_sign(self.data)
         cop_id = self.id
         if cop_id in val_dict:
             osign = val_dict
@@ -74,6 +70,7 @@ class Scalar(Op):
 @org.register_opt("dfs_tosym")
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_standardize")
+@org.register_opt("revtopo_infer_sign")
 @org.register_op()
 class Var(Op):
     @classmethod
@@ -91,6 +88,8 @@ class Var(Op):
         val_dict[cop_id] = cdiff
 
 
+# standardized op
+@org.register_opt("revtopo_infer_sign")
 @org.register_opt("dfs_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
@@ -129,16 +128,42 @@ class Sin(Op):
             cdiff.append(dop)
         val_dict[cop_id] = cdiff
 
+    def revtopo_infer_sign(self, sign_dict):
+        op_id = self.id
+        csign = sign_dict[op_id]
+        if csign == OpSign.NON_ZERO:
+            x = self.deps[0]
+            xid = x.id
+            xsign = sign_dict[xid]
+            xsign = merge_sign(xsign, OpSign.NON_ZERO)
+            sign_dict[xid] = xsign
+            return
+
 
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
 @org.register_opt("topo_standardize")
-@org.register_opt("topo_degenerate")
 @org.register_opt("topo_fuse")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Abs(Op):
     fwd_func = lambda v: np.abs(v)
+
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        dep = deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        if isinstance(dep, Scalar):
+            op = od.scalar(dep.data)
+            return op
+        if dep_sign == OpSign.POSITIVE and dep_sign == OpSign.NON_NEGATIVE:
+            return dep
+        if dep_sign == OpSign.NEGATIVE and dep_sign == OpSign.NON_POSITIVE:
+            op = od.multiply(dep, MinusOne)
+            return op
+        op = cls.default_op(*deps)
+        return op
 
     def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
@@ -165,6 +190,23 @@ class Abs(Op):
             sign = merge_sign(sign, osign)
         val_dict[cop_id] = sign
 
+    def revtopo_infer_sign(self, sign_dict):
+        op_id = self.id
+        csign = sign_dict[op_id]
+        assert csign in \
+            [OpSign.POSITIVE, OpSign.NON_NEGATIVE, OpSign.ZERO], csign
+        dep = self.deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        if csign == OpSign.POSITIVE:
+            dep_sign = merge_sign(dep_sign, OpSign.NON_ZERO)
+            sign_dict[dep_id] = dep_sign
+            return
+        if csign == OpSign.ZERO:
+            dep_sign = merge_sign(dep_sign, OpSign.ZERO)
+            sign_dict[dep_id] = dep_sign
+            return
+
 
 @org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_forward")
@@ -174,6 +216,17 @@ class Abs(Op):
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Cos(Op):
     fwd_func = lambda v: np.cos(v)
+
+    def revtopo_infer_sign(self, sign_dict):
+        op_id = self.id
+        csign = sign_dict[op_id]
+        if csign == OpSign.ZERO:
+            dep = self.deps[0]
+            dep_id = dep.id
+            dep_sign = sign_dict[dep_id]
+            dep_sign = merge_sign(dep_sign, OpSign.NON_ZERO)
+            sign_dict[dep_id] = dep_sign
+            return
 
 
 @org.register_opt("dfs_forward")
@@ -187,8 +240,8 @@ class Add(Op):
     def dfs_infer_sign(self, val_dict):
         x, y = self.deps
         xid, yid = x.id, y.id
-        x_sign, y_sign = val_dict[xid], val_dict[yid]
-        sign = infer_add_sign(x_sign, y_sign)
+        xsign, ysign = val_dict[xid], val_dict[yid]
+        sign = infer_add_sign(xsign, ysign)
         cop_id = self.id
         if cop_id in val_dict:
             osign = val_dict
@@ -239,7 +292,130 @@ class Add(Op):
             return x
         return super().topo_degenerate(sign_dict, *deps)
 
+    def revtopo_infer_sign(self, sign_dict):
+        op_id = self.id
+        csign = sign_dict[op_id]
+        if csign == OpSign.UNDEFINED:
+            return
+        x, y = self.deps
+        xid, yid = x.id, y.id
+        xsign, ysign = sign_dict[xid], sign_dict[yid]
+        if xsign == OpSign.UNDEFINED or ysign == OpSign.UNDEFINED:
+            return
+        if csign == OpSign.NON_ZERO:
+            if xsign == OpSign.ZERO:
+                ysign = merge_sign(ysign, OpSign.NON_ZERO)
+                sign_dict[yid] = ysign
+                return
+            if ysign == OpSign.ZERO:
+                xsign = merge_sign(xsign, OpSign.NON_ZERO)
+                sign_dict[xid] = xsign
+                return
+            return
+        if csign == OpSign.ZERO:
+            if xsign == OpSign.ZERO:
+                ysign = merge_sign(ysign, OpSign.ZERO)
+                sign_dict[yid] = ysign
+                return
+            if xsign == OpSign.NON_NEGATIVE:
+                ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
+                sign_dict[yid] = ysign
+                return
+            if xsign == OpSign.NON_POSITIVE:
+                ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
+                sign_dict[yid] = ysign
+                return
+            if xsign == OpSign.POSITIVE:
+                ysign = merge_sign(ysign, OpSign.NEGATIVE)
+                sign_dict[yid] = ysign
+                return
+            if xsign == OpSign.NEGATIVE:
+                ysign = merge_sign(ysign, OpSign.POSITIVE)
+                sign_dict[yid] = ysign
+                return
+            if ysign == OpSign.ZERO:
+                xsign = merge_sign(xsign, OpSign.ZERO)
+                sign_dict[xid] = xsign
+                return
+            if ysign == OpSign.NON_NEGATIVE:
+                xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
+                sign_dict[xid] = xsign
+                return
+            if ysign == OpSign.NON_POSITIVE:
+                xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
+                sign_dict[xid] = xsign
+                return
+            if ysign == OpSign.POSITIVE:
+                xsign = merge_sign(xsign, OpSign.NEGATIVE)
+                sign_dict[xid] = xsign
+                return
+            if xsign == OpSign.NEGATIVE:
+                xsign = merge_sign(xsign, OpSign.POSITIVE)
+                sign_dict[xid] = xsign
+                return
+            return
+        if csign == OpSign.NON_NEGATIVE:
+            if xsign == OpSign.NEGATIVE:
+                ysign = merge_sign(ysign, OpSign.POSITIVE)
+                sign_dict[yid] = ysign
+                return
+            if xsign == OpSign.NON_POSITIVE:
+                ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
+                sign_dict[yid] = ysign
+                return
+            if ysign == OpSign.NEGATIVE:
+                xsign = merge_sign(xsign, OpSign.POSITIVE)
+                sign_dict[xid] = xsign
+                return
+            if ysign == OpSign.NON_POSITIVE:
+                xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
+                sign_dict[xid] = xsign
+                return
+            return
+        if csign == OpSign.NON_POSITIVE:
+            if xsign == OpSign.POSITIVE:
+                ysign = merge_sign(ysign, OpSign.NEGATIVE)
+                sign_dict[yid] = ysign
+                return
+            if xsign == OpSign.NON_NEGATIVE:
+                ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
+                sign_dict[yid] = ysign
+                return
+            if ysign == OpSign.POSITIVE:
+                xsign = merge_sign(xsign, OpSign.NEGATIVE)
+                sign_dict[xid] = xsign
+                return
+            if ysign == OpSign.NON_NEGATIVE:
+                xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
+                sign_dict[xid] = xsign
+                return
+            return
+        lst2 = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
+        if csign == OpSign.POSITIVE:
+            if xsign in lst2:
+                ysign = merge_sign(ysign, OpSign.POSITIVE)
+                sign_dict[yid] = ysign
+                return
+            if ysign in lst2:
+                xsign = merge_sign(xsign, OpSign.POSITIVE)
+                sign_dict[xid] = xsign
+                return
+            return
+        lst3 = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
+        if csign == OpSign.NEGATIVE:
+            if xsign in lst3:
+                ysign = merge_sign(ysign, OpSign.NEGATIVE)
+                sign_dict[yid] = ysign
+                return
+            if ysign in lst2:
+                xsign = merge_sign(xsign, OpSign.NEGATIVE)
+                sign_dict[xid] = xsign
+                return
+            return
 
+
+# standardized op
+@org.register_opt("revtopo_infer_sign")
 @org.register_opt("dfs_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
@@ -280,8 +456,8 @@ class Multiply(Op):
     def dfs_infer_sign(self, val_dict):
         x, y = self.deps
         xid, yid = x.id, y.id
-        x_sign, y_sign = val_dict[xid], val_dict[yid]
-        sign = infer_multiply_sign(x_sign, y_sign)
+        xsign, ysign = val_dict[xid], val_dict[yid]
+        sign = infer_multiply_sign(xsign, ysign)
         cop_id = self.id
         if cop_id in val_dict:
             osign = val_dict[cop_id]
@@ -323,10 +499,117 @@ class Multiply(Op):
             return x
         return super().topo_degenerate(sign_dict, *deps)
 
+    def revtopo_infer_sign(self, sign_dict):
+        op_id = self.id
+        csign = sign_dict[op_id]
+        if csign == OpSign.UNDEFINED:
+            return
+        x, y = self.deps
+        xid, yid = x.id, y.id
+        xsign, ysign = sign_dict[xid], sign_dict[yid]
+        if csign == OpSign.NON_ZERO:
+            xsign = merge_sign(xsign, OpSign.NON_ZERO)
+            sign_dict[xid] = xsign
+            ysign = merge_sign(ysign, OpSign.NON_ZERO)
+            sign_dict[yid] = ysign
+            return
+        lst1 = [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]
+        if csign == OpSign.ZERO:
+            if xsign in lst1:
+                ysign = merge_sign(ysign, OpSign.ZERO)
+                sign_dict[yid] = ysign
+                return
+            if ysign in lst1:
+                xsign = merge_sign(xsign, OpSign.ZERO)
+                sign_dict[xid] = xsign
+                return
+            return
+        if xsign == OpSign.UNDEFINED or ysign == OpSign.UNDEFINED:
+            return
+        lst2 = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
+        lst3 = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
+        if csign == OpSign.NON_NEGATIVE:
+            if xsign in lst2:
+                ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
+                sign_dict[yid] = ysign
+                return
+            if xsign in lst3:
+                ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
+                sign_dict[yid] = ysign
+                return
+            if ysign in lst2:
+                xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
+                sign_dict[xid] = xsign
+                return
+            if ysign in lst3:
+                xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
+                sign_dict[xid] = xsign
+                return
+            return
+        if csign == OpSign.NON_POSITIVE:
+            if xsign in lst2:
+                ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
+                sign_dict[yid] = ysign
+                return
+            if xsign in lst3:
+                ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
+                sign_dict[yid] = ysign
+                return
+            if ysign in lst2:
+                xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
+                sign_dict[xid] = xsign
+                return
+            if ysign in lst3:
+                xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
+                sign_dict[xid] = xsign
+                return
+            return
+        if csign == OpSign.POSITIVE:
+            xsign = merge_sign(xsign, OpSign.NON_ZERO)
+            ysign = merge_sign(ysign, OpSign.NON_ZERO)
+            if xsign == OpSign.NEGATIVE:
+                ysign = merge_sign(ysign, OpSign.NEGATIVE)
+                sign_dict[yid] = ysign
+                return
+            if xsign == OpSign.POSITIVE:
+                ysign = merge_sign(ysign, OpSign.POSITIVE)
+                sign_dict[yid] = ysign
+                return
+            if ysign == OpSign.NEGATIVE:
+                xsign = merge_sign(xsign, OpSign.NEGATIVE)
+                sign_dict[xid] = xsign
+                return
+            if ysign == OpSign.POSITIVE:
+                xsign = merge_sign(xsign, OpSign.POSITIVE)
+                sign_dict[xid] = xsign
+                return
+            return
+        if csign == OpSign.NEGATIVE:
+            xsign = merge_sign(xsign, OpSign.NON_ZERO)
+            ysign = merge_sign(ysign, OpSign.NON_ZERO)
+            if xsign == OpSign.NEGATIVE:
+                ysign = merge_sign(ysign, OpSign.POSITIVE)
+                sign_dict[yid] = ysign
+                return
+            if xsign == OpSign.POSITIVE:
+                ysign = merge_sign(ysign, OpSign.NEGATIVE)
+                sign_dict[yid] = ysign
+                return
+            if ysign == OpSign.NEGATIVE:
+                xsign = merge_sign(xsign, OpSign.POSITIVE)
+                sign_dict[xid] = xsign
+                return
+            if ysign == OpSign.POSITIVE:
+                xsign = merge_sign(xsign, OpSign.NEGATIVE)
+                sign_dict[xid] = xsign
+                return
+            return
+
 
 @org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_forward")
+@org.register_opt("revtopo_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class Divide(Op):
@@ -369,13 +652,13 @@ class LessThan(Op):
 
     def dfs_infer_sign(self, val_dict):
         ids = [dep.id for dep in self.deps]
-        a_sign, b_sign, x_sign, y_sign = [val_dict[i] for i in ids]
-        if infer_lessthan_sign(a_sign, b_sign):
-            sign = x_sign
-        elif infer_nomorethan_sign(b_sign, a_sign):
-            sign = y_sign
+        asign, bsign, xsign, ysign = [val_dict[i] for i in ids]
+        if infer_lessthan(asign, bsign):
+            sign = xsign
+        elif infer_nomorethan(bsign, asign):
+            sign = ysign
         else:
-            sign = infer_mutual_sign(x_sign, y_sign)
+            sign = infer_mutual_sign(xsign, ysign)
         cop_id = self.id
         if cop_id in val_dict:
             osign = val_dict[cop_id]
@@ -389,6 +672,21 @@ class LessThan(Op):
             # TODO: unittest
             return lv
         return super().topo_degenerate(sign_dict, *deps)
+
+    def revtopo_infer_sign(self, sign_dict):
+        op_id = self.id
+        sign = sign_dict[op_id]
+        ids = [dep.id for dep in self.deps]
+        aid, bid, xid, yid = ids
+        asign, bsign, xsign, ysign = [sign_dict[i] for i in ids]
+        if infer_lessthan(asign, bsign):
+            xsign = merge_sign(xsign, sign)
+            sign_dict[xid] = xsign
+            return
+        if infer_nomorethan(bsign, asign):
+            ysign = merge_sign(ysign, sign)
+            sign_dict[yid] = ysign
+            return
 
 
 @org.register_opt("topo_standardize")
@@ -415,15 +713,30 @@ class NoMoreThan(Op):
 
     def dfs_infer_sign(self, val_dict):
         ids = [dep.id for dep in self.deps]
-        a_sign, b_sign, x_sign, y_sign = [val_dict[i] for i in ids]
-        if infer_nomorethan_sign(a_sign, b_sign):
-            sign = x_sign
-        elif infer_lessthan_sign(b_sign, a_sign):
-            sign = y_sign
+        asign, bsign, xsign, ysign = [val_dict[i] for i in ids]
+        if infer_nomorethan(asign, bsign):
+            sign = xsign
+        elif infer_lessthan(bsign, asign):
+            sign = ysign
         else:
-            sign = infer_mutual_sign(x_sign, y_sign)
+            sign = infer_mutual_sign(xsign, ysign)
         cop_id = self.id
         if cop_id in val_dict:
             osign = val_dict[cop_id]
             sign = merge_sign(sign, osign)
         val_dict[cop_id] = sign
+
+    def revtopo_infer_sign(self, sign_dict):
+        op_id = self.id
+        sign = sign[op_id]
+        ids = [dep.id for dep in self.deps]
+        aid, bid, xid, yid = ids
+        asign, bsign, xsign, ysign = [sign_dict[i] for i in ids]
+        if infer_nomorethan(asign, bsign):
+            xsign = merge_sign(xsign, sign)
+            sign_dict[xid] = xsign
+            return
+        if infer_lessthan(bsign, asign):
+            ysign = merge_sign(ysign, sign)
+            sign_dict[yid] = ysign
+            return

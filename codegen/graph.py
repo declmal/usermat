@@ -4,6 +4,7 @@ import json
 import mxnet as mx
 
 from codegen.op_utils import cast_float
+from codegen.sign_utils import infer_scalar_sign
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op
@@ -68,6 +69,9 @@ def topo_visit(inps, outs, callback, sign_dict_ref={}):
             data = op.data
             nop = od.scalar(data)
             graph[op_id] = nop
+            sign = infer_scalar_sign(data)
+            nop_id = nop.id
+            sign_dict[nop_id] = sign
         else:
             ndeps = []
             for dep in op.deps:
@@ -79,16 +83,21 @@ def topo_visit(inps, outs, callback, sign_dict_ref={}):
             topo_func = org.get_opt(op, callback)
             nop = topo_func(sign_dict, *ndeps)
             graph[op_id] = nop
+            sign = sign_dict[op_id]
+            nop_id = nop.id
+            sign_dict[nop_id] = sign
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
     return ninps, nouts
 
-def revtopo_visit(outs, callback):
+def revtopo_visit(outs, callback, sign_dict_ref={}):
+    sign_dict = sign_dict_ref.copy()
     topo_seq = topo_sort(outs)
     topo_seq.reverse()
     for op in topo_seq:
         revtopo_func = org.get_opt(op, callback)
-        revtopo_func(op)
+        revtopo_func(op, sign_dict)
+    return sign_dict
 
 def dfs(op, visited, callback, **kwargs):
     op_id = op.id
@@ -238,5 +247,9 @@ class Graph(object):
         # polynomial,monomial
 
     def infer_sign(self):
-        sign_dict = dfs_visit(self.outs, "dfs_infer_sign")
+        sign_dict = {}
+        sign_dict = dfs_visit(
+            self.outs, "dfs_infer_sign", init_val_dict=sign_dict)
+        sign_dict = revtopo_visit(
+            self.outs, "revtopo_infer_sign", sign_dict_ref=sign_dict)
         return sign_dict

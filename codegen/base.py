@@ -17,7 +17,6 @@ class Op(object):
     def __init__(self, *deps):
         self.deps = list(deps)
         self.id = -1
-        self.sign = OpSign.INDEFINITE
 
     def insert_assertion(self, sign):
         csign = self.sign
@@ -68,7 +67,7 @@ class Op(object):
     def topo_fuse(cls, sign_dict, *deps):
         return cls.default_op(*deps)
 
-    def revtopo_propagate_assertion(self):
+    def revtopo_infer_sign(self, sign_dict):
         pass
 
     def dfs_forward(self, val_dict):
@@ -107,9 +106,9 @@ class Op(object):
         cop_id = self.id
         if cop_id in val_dict:
             osign = val_dict[cop_id]
-            sign = merge_sign(OpSign.INDEFINITE, osign)
+            sign = merge_sign(OpSign.UNDEFINED, osign)
         else:
-            sign = OpSign.INDEFINITE
+            sign = OpSign.UNDEFINED
         val_dict[cop_id] = sign
 
     def dfs_autograph_backward(self, val_dict, var_seq):

@@ -14,7 +14,7 @@ from codegen.op_reg import OpReg as org
 from codegen.base import Op
 from codegen.mials import \
     get_monomial_dict, merge_monomial_dict, get_polynomial_dict, \
-    merge_polynomial_dict
+    merge_polynomial_dict, create_polynomial_op, create_monomial_op
 
 """ validate functions
 """
@@ -284,21 +284,7 @@ class Add(Op):
         x_dict = get_polynomial_dict(x)
         y_dict = get_polynomial_dict(y)
         m_dict = merge_polynomial_dict(x_dict, y_dict)
-        scalar = od.scalar(m_dict[-1])
-        if len(m_dict) == 1:
-            return scalar
-        ndeps = [scalar]
-        for cop_id, scalar_data in m_dict.items():
-            if cop_id == -1:
-                continue
-            dep = od.get_op(cop_id)
-            ndeps.append(dep)
-            coef = od.scalar(scalar_data)
-            ndeps.append(coef)
-        if len(ndeps) == 3 and ndeps[0].data == Zero and \
-            ndeps[2].data == One:
-            return ndeps[1]
-        op = od.polynomial(*ndeps)
+        op = create_polynomial_op(m_dict)
         return op
 
     @classmethod
@@ -488,21 +474,7 @@ class Multiply(Op):
         x_dict = get_monomial_dict(x)
         y_dict = get_monomial_dict(y)
         m_dict = merge_monomial_dict(x_dict, y_dict)
-        scalar = od.scalar(m_dict[-1])
-        if len(m_dict) == 1:
-            return scalar
-        ndeps = [scalar]
-        for cop_id, scalar_data in m_dict.items():
-            if cop_id == -1:
-                continue
-            dep = od.get_op(cop_id)
-            ndeps.append(dep)
-            exp = od.scalar(scalar_data)
-            ndeps.append(exp)
-        if len(ndeps) == 3 and ndeps[0].data == One and \
-            ndeps[2].data == One:
-            return ndeps[1]
-        op = od.monomial(*ndeps)
+        op = create_monomial_op(m_dict)
         return op
 
     @classmethod

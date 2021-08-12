@@ -140,6 +140,23 @@ def infer_nomorethan(a_sign, b_sign):
         return True
     return False
 
+def infer_notequal(a_sign, b_sign):
+    if a_sign == OpSign.NEGATIVE and \
+        b_sign in [OpSign.NON_NEGATIVE, OpSign.ZERO, OpSign.POSITIVE]:
+        return True
+    if a_sign == OpSign.NON_POSITIVE and b_sign == OpSign.POSITIVE:
+        return True
+    if a_sign == OpSign.POSITIVE and \
+        b_sign in [OpSign.NON_POSITIVE, OpSign.ZERO, OpSign.NEGATIVE]:
+        return True
+    if a_sign == OpSign.NON_NEGATIVE and b_sign == OpSign.NEGATIVE:
+        return True
+    if a_sign == OpSign.NON_ZERO and b_sign == OpSign.ZERO:
+        return True
+    if a_sign == OpSign.ZERO and b_sign == OpSign.NON_ZERO:
+        return True
+    return False
+
 """ assertion util functions
 """
 def raise_merge_sign_error(sign1, sign2):

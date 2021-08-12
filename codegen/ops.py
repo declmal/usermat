@@ -31,6 +31,11 @@ def num_valid_func(num_deps):
 
 """ ops
 """
+@org.register_op()
+class Null(Op):
+    pass
+
+
 @org.register_opt("revtopo_infer_sign")
 @org.register_op()
 class Scalar(Op):

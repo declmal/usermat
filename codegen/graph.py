@@ -57,14 +57,18 @@ def topo_sort(op_group):
                 del res[nid]
     return topo_seq
 
-def topo_visit(inps, outs, callback, sign_dict_ref={}):
+def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
     sign_dict = sign_dict_ref.copy()
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
+    assert_ids = [op.id for op in asserts]
+    ids = set(out_ids + assert_ids)
+    topo_outs = [od.get_op(op_id) for op_id in ids]
     graph = {}
     # reset the graph define here since graph structure changes
     od.reset()
-    for op in topo_sort(outs):
+    topo_outs = asserts + outs
+    for op in topo_sort(topo_outs):
         op_id = op.id
         if isinstance(op, org.get_op_cls("scalar")):
             data = op.data
@@ -89,7 +93,8 @@ def topo_visit(inps, outs, callback, sign_dict_ref={}):
             sign_dict[nop_id] = sign
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
-    return ninps, nouts
+    nasserts = [graph[op_id] for op_id in assert_ids]
+    return ninps, nouts, nasserts
 
 def revtopo_visit(outs, callback, sign_dict_ref={}):
     sign_dict = sign_dict_ref.copy()
@@ -124,8 +129,9 @@ def register_graph_topo(cls):
     def graph_topo(callback):
         def wrapper(self):
             sign_dict = self.infer_sign()
-            self.inps, self.outs = topo_visit(
-                self.inps, self.outs, callback, sign_dict_ref=sign_dict)
+            self.inps, self.outs, self.asserts = topo_visit(
+                self.inps, self.outs, self.asserts, callback,
+                sign_dict_ref=sign_dict)
         return wrapper
 
     for callback in dir(Op):
@@ -136,7 +142,7 @@ def register_graph_topo(cls):
 
 @register_graph_topo
 class Graph(object):
-    def __init__(self, inps, outs, out_appends=None):
+    def __init__(self, inps, outs, asserts=None, out_appends=None):
         # validate and set inps
         inp_ids = set()
         for inp in inps:
@@ -147,6 +153,11 @@ class Graph(object):
         self.inps = inps
         # set outs
         self.outs = outs
+        # set asserts
+        if asserts is None:
+            self.asserts = []
+        else:
+            self.asserts = asserts
         # out_appends: suffix that comes
         # after "##" of the output symbol name
         self.out_appends = out_appends \
@@ -165,8 +176,9 @@ class Graph(object):
             inp_id = inp.id
             inp_v = datas[i]
             val_dict[inp_id] = inp_v
+        outs = self.asserts + self.outs
         val_dict = dfs_visit(
-            self.outs, "dfs_forward", init_val_dict=val_dict)
+            outs, "dfs_forward", init_val_dict=val_dict)
         ret = []
         for out in self.outs:
             out_id = out.id
@@ -175,10 +187,12 @@ class Graph(object):
         return ret
 
     def display(self):
-        dfs_visit(self.outs, "dfs_display")
+        outs = self.asserts + self.outs
+        dfs_visit(outs, "dfs_display")
 
     def tosym(self, json_path=path.expanduser("~/mx.json")):
-        sym_dict = dfs_visit(self.outs, "dfs_tosym")
+        outs = self.asserts + self.outs
+        sym_dict = dfs_visit(outs, "dfs_tosym")
         sym_outs = []
         for i, out in enumerate(self.outs):
             out_id = out.id
@@ -220,7 +234,8 @@ class Graph(object):
             out_diff = diff_dict[out_id]
             for o in out_diff:
                 outs.append(o)
-        dg = Graph(self.inps, outs, out_appends=out_appends)
+        dg = Graph(
+            self.inps, outs, asserts=self.asserts, out_appends=out_appends)
         return dg
 
     def optimize(self):
@@ -236,7 +251,6 @@ class Graph(object):
         # var,scalar
         # abs,sin,cos,lessthan,nomorethan
         # add,power,multiply
-        self.infer_sign()
 
     def merge(self):
         # var,scalar

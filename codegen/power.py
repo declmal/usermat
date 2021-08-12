@@ -19,10 +19,6 @@ def power_valid_func(*deps):
     assert isinstance(exp, org.get_op_cls("scalar")), \
         "type of deps[1]: {} must be scalar".format(type(exp))
 
-""" exp dist function
-"""
-# TODO(dev): exp dist function
-
 
 """ power op
 """
@@ -209,8 +205,12 @@ class Power(Op):
             op = od.scalar(scalar_data)
             return op
         deno = exp_data.denominator
-        if deno == 1 and nume == 1:
-            return frac
+        if deno == 1:
+            if nume == 1:
+                return frac
+            if nume % 2 == 0 and isinstance(frac, org.get_op_cls("abs")):
+                dep = frac.deps[0]
+                return cls.default_op(dep, exp)
         return cls.default_op(*deps)
 
     def dfs_autograph_backward(self, val_dict, var_seq):

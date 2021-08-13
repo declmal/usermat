@@ -241,6 +241,25 @@ def rev_infer_add_sign(csign, xsign):
         return OpSign.UNDEFINED
     assert False
 
+def rev_infer_power_sign(csign, exp_data):
+    nume = exp_data.numerator
+    if nume == 0:
+        assert csign == OpSign.POSITIVE, csign
+        return OpSign.UNDEFINED
+    deno = exp_data.denominator
+    if deno > 1 or nume % 2 == 0:
+        if nume < 0:
+            assert csign == OpSign.POSITIVE, csign
+        else:
+            assert csign == OpSign.NON_NEGATIVE, csign
+    if deno > 1:
+        if nume < 0:
+            frac_sign = OpSign.POSITIVE
+        else:
+            frac_sign = OpSign.NON_NEGATIVE
+        return frac_sign
+    return OpSign.UNDEFINED
+
 """ merge sign util functions
 """
 def raise_merge_sign_error(sign1, sign2):
@@ -288,25 +307,6 @@ def merge_sign(sign1, sign2):
             return sign1
         return OpSign.ZERO
     raise_merge_sign_error(sign1, sign2)
-
-def rev_infer_power_sign(csign, exp_data):
-    nume = exp_data.numerator
-    if nume == 0:
-        assert csign == OpSign.POSITIVE, csign
-        return OpSign.UNDEFINED
-    deno = exp_data.denominator
-    if deno > 1 or nume % 2 == 0:
-        if nume < 0:
-            assert csign == OpSign.POSITIVE, csign
-        else:
-            assert csign == OpSign.NON_NEGATIVE, csign
-    if deno > 1:
-        if nume < 0:
-            frac_sign = OpSign.POSITIVE
-        else:
-            frac_sign = OpSign.NON_NEGATIVE
-        return frac_sign
-    return OpSign.UNDEFINED
 
 def merge_signs(signs):
     assert len(signs) > 0

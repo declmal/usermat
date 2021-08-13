@@ -39,108 +39,6 @@ def mial_valid_func(mial_type):
                 "invalid type of data: {}".format(type(data))
     return wrapper
 
-
-""" mial ops
-"""
-@org.register_opt("dfs_tosym")
-@org.register_opt("dfs_forward")
-@org.register_op(
-    valid_func=mial_valid_func("mono"), equiv_func=sequential_equiv_func)
-class Monomial(Op):
-    @classmethod
-    def fwd_func(cls, *v):
-        product = v[0]
-        for i in range(1, len(v), 2):
-            if v[i+1] == One:
-                product *= v[i]
-            else:
-                product *= v[i]**v[i+1]
-        return product
-
-    @classmethod
-    def topo_degenerate(cls, sign_dict, *deps):
-        scalar = deps[0]
-        scalar_data = scalar.data
-        m_dict = {-1: scalar_data}
-        for i in range(1, len(deps), 2):
-            frac, exp = deps[i:i+2]
-            frac_id = frac.id
-            exp_data = exp.data
-            m_dict[frac_id] = exp_data
-        op = create_monomial_op(m_dict)
-        return op
-
-    def dfs_infer_sign(self, val_dict):
-        signs = get_monomial_signs(self.deps)
-        csign = signs[0]
-        for sign in signs[1:]:
-            csign = infer_multiply_sign(sign, csign)
-        cop_id = self.id
-        if cop_id in val_dict:
-            sign = val_dict[cop_id]
-            csign = merge_sign(csign, sign)
-        val_dict[cop_id] = csign
-
-    def revtopo_infer_sign(self, sign_dict):
-        cop_id = self.id
-        csign = sign_dict[cop_id]
-        if csign == OpSign.UNDEFINED:
-            return
-        if csign in [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]:
-            for i in range(1, len(self.deps), 2):
-                dep = self.deps[i]
-                dep_id = dep.id
-                dep_sign = sign_dict[dep_id]
-                dep_sign = merge_sign(Opsign.NON_ZERO, dep_sign)
-                sign_dict[dep_id] = dep_sign
-        if csign == OpSign.NON_ZERO:
-            return
-        signs = get_monomial_signs(self.deps)
-        signs1, sign2 = separate_signs(
-            signs, sign_set={
-                OpSign.POSITIVE, OpSign.NON_NEGATIVE,
-                OpSign.NEGATIVE, OpSign.NON_POSITIVE})
-
-
-@org.register_opt("dfs_forward")
-@org.register_opt("dfs_tosym")
-@org.register_op(
-    valid_func=mial_valid_func("poly"), equiv_func=sequential_equiv_func)
-class Polynomial(Op):
-    @classmethod
-    def fwd_func(cls, *v):
-        summation = v[0]
-        for i in range(1, len(v), 2):
-            if v[i+1] == One:
-                summation += v[i]
-            else:
-                summation += v[i]*v[i+1]
-        return summation
-
-    @classmethod
-    def topo_degenerate(cls, sign_dict, *deps):
-        scalar = deps[0]
-        scalar_data = scalar.data
-        m_dict = {-1: scalar_data}
-        for i in range(1, len(deps), 2):
-            var, coef = deps[i:i+2]
-            var_id = var.id
-            coef_data = coef.data
-            m_dict[var_id] = coef_data
-        op = create_polynomial_op(m_dict)
-        return op
-
-    def dfs_infer_sign(self, val_dict):
-        signs = get_polynomial_signs(self.deps)
-        csign = signs[0]
-        for sign in signs[1:]:
-            csign = infer_add_sign(sign, csign)
-        cop_id = self.id
-        if cop_id in val_dict:
-            sign = val_dict[cop_id]
-            csign = merge_sign(csign, sign)
-        val_dict[cop_id] = csign
-
 """ monomial util functions
 """
 def get_monomial_signs(deps):
@@ -168,7 +66,7 @@ def validate_monomial_dict(m_dict):
         frac = od.get_op(op_id)
 
 def get_monomial_dict(op):
-    if isinstance(op, Monomial):
+    if isinstance(op, org.get_op_cls("monomial")):
         scalar = op.deps[0]
         scalar_data = scalar.data
         m_dict = {-1: scalar_data}
@@ -274,7 +172,7 @@ def validate_polynomial_dict(m_dict):
         frac = od.get_op(op_id)
 
 def get_polynomial_dict(op):
-    if isinstance(op, Polynomial):
+    if isinstance(op, org.get_op_cls("polynomial")):
         scalar = op.deps[0]
         scalar_data = scalar.data
         m_dict = {-1: scalar_data}
@@ -343,3 +241,113 @@ def create_polynomial_op(m_dict):
     deps = [scalar] + deps
     op = od.polynomial(*deps)
     return op
+
+
+""" mial ops
+"""
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_forward")
+@org.register_op(
+    valid_func=mial_valid_func("mono"), equiv_func=sequential_equiv_func)
+class Monomial(Op):
+    @classmethod
+    def fwd_func(cls, *v):
+        product = v[0]
+        for i in range(1, len(v), 2):
+            if v[i+1] == One:
+                product *= v[i]
+            else:
+                product *= v[i]**v[i+1]
+        return product
+
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        scalar = deps[0]
+        scalar_data = scalar.data
+        m_dict = {-1: scalar_data}
+        for i in range(1, len(deps), 2):
+            frac, exp = deps[i:i+2]
+            frac_id = frac.id
+            exp_data = exp.data
+            m_dict[frac_id] = exp_data
+        op = create_monomial_op(m_dict)
+        return op
+
+    def dfs_infer_sign(self, val_dict):
+        signs = get_monomial_signs(self.deps)
+        csign = signs[0]
+        for sign in signs[1:]:
+            csign = infer_multiply_sign(sign, csign)
+        cop_id = self.id
+        if cop_id in val_dict:
+            sign = val_dict[cop_id]
+            csign = merge_sign(csign, sign)
+        val_dict[cop_id] = csign
+
+    def revtopo_infer_sign(self, sign_dict):
+        cop_id = self.id
+        csign = sign_dict[cop_id]
+        if csign == OpSign.UNDEFINED:
+            return
+        if csign in [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]:
+            for i in range(1, len(self.deps), 2):
+                dep = self.deps[i]
+                dep_id = dep.id
+                dep_sign = sign_dict[dep_id]
+                dep_sign = merge_sign(Opsign.NON_ZERO, dep_sign)
+                sign_dict[dep_id] = dep_sign
+        if csign == OpSign.NON_ZERO:
+            return
+        sign_set = {
+            OpSign.POSITIVE, OpSign.NON_NEGATIVE,
+            OpSign.NEGATIVE, OpSign.NON_POSITIVE}
+
+def tmp(deps, sign_set):
+    signs = get_monomial_signs(deps)
+    signs1, signs2 = separate_signs(signs, sign_set)
+    if len(signs2) > 1:
+        return
+    if len(signs1) == 0:
+        xsign = OpSign.UNDEFINED
+    else:
+        xsign = merge_signs(signs1)
+
+
+@org.register_opt("dfs_forward")
+@org.register_opt("dfs_tosym")
+@org.register_op(
+    valid_func=mial_valid_func("poly"), equiv_func=sequential_equiv_func)
+class Polynomial(Op):
+    @classmethod
+    def fwd_func(cls, *v):
+        summation = v[0]
+        for i in range(1, len(v), 2):
+            if v[i+1] == One:
+                summation += v[i]
+            else:
+                summation += v[i]*v[i+1]
+        return summation
+
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        scalar = deps[0]
+        scalar_data = scalar.data
+        m_dict = {-1: scalar_data}
+        for i in range(1, len(deps), 2):
+            var, coef = deps[i:i+2]
+            var_id = var.id
+            coef_data = coef.data
+            m_dict[var_id] = coef_data
+        op = create_polynomial_op(m_dict)
+        return op
+
+    def dfs_infer_sign(self, val_dict):
+        signs = get_polynomial_signs(self.deps)
+        csign = signs[0]
+        for sign in signs[1:]:
+            csign = infer_add_sign(sign, csign)
+        cop_id = self.id
+        if cop_id in val_dict:
+            sign = val_dict[cop_id]
+            csign = merge_sign(csign, sign)
+        val_dict[cop_id] = csign

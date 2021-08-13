@@ -1,6 +1,7 @@
 from fractions import Fraction
 
-from codegen.sign_utils import infer_power_sign, merge_sign, OpSign
+from codegen.sign_utils import \
+    infer_power_sign, merge_sign, rev_infer_power_sign, OpSign
 from codegen.op_utils import \
     One, MinusOne, Zero, validate_exp, ContradictError, \
     sequential_equiv_func
@@ -136,26 +137,11 @@ class Power(Op):
         frac, exp = self.deps
         frac_id = frac.id
         exp_data = exp.data
-        deno, nume = exp_data.denominator, exp_data.numerator
-        frac_sign = sign_dict[frac_id]
         cop_id = self.id
         csign = sign_dict[cop_id]
-        if nume == 0:
-            assert csign == OpSign.POSITIVE
-            return
-        if deno > 1 or nume % 2 == 0:
-            if nume < 0:
-                assert csign == OpSign.POSITIVE, csign
-            else:
-                assert csign == OpSign.NON_NEGATIVE, csign
-        if deno > 1:
-            if nume < 0:
-                frac_sign = merge_sign(frac_sign, OpSign.POSITIVE)
-            else:
-                frac_sign = merge_sign(frac_sign, OpSign.NON_NEGATIVE)
-            sign_dict[frac_id] = frac_sign
-            return
-        frac_sign = merge_sign(frac_sign, csign)
+        frac_sign = sign_dict[frac_id]
+        sign = rev_infer_power_sign(csign, exp_data)
+        frac_sign = merge_sign(frac_sign, sign)
         sign_dict[frac_id] = frac_sign
 
     @classmethod

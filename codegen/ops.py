@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import mxnet as mx
 
@@ -57,8 +59,15 @@ class Scalar(Op):
         sym = mx.sym.var(name=name)
         val_dict[cop_id] = sym
 
-    def dfs_display(self, val_dict):
-        super().dfs_display(val_dict, with_data=True)
+    def dfs_display(
+        self, val_dict, logger=logging.getLogger("op_info")):
+        _info = self.info(val_dict, with_data=True)
+        logger.debug(_info)
+
+    def dfs_info(self, val_dict):
+        _info = self.info(with_data=True)
+        op_id = self.id
+        val_dict[op_id] = _info
 
     def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id

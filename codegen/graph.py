@@ -190,9 +190,15 @@ class Graph(object):
             ret.append(out_v)
         return ret
 
-    def display(self):
+    def display(self, logger=logging.getLogger("graph.display")):
         outs = self.asserts + self.outs
-        dfs_visit(outs, "dfs_display")
+        dfs_visit(outs, "dfs_display", logger=logger)
+
+    def info(self):
+        outs = self.asserts + self.outs
+        info_dict = {}
+        dfs_visit(outs, "dfs_info", init_val_dict=info_dict)
+        return info_dict
 
     def tosym(self, json_path=path.expanduser("~/mx.json")):
         outs = self.asserts + self.outs
@@ -256,14 +262,18 @@ class Graph(object):
         # abs,sin,cos,lessthan,nomorethan
         # add,power,multiply
 
-    def merge(self):
-        # var,scalar
-        # abs,sin,cos,lessthan,nomorethan
-        # add,power,multiply
-        self.fuse()
-        # var,scalar
-        # abs,sin,cos,lessthan,nomorethan
-        # polynomial,monomial
+    def merge(self, logger=logging.getLogger("graph.merge")):
+        info_dict_1 = {}
+        cnt = 0
+        while True:
+            self.fuse()
+            info_dict_2 = self.info()
+            cnt += 1
+            if info_dict_1 == info_dict_2:
+                break
+            info_dict_1 = info_dict_2.copy()
+        logger.debug(
+            "graph merge has been run for {} passes".format(cnt))
 
     def infer_sign(self, logger=logging.getLogger("graph.infer_sign")):
         sign_dict_1 = {}

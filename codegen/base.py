@@ -82,10 +82,14 @@ class Op(object):
         val_dict[cop_id] = v
 
     def dfs_display(
-        self, val_dict,
-        logger=logging.getLogger("op_info"), with_data=False):
-        _info = self.info(with_data=with_data)
+        self, val_dict, logger=logging.getLogger("op_info")):
+        _info = self.info(with_data=False)
         logger.debug(_info)
+
+    def dfs_info(self, val_dict):
+        _info = self.info(with_data=False)
+        op_id = self.id
+        val_dict[op_id] = _info
 
     def dfs_tosym(self, val_dict):
         cop_id = self.id

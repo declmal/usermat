@@ -24,6 +24,7 @@ def power_valid_func(*deps):
 """
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
+@org.register_opt("dfs_display")
 @org.register_opt("topo_standardize")
 @org.register_op(
     valid_func=power_valid_func, equiv_func=sequential_equiv_func)
@@ -34,43 +35,20 @@ class Power(Op):
     def topo_fuse(cls, sign_dict, *deps):
         frac, exp = deps
         exp_data = exp.data
-        assert isinstance(exp_data, Fraction) and \
-            exp_data != One and exp_data != Zero, \
-            "invalid exp_data: {}, run degenerate first".format(exp_data)
+        deno, nume = exp_data.denominator, exp_data.numerator
+        if deno == 1 and nume == 1:
+            return frac
+        if nume == 0:
+            op = od.scalar(One)
+            return op
         m_dict = get_monomial_dict(frac)
-        if len(m_dict) == 1:
+        if len(m_dict) == 1 or m_dict[-1] == Zero:
             data = m_dict[-1]
             validate_exp(data, exp_data)
             scalar_data = data ** exp_data
             scalar = od.scalar(scalar_data)
             return scalar
-        assert m_dict[-1] != Zero, m_dict[-1]
-        deno, nume = exp_data.denominator, exp_data.numerator
-        if nume < 0:
-            # in case that: exp < 0
-            # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
-            # for op with op_id as i_n
-            # validate op is not equal to zero
-            for op_id, data in m_dict.items():
-                if op_id == -1:
-                    assert data != Zero
-                    continue
-                assert isinstance(data, Fraction)
-                deno_in, nume_in = data.denominator, data.numerator
-                if nume_in >= 0:
-                    continue
-                op = od.get_op(op_id)
-        if deno % 2 == 0 or deno > 1:
-            # in case that: exp = Fraction(odd_num, even_num)
-            # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
-            # m_dict will first be decomposed into nm_dict and sm_dict
-            # where
-            # nm_dict: {-1: abs(scalar_data), j1: f1, j2: f2, ... }
-            # where fn = Fraction(odd_num, even_num) or 
-            #            Fraction(even_num, odd_num) or
-            #            Fraction(odd_num1, odd_num2>1)
-            # sm_dict: {-1, sgn(scalar_data), k1: g1, k2: g2, ... }
-            # where gn = Fraction(odd_num, 1)
+        if deno > 1:
             nm_dict = {}
             sm_dict = {}
             for op_id, data in m_dict.items():
@@ -83,12 +61,8 @@ class Power(Op):
                         sm_dict[-1] = MinusOne
                     continue
                 deno_in, nume_in = data.denominator, data.numerator
-                cop = od.get_op(op_id)
-                if nume_in % 2 == 0 or deno_in % 2 == 0 or \
-                    isinstance(cop, org.get_op_cls("abs")) or deno_in > 1:
-                    if nume_in % 2 == 0:
-                        assert not isinstance(cop, org.get_op_cls("abs")), \
-                            type(cop)
+                sign = sign_dict[op_id]
+                if nume_in % 2 == 0 or sign in [OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
                     nm_dict[op_id] = data
                     continue
                 sm_dict[op_id] = data
@@ -104,11 +78,6 @@ class Power(Op):
                         "contradictory exp_data: {}, ".format(exp_data) + \
                             "dep_ids: {}".format([dep.id for dep in deps]))
                 m_dict = nm_dict
-        # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
-        # exp = Fraction(nume, deno)
-        # in case that en = Fraction(even_num, odd_num)
-        # and deno = k * even_num
-        # the op with op_id as i_n should be turned into abs(op)
         nm_dict = m_dict.copy()
         for op_id, data in nm_dict.items():
             if op_id == -1:

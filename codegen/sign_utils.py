@@ -92,10 +92,10 @@ def infer_multiply_sign(x_sign, y_sign):
 def infer_power_sign(frac_sign, exp_data):
     assert isinstance(exp_data, Fraction), type(exp_data)
     nume, deno = exp_data.numerator, exp_data.denominator
-    if nume < 0:
-        assert frac_sign != OpSign.ZERO
-    if deno > 1:
-        assert frac_sign != OpSign.NEGATIVE
+    if nume < 0 and frac_sign == OpSign.ZERO:
+        raise ContradictError
+    if deno > 1 and frac_sign == OpSign.NEGATIVE:
+        raise ContradictError
     if nume == 0:
         return OpSign.POSITIVE
     if nume % 2 == 0 or deno > 1:
@@ -157,7 +157,48 @@ def infer_notequal(a_sign, b_sign):
         return True
     return False
 
-""" assertion util functions
+""" rev infer util functions
+"""
+def rev_infer_multiply_sign(csign, xsign):
+    if csign == OpSign.UNDEFINED:
+        return OpSign.UNDEFINED
+    if csign == OpSign.NON_ZERO:
+        return OpSign.NON_ZERO
+    if csign == OpSign.ZERO:
+        if xsign in [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]:
+            return OpSign.ZERO
+        return OpSign.UNDEFINED
+    if xsign == OpSign.UNDEFINED:
+        return OpSign.UNDEFINED
+    lst1 = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
+    lst2 = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
+    if csign == OpSign.NON_NEGATIVE:
+        if xsign in lst1:
+            return OpSign.NON_POSITIVE
+        if xsign in lst2:
+            return OpSign.NON_NEGATIVE
+        return OpSign.UNDEFINED
+    if csign == OpSign.NON_POSITIVE:
+        if xsign in lst1:
+            return OpSign.NON_NEGATIVE
+        if xsign in lst2:
+            return OpSign.NON_POSITIVE
+        return OpSign.UNDEFINED
+    if csign == OpSign.POSITIVE:
+        if xsign == OpSign.NEGATIVE:
+            return OpSign.NEGATIVE
+        if xsign == OpSign.POSITIVE:
+            return OpSign.POSITIVE
+        return OpSign.NON_ZERO
+    if csign == OpSign.NEGATIVE:
+        if xsign == OpSign.NEGATIVE:
+            return OpSign.POSITIVE
+        if xsign == OpSign.POSITIVE:
+            return OpSign.NEGATIVE
+        return OpSign.NON_ZERO
+    assert False
+
+""" merge sign util functions
 """
 def raise_merge_sign_error(sign1, sign2):
     raise ContradictError(
@@ -206,11 +247,18 @@ def merge_sign(sign1, sign2):
     raise_merge_sign_error(sign1, sign2)
 
 def merge_signs(signs):
-    if len(signs) == 0:
-        return []
+    assert len(signs) > 0
     csign = signs[0]
     for sign in signs[1:]:
         csign = merge_assertion(csign, sign)
-    if csign == OpSign.UNDEFINED:
-        return []
-    return [csign]
+    return signs
+
+def separate_signs(signs, sign_set):
+    signs1 = []
+    signs2 = []
+    for sign in signs:
+        if sign in sign_set:
+            signs1.append(sign)
+        else:
+            signs2.append(sign)
+    return signs1, signs2

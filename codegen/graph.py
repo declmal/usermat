@@ -88,7 +88,11 @@ def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
             topo_func = org.get_opt(op, callback)
             nop = topo_func(sign_dict, *ndeps)
             graph[op_id] = nop
-            sign = sign_dict[op_id]
+            if isinstance(nop, org.get_op_cls("scalar")):
+                data = nop.data
+                sign = infer_scalar_sign(data)
+            else:
+                sign = sign_dict[op_id]
             nop_id = nop.id
             sign_dict[nop_id] = sign
     ninps = [graph[op_id] for op_id in inp_ids]

@@ -1,6 +1,7 @@
 from fractions import Fraction
 from codegen.sign_utils import \
-    infer_power_sign, infer_multiply_sign, infer_add_sign
+    infer_power_sign, infer_multiply_sign, infer_add_sign, \
+    infer_scalar_sign, merge_sign, merge_signs, separate_signs
 from codegen.op_utils import \
     One, Zero, FloatTypes, validate_exp, sequential_equiv_func
 from codegen.op_def import OpDef as od
@@ -26,6 +27,9 @@ def mial_valid_func(mial_type):
             data = dep.data
             assert isinstance(data, FloatTypes), \
                 "invalid type of data: {}".format(type(data))
+            if i > 0:
+                assert data != Zero, \
+                    "data could not be zero: {}".format(data)
         if mial_type == "poly" or num_deps == 1:
             return
         for i in range(2, num_deps, 2):
@@ -33,7 +37,6 @@ def mial_valid_func(mial_type):
             data = dep.data
             assert isinstance(data, Fraction), \
                 "invalid type of data: {}".format(type(data))
-
     return wrapper
 
 
@@ -67,6 +70,37 @@ class Monomial(Op):
         op = create_monomial_op(m_dict)
         return op
 
+    def dfs_infer_sign(self, val_dict):
+        signs = get_monomial_signs(self.deps)
+        csign = signs[0]
+        for sign in signs[1:]:
+            csign = infer_multiply_sign(sign, csign)
+        cop_id = self.id
+        if cop_id in val_dict:
+            sign = val_dict[cop_id]
+            csign = merge_sign(csign, sign)
+        val_dict[cop_id] = csign
+
+    def revtopo_infer_sign(self, sign_dict):
+        cop_id = self.id
+        csign = sign_dict[cop_id]
+        if csign == OpSign.UNDEFINED:
+            return
+        if csign in [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]:
+            for i in range(1, len(self.deps), 2):
+                dep = self.deps[i]
+                dep_id = dep.id
+                dep_sign = sign_dict[dep_id]
+                dep_sign = merge_sign(Opsign.NON_ZERO, dep_sign)
+                sign_dict[dep_id] = dep_sign
+        if csign == OpSign.NON_ZERO:
+            return
+        signs = get_monomial_signs(self.deps)
+        signs1, sign2 = separate_signs(
+            signs, sign_set={
+                OpSign.POSITIVE, OpSign.NON_NEGATIVE,
+                OpSign.NEGATIVE, OpSign.NON_POSITIVE})
+
 
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
@@ -96,8 +130,33 @@ class Polynomial(Op):
         op = create_polynomial_op(m_dict)
         return op
 
-""" mial util functions
+    def dfs_infer_sign(self, val_dict):
+        signs = get_polynomial_signs(self.deps)
+        csign = signs[0]
+        for sign in signs[1:]:
+            csign = infer_add_sign(sign, csign)
+        cop_id = self.id
+        if cop_id in val_dict:
+            sign = val_dict[cop_id]
+            csign = merge_sign(csign, sign)
+        val_dict[cop_id] = csign
+
+""" monomial util functions
 """
+def get_monomial_signs(deps):
+    scalar = deps[0]
+    scalar_data = scalar.data
+    sign = infer_scalar_sign(scalar_data)
+    signs = [sign]
+    for i in range(1, len(deps), 2):
+        frac, exp = deps[i:i+2]
+        frac_id = frac.id
+        frac_sign = val_dict[frac_id]
+        exp_data = exp.data
+        sign = infer_power_sign(frac_sign, exp_data)
+        signs.append(sign)
+    return signs
+
 def validate_monomial_dict(m_dict):
     assert isinstance(m_dict, dict) and -1 in m_dict, m_dict
     for op_id, exp_data in m_dict.items():
@@ -187,6 +246,23 @@ def create_monomial_op(m_dict):
     deps = [scalar] + deps
     op = od.monomial(*deps)
     return op
+
+""" polynomial util functions
+"""
+def get_polynomial_signs(deps):
+    scalar = deps[0]
+    scalar_data = scalar.data
+    sign = infer_scalar_sign(scalar_data)
+    signs = [sign]
+    for i in range(1, len(deps), 2):
+        var, coef = deps[i:i+2]
+        var_id = var.id
+        var_sign = val_dict[var_id]
+        coef_id = coef.id
+        coef_sign = val_dict[coef_id]
+        sign = infer_multiply_sign(var_sign, coef_sign)
+        signs.append(sign)
+    return signs
 
 def validate_polynomial_dict(m_dict):
     assert isinstance(m_dict, dict) and -1 in m_dict, m_dict

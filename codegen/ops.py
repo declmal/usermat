@@ -5,7 +5,8 @@ from codegen.sign_utils import \
     infer_negative_sign, infer_nomorethan, infer_abs_sign, \
     infer_add_sign, infer_power_sign, infer_mutual_sign, \
     infer_lessthan, infer_multiply_sign, infer_scalar_sign, \
-    OpSign, merge_signs, merge_sign
+    rev_infer_multiply_sign, \
+    OpSign, merge_sign
 from codegen.op_utils import \
     One, MinusOne, Zero, FloatTypes, cast_fraction, \
     sequential_equiv_func, swappable_equiv_func
@@ -56,6 +57,9 @@ class Scalar(Op):
         sym = mx.sym.var(name=name)
         val_dict[cop_id] = sym
 
+    def dfs_display(self, val_dict):
+        super().dfs_display(val_dict, with_data=True)
+
     def dfs_autograph_backward(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
@@ -74,6 +78,7 @@ class Scalar(Op):
 
 @org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_tosym")
+@org.register_opt("dfs_display")
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_standardize")
 @org.register_opt("revtopo_infer_sign")
@@ -97,6 +102,7 @@ class Var(Op):
 # standardized op
 @org.register_opt("revtopo_infer_sign")
 @org.register_opt("dfs_infer_sign")
+@org.register_opt("dfs_display")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Negative(Op):
@@ -112,6 +118,7 @@ class Negative(Op):
 
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
+@org.register_opt("dfs_display")
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_degenerate")
 @org.register_opt("topo_standardize")
@@ -160,6 +167,7 @@ class Sin(Op):
 
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
+@org.register_opt("dfs_display")
 @org.register_opt("topo_standardize")
 @org.register_opt("topo_fuse")
 @org.register_op(
@@ -229,6 +237,7 @@ class Abs(Op):
 @org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
+@org.register_opt("dfs_display")
 @org.register_opt("topo_fuse")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
@@ -249,6 +258,7 @@ class Cos(Op):
 
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
+@org.register_opt("dfs_display")
 @org.register_opt("topo_standardize")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
@@ -421,6 +431,7 @@ class Add(Op):
 # standardized op
 @org.register_opt("revtopo_infer_sign")
 @org.register_opt("dfs_infer_sign")
+@org.register_opt("dfs_display")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class Subtract(Op):
@@ -437,6 +448,7 @@ class Subtract(Op):
 
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_forward")
+@org.register_opt("dfs_display")
 @org.register_opt("topo_standardize")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
@@ -497,108 +509,18 @@ class Multiply(Op):
         x, y = self.deps
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if csign == OpSign.NON_ZERO:
-            xsign = merge_sign(xsign, OpSign.NON_ZERO)
-            sign_dict[xid] = xsign
-            ysign = merge_sign(ysign, OpSign.NON_ZERO)
-            sign_dict[yid] = ysign
-            return
-        lst1 = [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]
-        if csign == OpSign.ZERO:
-            if xsign in lst1:
-                ysign = merge_sign(ysign, OpSign.ZERO)
-                sign_dict[yid] = ysign
-                return
-            if ysign in lst1:
-                xsign = merge_sign(xsign, OpSign.ZERO)
-                sign_dict[xid] = xsign
-                return
-            return
-        if xsign == OpSign.UNDEFINED or ysign == OpSign.UNDEFINED:
-            return
-        lst2 = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
-        lst3 = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
-        if csign == OpSign.NON_NEGATIVE:
-            if xsign in lst2:
-                ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
-                sign_dict[yid] = ysign
-                return
-            if xsign in lst3:
-                ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
-                sign_dict[yid] = ysign
-                return
-            if ysign in lst2:
-                xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
-                sign_dict[xid] = xsign
-                return
-            if ysign in lst3:
-                xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
-                sign_dict[xid] = xsign
-                return
-            return
-        if csign == OpSign.NON_POSITIVE:
-            if xsign in lst2:
-                ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
-                sign_dict[yid] = ysign
-                return
-            if xsign in lst3:
-                ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
-                sign_dict[yid] = ysign
-                return
-            if ysign in lst2:
-                xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
-                sign_dict[xid] = xsign
-                return
-            if ysign in lst3:
-                xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
-                sign_dict[xid] = xsign
-                return
-            return
-        if csign == OpSign.POSITIVE:
-            xsign = merge_sign(xsign, OpSign.NON_ZERO)
-            ysign = merge_sign(ysign, OpSign.NON_ZERO)
-            if xsign == OpSign.NEGATIVE:
-                ysign = merge_sign(ysign, OpSign.NEGATIVE)
-                sign_dict[yid] = ysign
-                return
-            if xsign == OpSign.POSITIVE:
-                ysign = merge_sign(ysign, OpSign.POSITIVE)
-                sign_dict[yid] = ysign
-                return
-            if ysign == OpSign.NEGATIVE:
-                xsign = merge_sign(xsign, OpSign.NEGATIVE)
-                sign_dict[xid] = xsign
-                return
-            if ysign == OpSign.POSITIVE:
-                xsign = merge_sign(xsign, OpSign.POSITIVE)
-                sign_dict[xid] = xsign
-                return
-            return
-        if csign == OpSign.NEGATIVE:
-            xsign = merge_sign(xsign, OpSign.NON_ZERO)
-            ysign = merge_sign(ysign, OpSign.NON_ZERO)
-            if xsign == OpSign.NEGATIVE:
-                ysign = merge_sign(ysign, OpSign.POSITIVE)
-                sign_dict[yid] = ysign
-                return
-            if xsign == OpSign.POSITIVE:
-                ysign = merge_sign(ysign, OpSign.NEGATIVE)
-                sign_dict[yid] = ysign
-                return
-            if ysign == OpSign.NEGATIVE:
-                xsign = merge_sign(xsign, OpSign.POSITIVE)
-                sign_dict[xid] = xsign
-                return
-            if ysign == OpSign.POSITIVE:
-                xsign = merge_sign(xsign, OpSign.NEGATIVE)
-                sign_dict[xid] = xsign
-                return
-            return
+        sign = rev_infer_multiply_sign(csign, xsign)
+        ysign = merge_sign(sign, ysign)
+        sign_dict[yid] = ysign
+        sign = rev_infer_multiply_sign(csign, ysign)
+        xsign = merge_sign(sign, xsign)
+        sign_dict[xid] = xsign
 
 
 @org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_forward")
+@org.register_opt("dfs_display")
 @org.register_opt("revtopo_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
@@ -626,6 +548,7 @@ def cnd_auto_backward(deps, od_func, val_dict, var_seq):
 
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
+@org.register_opt("dfs_display")
 @org.register_opt("topo_standardize")
 @org.register_opt("topo_fuse")
 @org.register_op(

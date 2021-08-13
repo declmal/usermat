@@ -83,7 +83,7 @@ class Op(object):
 
     def dfs_display(
         self, val_dict,
-        logger=logging.getLogger("op_info"), with_data=True):
+        logger=logging.getLogger("op_info"), with_data=False):
         _info = self.info(with_data=with_data)
         logger.debug(_info)
 

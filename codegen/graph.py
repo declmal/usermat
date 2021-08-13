@@ -136,6 +136,12 @@ def register_graph_topo(cls):
             self.inps, self.outs, self.asserts = topo_visit(
                 self.inps, self.outs, self.asserts, callback,
                 sign_dict_ref=sign_dict)
+            nasserts = []
+            for assert_op in self.asserts:
+                if isinstance(assert_op, org.get_op_cls("null")):
+                    continue
+                nasserts.append(assert_op)
+            self.asserts = nasserts
         return wrapper
 
     for callback in dir(Op):
@@ -196,8 +202,7 @@ class Graph(object):
 
     def info(self):
         outs = self.asserts + self.outs
-        info_dict = {}
-        dfs_visit(outs, "dfs_info", init_val_dict=info_dict)
+        info_dict = dfs_visit(outs, "dfs_info")
         return info_dict
 
     def tosym(self, json_path=path.expanduser("~/mx.json")):

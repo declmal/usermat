@@ -88,6 +88,7 @@ class Scalar(Op):
 @org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_display")
+@org.register_opt("dfs_info")
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_standardize")
 @org.register_opt("revtopo_infer_sign")
@@ -177,6 +178,7 @@ class Sin(Op):
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_display")
+@org.register_opt("dfs_info")
 @org.register_opt("topo_standardize")
 @org.register_opt("topo_fuse")
 @org.register_op(

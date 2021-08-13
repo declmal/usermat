@@ -26,4 +26,4 @@ class TestPower3(unittest.TestCase):
         g = Graph([v0,v4], [v8])
         g.standardize()
         g.degenerate()
-        self.assertRaises(ContradictError, g.fuse)
+        self.assertRaises(ContradictError, g.merge)

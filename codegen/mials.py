@@ -2,7 +2,8 @@ from fractions import Fraction
 from codegen.sign_utils import \
     infer_power_sign, infer_multiply_sign, infer_add_sign, \
     infer_scalar_sign, infer_multiply_sign_consec, \
-    merge_sign, separate_signs
+    merge_sign, separate_signs, OpSign, \
+    revinfer_multiply_sign, revinfer_power_sign
 from codegen.op_utils import \
     One, Zero, FloatTypes, validate_exp, sequential_equiv_func, \
     ContradictError
@@ -57,7 +58,7 @@ def set_monomial_deps_sign(deps, isign, sign_dict):
         sign = merge_sign(frac_sign, sign)
         sign_dict[frac_id] = sign
 
-def get_monomial_signs(deps):
+def get_monomial_signs(deps, sign_dict):
     scalar = deps[0]
     scalar_data = scalar.data
     sign = infer_scalar_sign(scalar_data)
@@ -65,7 +66,7 @@ def get_monomial_signs(deps):
     for i in range(1, len(deps), 2):
         frac, exp = deps[i:i+2]
         frac_id = frac.id
-        frac_sign = val_dict[frac_id]
+        frac_sign = sign_dict[frac_id]
         exp_data = exp.data
         sign = infer_power_sign(frac_sign, exp_data)
         signs.append(sign)
@@ -194,7 +195,7 @@ def set_polynomial_deps_sign(deps, isign, sign_dict):
         sign = merge_sign(var_sign, sign)
         sign_dict[var_id] = sign
 
-def get_polynomial_signs(deps):
+def get_polynomial_signs(deps, sign_dict):
     scalar = deps[0]
     scalar_data = scalar.data
     sign = infer_scalar_sign(scalar_data)
@@ -202,9 +203,9 @@ def get_polynomial_signs(deps):
     for i in range(1, len(deps), 2):
         var, coef = deps[i:i+2]
         var_id = var.id
-        var_sign = val_dict[var_id]
-        coef_id = coef.id
-        coef_sign = val_dict[coef_id]
+        var_sign = sign_dict[var_id]
+        coef_data = coef.data
+        coef_sign = infer_scalar_sign(coef_data)
         sign = infer_multiply_sign(var_sign, coef_sign)
         signs.append(sign)
     return signs
@@ -314,6 +315,7 @@ def revinfer_polynomial_sign(deps, signs, ysign, lst, sign_dict):
 """
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_forward")
+@org.register_opt("dfs_info")
 @org.register_op(
     valid_func=mial_valid_func("mono"), equiv_func=sequential_equiv_func)
 class Monomial(Op):
@@ -341,7 +343,7 @@ class Monomial(Op):
         return op
 
     def dfs_infer_sign(self, val_dict):
-        signs = get_monomial_signs(self.deps)
+        signs = get_monomial_signs(self.deps, val_dict)
         csign = infer_multiply_sign_consec(signs)
         cop_id = self.id
         if cop_id in val_dict:
@@ -358,7 +360,7 @@ class Monomial(Op):
             set_monomial_deps_sign(self.deps, OpSign.NON_ZERO, sign_dict)
         if csign == OpSign.NON_ZERO:
             return
-        signs = get_monomial_signs(deps)
+        signs = get_monomial_signs(self.deps, sign_dict)
         if csign == OpSign.ZERO:
             lst = [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]
             signs1, signs2 = separate_signs(signs, lst)
@@ -460,7 +462,7 @@ class Polynomial(Op):
         return op
 
     def dfs_infer_sign(self, val_dict):
-        signs = get_polynomial_signs(self.deps)
+        signs = get_polynomial_signs(self.deps, val_dict)
         csign = signs[0]
         for sign in signs[1:]:
             csign = infer_add_sign(sign, csign)
@@ -475,7 +477,7 @@ class Polynomial(Op):
         csign = sign_dict[cop_id]
         if csign == OpSign.UNDEFINED:
             return
-        signs = get_polynomial_signs(self.deps)
+        signs = get_polynomial_signs(self.deps, sign_dict)
         if csign == OpSign.NON_ZERO:
             lst = [OpSign.ZERO]
             signs1, signs2 = separate_signs(signs, lst)

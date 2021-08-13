@@ -63,22 +63,40 @@ class Power(Op):
                     continue
                 deno_in, nume_in = data.denominator, data.numerator
                 sign = sign_dict[op_id]
-                if nume_in % 2 == 0 or sign in [OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
+                if nume_in % 2 == 0 and sign in \
+                    [OpSign.POSITIVE, OpSign.NEGATIVE, OpSign.NON_ZERO] or \
+                    sign == OpSign.POSITIVE:
                     nm_dict[op_id] = data
                     continue
                 sm_dict[op_id] = data
-            if len(sm_dict) > 1:
-                frac_id = frac.id
-                m_dict = {-1: One, frac_id: One}
+            flag = True
+            for op_id, data in sm_dict.items():
+                if op_id == -1:
+                    scalar_data = sm_dict[-1]
+                    if scalar_data == MinusOne:
+                        flag = False
+                        break
+                    continue
+                deno_in, nume_in = data.denominator, data.numerator
+                sign = sign_dict[op_id]
+                if nume_in % 2 != 0 and sign not in \
+                    [OpSign.POSITIVE, OpSign.ZERO, OpSign.NON_NEGATIVE]:
+                    flag = False
+                    break
+            if flag:
+                for op_id, data in sm_dict.items():
+                    if op_id == -1:
+                        continue
+                    assert op_id not in nm_dict
+                    nm_dict[op_id] = data
             else:
-                assert -1 in sm_dict, sm_dict.keys()
-                scalar_data = sm_dict[-1]
-                if scalar_data < Zero:
-                    # unittest test_power_3.py
-                    raise ContradictError(
-                        "contradictory exp_data: {}, ".format(exp_data) + \
-                            "dep_ids: {}".format([dep.id for dep in deps]))
-                m_dict = nm_dict
+                op = create_monomial_op(sm_dict)
+                op_id = op.id
+                if op_id in nm_dict:
+                    nm_dict[op_id] += One
+                else:
+                    nm_dict[op_id] = One
+            m_dict = nm_dict
         nm_dict = m_dict.copy()
         for op_id, data in nm_dict.items():
             if op_id == -1:

@@ -5,7 +5,7 @@ from codegen.sign_utils import \
     infer_negative_sign, infer_nomorethan, infer_abs_sign, \
     infer_add_sign, infer_power_sign, infer_mutual_sign, \
     infer_lessthan, infer_multiply_sign, infer_scalar_sign, \
-    rev_infer_multiply_sign, rev_infer_add_sign, \
+    revinfer_multiply_sign, revinfer_add_sign, \
     OpSign, merge_sign
 from codegen.op_utils import \
     One, MinusOne, Zero, FloatTypes, cast_fraction, \
@@ -313,10 +313,10 @@ class Add(Op):
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]
         xsign, ysign = sign_dict[xid], sign_dict[yid]
-        sign = rev_infer_add_sign(csign, xsign)
+        sign = revinfer_add_sign(csign, xsign)
         ysign = merge_sign(sign, ysign)
         sign_dict[yid] = ysign
-        sign = rev_infer_add_sign(csign, ysign)
+        sign = revinfer_add_sign(csign, ysign)
         xsign = merge_sign(sign, xsign)
         sign_dict[xid] = xsign
 
@@ -400,10 +400,10 @@ class Multiply(Op):
         x, y = self.deps
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]
-        sign = rev_infer_multiply_sign(csign, xsign)
+        sign = revinfer_multiply_sign(csign, xsign)
         ysign = merge_sign(sign, ysign)
         sign_dict[yid] = ysign
-        sign = rev_infer_multiply_sign(csign, ysign)
+        sign = revinfer_multiply_sign(csign, ysign)
         xsign = merge_sign(sign, xsign)
         sign_dict[xid] = xsign
 

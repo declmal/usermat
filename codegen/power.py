@@ -1,7 +1,7 @@
 from fractions import Fraction
 
 from codegen.sign_utils import \
-    infer_power_sign, merge_sign, rev_infer_power_sign, OpSign
+    infer_power_sign, merge_sign, revinfer_power_sign, OpSign
 from codegen.op_utils import \
     One, MinusOne, Zero, validate_exp, ContradictError, \
     sequential_equiv_func
@@ -140,7 +140,7 @@ class Power(Op):
         cop_id = self.id
         csign = sign_dict[cop_id]
         frac_sign = sign_dict[frac_id]
-        sign = rev_infer_power_sign(csign, exp_data)
+        sign = revinfer_power_sign(csign, exp_data)
         frac_sign = merge_sign(frac_sign, sign)
         sign_dict[frac_id] = frac_sign
 

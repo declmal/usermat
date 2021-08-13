@@ -159,7 +159,7 @@ def infer_notequal(a_sign, b_sign):
 
 """ rev infer util functions
 """
-def rev_infer_multiply_sign(csign, xsign):
+def revinfer_multiply_sign(csign, xsign):
     if csign == OpSign.UNDEFINED:
         return OpSign.UNDEFINED
     if csign == OpSign.NON_ZERO:
@@ -196,7 +196,7 @@ def rev_infer_multiply_sign(csign, xsign):
         return OpSign.NON_ZERO
     assert False
 
-def rev_infer_add_sign(csign, xsign):
+def revinfer_add_sign(csign, xsign):
     if csign == OpSign.UNDEFINED or xsign == OpSign.UNDEFINED:
         return OpSign.UNDEFINED
     if csign == OpSign.NON_ZERO:
@@ -241,7 +241,7 @@ def rev_infer_add_sign(csign, xsign):
         return OpSign.UNDEFINED
     assert False
 
-def rev_infer_power_sign(csign, exp_data):
+def revinfer_power_sign(csign, exp_data):
     nume = exp_data.numerator
     if nume == 0:
         assert csign == OpSign.POSITIVE, csign
@@ -277,10 +277,18 @@ def merge_sign(sign1, sign2):
     if sign1 == OpSign.NON_ZERO:
         if sign2 == OpSign.ZERO:
             raise_merge_sign_error(sign1, sign2)
+        if sign2 == OpSign.NON_NEGATIVE:
+            return OpSign.POSITIVE
+        if sign2 == OpSign.NON_POSITIVE:
+            return OpSign.NEGATIVE
         return sign2
     if sign2 == OpSign.NON_ZERO:
         if sign1 == OpSign.ZERO:
             raise_merge_sign_error(sign1, sign2)
+        if sign1 == OpSign.NON_NEGATIVE:
+            return OpSign.POSITIVE
+        if sign1 == OpSign.NON_POSITIVE:
+            return OpSign.NEGATIVE
         return sign1
     if sign1 == OpSign.NON_POSITIVE:
         if sign2 == OpSign.POSITIVE:
@@ -315,11 +323,11 @@ def merge_signs(signs):
         csign = merge_assertion(csign, sign)
     return signs
 
-def separate_signs(signs, sign_set):
+def separate_signs(signs, lst):
     signs1 = []
     signs2 = []
     for sign in signs:
-        if sign in sign_set:
+        if sign in lst:
             signs1.append(sign)
         else:
             signs2.append(sign)

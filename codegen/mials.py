@@ -3,7 +3,8 @@ from codegen.sign_utils import \
     infer_power_sign, infer_multiply_sign, infer_add_sign, \
     infer_scalar_sign, merge_sign, merge_signs, separate_signs
 from codegen.op_utils import \
-    One, Zero, FloatTypes, validate_exp, sequential_equiv_func
+    One, Zero, FloatTypes, validate_exp, sequential_equiv_func, \
+    ContradictError
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op
@@ -145,6 +146,20 @@ def create_monomial_op(m_dict):
     op = od.monomial(*deps)
     return op
 
+def revinfer_monomial_sign(deps, signs, ysign, lst, sign_dict):
+    for i, sign in enumerate(signs):
+        if sign not in signs:
+            break
+    assert i in range(1, len(signs))
+    ind = 2*i - 1
+    frac, exp = deps[ind:ind+2]
+    exp_data = exp.data
+    dep_sign = revinfer_power_sign(ysign, exp_data)
+    frac_id = frac.id
+    frac_sign = sign_dict[frac_id]
+    sign = merge_sign(frac_sign, dep_sign)
+    sign_dict[frac_id] = sign
+
 """ polynomial util functions
 """
 def get_polynomial_signs(deps):
@@ -242,6 +257,21 @@ def create_polynomial_op(m_dict):
     op = od.polynomial(*deps)
     return op
 
+def revinfer_polynomial_sign(deps, signs, ysign, lst, sign_dict):
+    for i, sign in enumerate(signs):
+        if sign not in signs:
+            break
+    assert i in range(1, len(signs))
+    ind = 2*i - 1
+    var, coef = deps[ind:ind+2]
+    coef_data = coef.data
+    coef_sign = infer_scalar_sign(coef_data)
+    dep_sign = revinfer_multiply_sign(ysign, coef_sign)
+    var_id = var.id
+    var_sign = sign_dict[var_id]
+    sign = merge_sign(var_sign, dep_sign)
+    sign_dict[var_id] = sign
+
 
 """ mial ops
 """
@@ -298,19 +328,90 @@ class Monomial(Op):
                 sign_dict[dep_id] = dep_sign
         if csign == OpSign.NON_ZERO:
             return
-        sign_set = {
-            OpSign.POSITIVE, OpSign.NON_NEGATIVE,
-            OpSign.NEGATIVE, OpSign.NON_POSITIVE}
-
-def tmp(deps, sign_set):
-    signs = get_monomial_signs(deps)
-    signs1, signs2 = separate_signs(signs, sign_set)
-    if len(signs2) > 1:
-        return
-    if len(signs1) == 0:
-        xsign = OpSign.UNDEFINED
-    else:
-        xsign = merge_signs(signs1)
+        signs = get_monomial_signs(deps)
+        if csign == OpSign.ZERO:
+            lst = [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_monomial_sign(
+                    self.deps, signs, OpSign.ZERO, lst, sign_dict)
+                return
+            return
+        if csign == OpSign.NON_NEGATIVE:
+            lst = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_monomial_sign(
+                    self.deps, signs, OpSign.NON_POSITIVE, lst, sign_dict)
+                return
+            lst = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_monomial_sign(
+                    self.deps, signs, OpSign.NON_NEGATIVE, lst, sign_dict)
+                return
+            return
+        if csign == OpSign.NON_POSITIVE:
+            lst = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_monomial_sign(
+                    self.deps, signs, OpSign.NON_NEGATIVE, lst, sign_dict)
+                return
+            lst = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_monomial_sign(
+                    self.deps, signs, OpSign.NON_POSITIVE, lst, sign_dict)
+                return
+            return
+        if csign == OpSign.POSITIVE:
+            lst = [OpSign.NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_monomial_sign(
+                    self.deps, signs, OpSign.NEGATIVE, lst, sign_dict)
+                return
+            lst = [OpSign.POSITIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_monomial_sign(
+                    self.deps, signs, OpSign.POSITIVE, lst, sign_dict)
+                return
+            return
+        if csign == OpSign.NEGATIVE:
+            lst = [OpSign.NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_monomial_sign(
+                    self.deps, signs, OpSign.POSITIVE, lst, sign_dict)
+                return
+            lst = [OpSign.POSITIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_monomial_sign(
+                    self.deps, signs, OpSign.NEGATIVE, lst, sign_dict)
+                return
+            return
+        assert False
 
 
 @org.register_opt("dfs_forward")
@@ -351,3 +452,9 @@ class Polynomial(Op):
             sign = val_dict[cop_id]
             csign = merge_sign(csign, sign)
         val_dict[cop_id] = csign
+
+    def revtopo_infer_sign(self, sign_dict):
+        cop_id = self.id
+        csign = sign_dict[cop_id]
+        if csign == OpSign.UNDEFINED:
+            return

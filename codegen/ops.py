@@ -5,7 +5,7 @@ from codegen.sign_utils import \
     infer_negative_sign, infer_nomorethan, infer_abs_sign, \
     infer_add_sign, infer_power_sign, infer_mutual_sign, \
     infer_lessthan, infer_multiply_sign, infer_scalar_sign, \
-    rev_infer_multiply_sign, \
+    rev_infer_multiply_sign, rev_infer_add_sign, \
     OpSign, merge_sign
 from codegen.op_utils import \
     One, MinusOne, Zero, FloatTypes, cast_fraction, \
@@ -309,123 +309,16 @@ class Add(Op):
     def revtopo_infer_sign(self, sign_dict):
         cop_id = self.id
         csign = sign_dict[cop_id]
-        if csign == OpSign.UNDEFINED:
-            return
         x, y = self.deps
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if xsign == OpSign.UNDEFINED or ysign == OpSign.UNDEFINED:
-            return
-        if csign == OpSign.NON_ZERO:
-            if xsign == OpSign.ZERO:
-                ysign = merge_sign(ysign, OpSign.NON_ZERO)
-                sign_dict[yid] = ysign
-                return
-            if ysign == OpSign.ZERO:
-                xsign = merge_sign(xsign, OpSign.NON_ZERO)
-                sign_dict[xid] = xsign
-                return
-            return
-        if csign == OpSign.ZERO:
-            if xsign == OpSign.ZERO:
-                ysign = merge_sign(ysign, OpSign.ZERO)
-                sign_dict[yid] = ysign
-                return
-            if xsign == OpSign.NON_NEGATIVE:
-                ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
-                sign_dict[yid] = ysign
-                return
-            if xsign == OpSign.NON_POSITIVE:
-                ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
-                sign_dict[yid] = ysign
-                return
-            if xsign == OpSign.POSITIVE:
-                ysign = merge_sign(ysign, OpSign.NEGATIVE)
-                sign_dict[yid] = ysign
-                return
-            if xsign == OpSign.NEGATIVE:
-                ysign = merge_sign(ysign, OpSign.POSITIVE)
-                sign_dict[yid] = ysign
-                return
-            if ysign == OpSign.ZERO:
-                xsign = merge_sign(xsign, OpSign.ZERO)
-                sign_dict[xid] = xsign
-                return
-            if ysign == OpSign.NON_NEGATIVE:
-                xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
-                sign_dict[xid] = xsign
-                return
-            if ysign == OpSign.NON_POSITIVE:
-                xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
-                sign_dict[xid] = xsign
-                return
-            if ysign == OpSign.POSITIVE:
-                xsign = merge_sign(xsign, OpSign.NEGATIVE)
-                sign_dict[xid] = xsign
-                return
-            if xsign == OpSign.NEGATIVE:
-                xsign = merge_sign(xsign, OpSign.POSITIVE)
-                sign_dict[xid] = xsign
-                return
-            return
-        if csign == OpSign.NON_NEGATIVE:
-            if xsign == OpSign.NEGATIVE:
-                ysign = merge_sign(ysign, OpSign.POSITIVE)
-                sign_dict[yid] = ysign
-                return
-            if xsign == OpSign.NON_POSITIVE:
-                ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
-                sign_dict[yid] = ysign
-                return
-            if ysign == OpSign.NEGATIVE:
-                xsign = merge_sign(xsign, OpSign.POSITIVE)
-                sign_dict[xid] = xsign
-                return
-            if ysign == OpSign.NON_POSITIVE:
-                xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
-                sign_dict[xid] = xsign
-                return
-            return
-        if csign == OpSign.NON_POSITIVE:
-            if xsign == OpSign.POSITIVE:
-                ysign = merge_sign(ysign, OpSign.NEGATIVE)
-                sign_dict[yid] = ysign
-                return
-            if xsign == OpSign.NON_NEGATIVE:
-                ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
-                sign_dict[yid] = ysign
-                return
-            if ysign == OpSign.POSITIVE:
-                xsign = merge_sign(xsign, OpSign.NEGATIVE)
-                sign_dict[xid] = xsign
-                return
-            if ysign == OpSign.NON_NEGATIVE:
-                xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
-                sign_dict[xid] = xsign
-                return
-            return
-        lst2 = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
-        if csign == OpSign.POSITIVE:
-            if xsign in lst2:
-                ysign = merge_sign(ysign, OpSign.POSITIVE)
-                sign_dict[yid] = ysign
-                return
-            if ysign in lst2:
-                xsign = merge_sign(xsign, OpSign.POSITIVE)
-                sign_dict[xid] = xsign
-                return
-            return
-        lst3 = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
-        if csign == OpSign.NEGATIVE:
-            if xsign in lst3:
-                ysign = merge_sign(ysign, OpSign.NEGATIVE)
-                sign_dict[yid] = ysign
-                return
-            if ysign in lst2:
-                xsign = merge_sign(xsign, OpSign.NEGATIVE)
-                sign_dict[xid] = xsign
-                return
-            return
+        xsign, ysign = sign_dict[xid], sign_dict[yid]
+        sign = rev_infer_add_sign(csign, xsign)
+        ysign = merge_sign(sign, ysign)
+        sign_dict[yid] = ysign
+        sign = rev_infer_add_sign(csign, ysign)
+        xsign = merge_sign(sign, xsign)
+        sign_dict[xid] = xsign
 
 
 # standardized op
@@ -504,8 +397,6 @@ class Multiply(Op):
     def revtopo_infer_sign(self, sign_dict):
         cop_id = self.id
         csign = sign_dict[cop_id]
-        if csign == OpSign.UNDEFINED:
-            return
         x, y = self.deps
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]

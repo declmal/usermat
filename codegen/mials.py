@@ -399,7 +399,36 @@ class Monomial(Op):
             revinfer_monomial_sign(
                 self.deps, signs, ysign, lst, sign_dict)
             return
-        # TODO
+        lst = [
+            OpSign.POSITIVE, OpSign.NEGATIVE,
+            OpSign.NON_ZERO, OpSign.NON_NEGATIVE]
+        signs1, signs2 = separate_signs(signs, lst)
+        for sign in sign2:
+            assert sign == OpSign.NON_POSITIVE
+        xsign = infer_multiply_sign_consec(signs)
+        if len(signs2) == 0:
+            merge_sign(xsign, csign)
+            return
+        if len(signs2) == 1:
+            ysign = revinfer_multiply_sign(csign, xsign)
+            revinfer_monomial_sign(
+                self.deps, signs, ysign, lst, sign_dict)
+            return
+        lst = [
+            OpSign.POSITIVE, OpSign.NEGATIVE,
+            OpSign.NON_ZERO, OpSign.NON_POSITIVE]
+        signs1, signs2 = separate_signs(signs, lst)
+        for sign in signs2:
+            assert sign == OpSign.NON_NEGATIVE
+        xsign = infer_multiply_sign_consec(signs)
+        if len(signs2) == 0:
+            merge_sign(xsign, csign)
+            return
+        if len(signs2) == 1:
+            ysign = revinfer_multiply_sign(csign, xsign)
+            revinfer_monomial_sign(
+                self.deps, signs, ysign, lst, sign_dict)
+            return
 
 
 @org.register_opt("dfs_forward")
@@ -467,7 +496,7 @@ class Polynomial(Op):
             lst = [OpSign.NON_NEGATIVE]
             signs1, signs2 = separate_signs(signs, lst)
             if len(signs2) == 0:
-                set_deps_sign(self.deps, OpSign.ZERO, sign_dict)
+                set_polynomial_deps_sign(self.deps, OpSign.ZERO, sign_dict)
                 return
             if len(signs2) == 1:
                 revinfer_polynomial_sign(
@@ -475,7 +504,7 @@ class Polynomial(Op):
             lst = [OpSign.NON_POSITIVE]
             signs1, signs2 = separate_signs(signs, lst)
             if len(signs2) == 0:
-                set_deps_sign(self.deps, OpSign.ZERO, sign_dict)
+                set_polynomial_deps_sign(self.deps, OpSign.ZERO, sign_dict)
                 return
             if len(signs2) == 1:
                 revinfer_polynomial_sign(
@@ -506,7 +535,7 @@ class Polynomial(Op):
             lst = [OpSign.NON_POSITIVE]
             signs1, signs2 = separate_signs(signs, lst)
             if len(signs2) == 0:
-                set_deps_sign(self.deps, OpSign.ZERO, sign_dict)
+                set_polynomial_deps_sign(self.deps, OpSign.ZERO, sign_dict)
             if len(signs2) == 1:
                 revinfer_polynomial_sign(
                     self.deps, signs, OpSign.NON_NEGATIVE, lst, sign_dict)
@@ -522,7 +551,7 @@ class Polynomial(Op):
             lst = [OpSign.NON_NEGATIVE]
             signs1, signs2 = separate_signs(signs, lst)
             if len(signs2) == 0:
-                set_deps_sign(self.deps, OpSign.ZERO, sign_dict)
+                set_polynomial_deps_sign(self.deps, OpSign.ZERO, sign_dict)
             if len(signs2) == 1:
                 revinfer_polynomial_sign(
                     self.deps, signs, OpSign.NON_POSITIVE, lst, sign_dict)

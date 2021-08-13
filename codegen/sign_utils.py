@@ -168,8 +168,6 @@ def rev_infer_multiply_sign(csign, xsign):
         if xsign in [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]:
             return OpSign.ZERO
         return OpSign.UNDEFINED
-    if xsign == OpSign.UNDEFINED:
-        return OpSign.UNDEFINED
     lst1 = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
     lst2 = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
     if csign == OpSign.NON_NEGATIVE:
@@ -197,6 +195,120 @@ def rev_infer_multiply_sign(csign, xsign):
             return OpSign.NEGATIVE
         return OpSign.NON_ZERO
     assert False
+
+def rev_infer_add_sign(csign, xsign):
+    if csign == OpSign.UNDEFINED or xsign == OpSign.UNDEFINED:
+        return OpSign.UNDEFINED
+    if csign == OpSign.NON_ZERO:
+        if xsign == OpSign.ZERO:
+            ysign = merge_sign(ysign, OpSign.NON_ZERO)
+            sign_dict[yid] = ysign
+            return
+        if ysign == OpSign.ZERO:
+            xsign = merge_sign(xsign, OpSign.NON_ZERO)
+            sign_dict[xid] = xsign
+            return
+        return
+    if csign == OpSign.ZERO:
+        if xsign == OpSign.ZERO:
+            ysign = merge_sign(ysign, OpSign.ZERO)
+            sign_dict[yid] = ysign
+            return
+        if xsign == OpSign.NON_NEGATIVE:
+            ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
+            sign_dict[yid] = ysign
+            return
+        if xsign == OpSign.NON_POSITIVE:
+            ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
+            sign_dict[yid] = ysign
+            return
+        if xsign == OpSign.POSITIVE:
+            ysign = merge_sign(ysign, OpSign.NEGATIVE)
+            sign_dict[yid] = ysign
+            return
+        if xsign == OpSign.NEGATIVE:
+            ysign = merge_sign(ysign, OpSign.POSITIVE)
+            sign_dict[yid] = ysign
+            return
+        if ysign == OpSign.ZERO:
+            xsign = merge_sign(xsign, OpSign.ZERO)
+            sign_dict[xid] = xsign
+            return
+        if ysign == OpSign.NON_NEGATIVE:
+            xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
+            sign_dict[xid] = xsign
+            return
+        if ysign == OpSign.NON_POSITIVE:
+            xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
+            sign_dict[xid] = xsign
+            return
+        if ysign == OpSign.POSITIVE:
+            xsign = merge_sign(xsign, OpSign.NEGATIVE)
+            sign_dict[xid] = xsign
+            return
+        if xsign == OpSign.NEGATIVE:
+            xsign = merge_sign(xsign, OpSign.POSITIVE)
+            sign_dict[xid] = xsign
+            return
+        return
+    if csign == OpSign.NON_NEGATIVE:
+        if xsign == OpSign.NEGATIVE:
+            ysign = merge_sign(ysign, OpSign.POSITIVE)
+            sign_dict[yid] = ysign
+            return
+        if xsign == OpSign.NON_POSITIVE:
+            ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
+            sign_dict[yid] = ysign
+            return
+        if ysign == OpSign.NEGATIVE:
+            xsign = merge_sign(xsign, OpSign.POSITIVE)
+            sign_dict[xid] = xsign
+            return
+        if ysign == OpSign.NON_POSITIVE:
+            xsign = merge_sign(xsign, OpSign.NON_NEGATIVE)
+            sign_dict[xid] = xsign
+            return
+        return
+    if csign == OpSign.NON_POSITIVE:
+        if xsign == OpSign.POSITIVE:
+            ysign = merge_sign(ysign, OpSign.NEGATIVE)
+            sign_dict[yid] = ysign
+            return
+        if xsign == OpSign.NON_NEGATIVE:
+            ysign = merge_sign(ysign, OpSign.NON_POSITIVE)
+            sign_dict[yid] = ysign
+            return
+        if ysign == OpSign.POSITIVE:
+            xsign = merge_sign(xsign, OpSign.NEGATIVE)
+            sign_dict[xid] = xsign
+            return
+        if ysign == OpSign.NON_NEGATIVE:
+            xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
+            sign_dict[xid] = xsign
+            return
+        return
+    lst2 = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
+    if csign == OpSign.POSITIVE:
+        if xsign in lst2:
+            ysign = merge_sign(ysign, OpSign.POSITIVE)
+            sign_dict[yid] = ysign
+            return
+        if ysign in lst2:
+            xsign = merge_sign(xsign, OpSign.POSITIVE)
+            sign_dict[xid] = xsign
+            return
+        return
+    lst3 = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
+    if csign == OpSign.NEGATIVE:
+        if xsign in lst3:
+            ysign = merge_sign(ysign, OpSign.NEGATIVE)
+            sign_dict[yid] = ysign
+            return
+        if ysign in lst2:
+            xsign = merge_sign(xsign, OpSign.NEGATIVE)
+            sign_dict[xid] = xsign
+            return
+        return
 
 """ merge sign util functions
 """

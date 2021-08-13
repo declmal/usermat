@@ -1,7 +1,8 @@
 from fractions import Fraction
 from codegen.sign_utils import \
     infer_power_sign, infer_multiply_sign, infer_add_sign, \
-    infer_scalar_sign, merge_sign, merge_signs, separate_signs
+    infer_scalar_sign, infer_multiply_sign_consec, \
+    merge_sign, separate_signs
 from codegen.op_utils import \
     One, Zero, FloatTypes, validate_exp, sequential_equiv_func, \
     ContradictError
@@ -33,6 +34,9 @@ def mial_valid_func(mial_type):
                     "data could not be zero: {}".format(data)
         if mial_type == "poly" or num_deps == 1:
             return
+        scalar = deps[0]
+        scalar_data = scalar.data
+        assert scalar_data != Zero
         for i in range(2, num_deps, 2):
             dep = deps[i]
             data = dep.data
@@ -42,6 +46,17 @@ def mial_valid_func(mial_type):
 
 """ monomial util functions
 """
+def set_monomial_deps_sign(deps, isign, sign_dict):
+    for i in range(1, len(self.deps), 2):
+        frac, exp = self.deps[i:i+2]
+        exp_data = exp.data
+        sign = revinfer_power_sign(isign, exp_data)
+        frac_id = frac.id
+        assert frac_id in sign_dict
+        frac_sign = sign_dict[frac_id]
+        sign = merge_sign(frac_sign, sign)
+        sign_dict[frac_id] = sign
+
 def get_monomial_signs(deps):
     scalar = deps[0]
     scalar_data = scalar.data
@@ -150,7 +165,12 @@ def revinfer_monomial_sign(deps, signs, ysign, lst, sign_dict):
     for i, sign in enumerate(signs):
         if sign not in signs:
             break
-    assert i in range(1, len(signs))
+    if i == 0:
+        scalar = deps[0]
+        scalar_data = scalar.data
+        scalar_sign = infer_scalar_sign(scalar_data)
+        merge_sign(scalar_sign, ysign)
+        return
     ind = 2*i - 1
     frac, exp = deps[ind:ind+2]
     exp_data = exp.data
@@ -162,6 +182,18 @@ def revinfer_monomial_sign(deps, signs, ysign, lst, sign_dict):
 
 """ polynomial util functions
 """
+def set_polynomial_deps_sign(deps, isign, sign_dict):
+    for i in range(1, len(self.deps), 2):
+        var, coef = self.deps[i:i+2]
+        coef_data = coef.data
+        coef_sign = infer_scalar_sign(coef_data)
+        sign = revinfer_multiply_sign(isign, coef_data)
+        var_id = var.id
+        assert var_id in sign_dict
+        var_sign = sign_dict[var_id]
+        sign = merge_sign(var_sign, sign)
+        sign_dict[var_id] = sign
+
 def get_polynomial_signs(deps):
     scalar = deps[0]
     scalar_data = scalar.data
@@ -261,7 +293,12 @@ def revinfer_polynomial_sign(deps, signs, ysign, lst, sign_dict):
     for i, sign in enumerate(signs):
         if sign not in signs:
             break
-    assert i in range(1, len(signs))
+    if i == 0:
+        scalar = deps[0]
+        scalar_data = scalar.data
+        scalar_sign = infer_scalar_sign(scalar_data)
+        merge_sign(scalar_sign, ysign)
+        return
     ind = 2*i - 1
     var, coef = deps[ind:ind+2]
     coef_data = coef.data
@@ -305,9 +342,7 @@ class Monomial(Op):
 
     def dfs_infer_sign(self, val_dict):
         signs = get_monomial_signs(self.deps)
-        csign = signs[0]
-        for sign in signs[1:]:
-            csign = infer_multiply_sign(sign, csign)
+        csign = infer_multiply_sign_consec(signs)
         cop_id = self.id
         if cop_id in val_dict:
             sign = val_dict[cop_id]
@@ -320,12 +355,7 @@ class Monomial(Op):
         if csign == OpSign.UNDEFINED:
             return
         if csign in [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]:
-            for i in range(1, len(self.deps), 2):
-                dep = self.deps[i]
-                dep_id = dep.id
-                dep_sign = sign_dict[dep_id]
-                dep_sign = merge_sign(Opsign.NON_ZERO, dep_sign)
-                sign_dict[dep_id] = dep_sign
+            set_monomial_deps_sign(self.deps, OpSign.NON_ZERO, sign_dict)
         if csign == OpSign.NON_ZERO:
             return
         signs = get_monomial_signs(deps)
@@ -339,79 +369,37 @@ class Monomial(Op):
                     self.deps, signs, OpSign.ZERO, lst, sign_dict)
                 return
             return
-        if csign == OpSign.NON_NEGATIVE:
-            lst = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
-            signs1, signs2 = separate_signs(signs, lst)
-            if len(signs2) == 0:
-                raise ContradictError
-            if len(signs2) == 1:
-                revinfer_monomial_sign(
-                    self.deps, signs, OpSign.NON_POSITIVE, lst, sign_dict)
-                return
-            lst = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
-            signs1, signs2 = separate_signs(signs, lst)
-            if len(signs2) == 0:
-                raise ContradictError
-            if len(signs2) == 1:
-                revinfer_monomial_sign(
-                    self.deps, signs, OpSign.NON_NEGATIVE, lst, sign_dict)
-                return
+        lst = [OpSign.ZERO]
+        signs1, _ = separate_signs(signs, lst)
+        assert len(signs1) == 0
+        lst = [
+            OpSign.POSITIVE, OpSign.NEGATIVE, OpSign.NON_ZERO,
+            OpSign.NON_POSITIVE, OpSign.NON_NEGATIVE]
+        signs1, signs2 = separate_signs(signs, lst)
+        for sign in signs2:
+            assert sign == OpSign.UNDEFINED
+        if len(signs2) > 1:
             return
-        if csign == OpSign.NON_POSITIVE:
-            lst = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
-            signs1, signs2 = separate_signs(signs, lst)
-            if len(signs2) == 0:
-                raise ContradictError
-            if len(signs2) == 1:
-                revinfer_monomial_sign(
-                    self.deps, signs, OpSign.NON_NEGATIVE, lst, sign_dict)
-                return
-            lst = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
-            signs1, signs2 = separate_signs(signs, lst)
-            if len(signs2) == 0:
-                raise ContradictError
-            if len(signs2) == 1:
-                revinfer_monomial_sign(
-                    self.deps, signs, OpSign.NON_POSITIVE, lst, sign_dict)
-                return
+        if len(signs2) == 1:
+            xsign = infer_multiply_sign_consec(signs)
+            ysign = revinfer_multiply_sign(csign, xsign)
+            revinfer_monomial_sign(
+                self.deps, signs, ysign, lst, sign_dict)
             return
-        if csign == OpSign.POSITIVE:
-            lst = [OpSign.NEGATIVE]
-            signs1, signs2 = separate_signs(signs, lst)
-            if len(signs2) == 0:
-                raise ContradictError
-            if len(signs2) == 1:
-                revinfer_monomial_sign(
-                    self.deps, signs, OpSign.NEGATIVE, lst, sign_dict)
-                return
-            lst = [OpSign.POSITIVE]
-            signs1, signs2 = separate_signs(signs, lst)
-            if len(signs2) == 0:
-                raise ContradictError
-            if len(signs2) == 1:
-                revinfer_monomial_sign(
-                    self.deps, signs, OpSign.POSITIVE, lst, sign_dict)
-                return
+        lst = [OpSign.POSITIVE, OpSign.NEGATIVE, OpSign.NON_ZERO]
+        signs1, signs2 = separate_signs(signs, lst)
+        for sign in signs2:
+            assert sign in [OpSign.NON_NEGATIVE, OpSign.NON_POSITIVE]
+        xsign = infer_multiply_sign_consec(signs)
+        if len(signs2) == 0:
+            merge_sign(xsign, csign)
             return
-        if csign == OpSign.NEGATIVE:
-            lst = [OpSign.NEGATIVE]
-            signs1, signs2 = separate_signs(signs, lst)
-            if len(signs2) == 0:
-                raise ContradictError
-            if len(signs2) == 1:
-                revinfer_monomial_sign(
-                    self.deps, signs, OpSign.POSITIVE, lst, sign_dict)
-                return
-            lst = [OpSign.POSITIVE]
-            signs1, signs2 = separate_signs(signs, lst)
-            if len(signs2) == 0:
-                raise ContradictError
-            if len(signs2) == 1:
-                revinfer_monomial_sign(
-                    self.deps, signs, OpSign.NEGATIVE, lst, sign_dict)
-                return
+        if len(signs2) == 1:
+            ysign = revinfer_multiply_sign(csign, xsign)
+            revinfer_monomial_sign(
+                self.deps, signs, ysign, lst, sign_dict)
             return
-        assert False
+        # TODO
 
 
 @org.register_opt("dfs_forward")
@@ -458,3 +446,103 @@ class Polynomial(Op):
         csign = sign_dict[cop_id]
         if csign == OpSign.UNDEFINED:
             return
+        signs = get_polynomial_signs(self.deps)
+        if csign == OpSign.NON_ZERO:
+            lst = [OpSign.ZERO]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.NON_ZERO, lst, sign_dict)
+            return
+        if csign == OpSign.ZERO:
+            lst = [OpSign.ZERO]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                return
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.ZERO, lst, sign_dict)
+            lst = [OpSign.NON_NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                set_deps_sign(self.deps, OpSign.ZERO, sign_dict)
+                return
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.NON_POSITIVE, lst, sign_dict)
+            lst = [OpSign.NON_POSITIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                set_deps_sign(self.deps, OpSign.ZERO, sign_dict)
+                return
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.NON_NEGATIVE, lst, sign_dict)
+            lst = [OpSign.POSITIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.NEGATIVE, lst, sign_dict)
+            lst = [OpSign.NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.POSITIVE, lst, sign_dict)
+            return
+        if csign == OpSign.NON_NEGATIVE:
+            lst = [OpSign.NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.POSITIVE, lst, sign_dict)
+            lst = [OpSign.NON_POSITIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                set_deps_sign(self.deps, OpSign.ZERO, sign_dict)
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.NON_NEGATIVE, lst, sign_dict)
+            return
+        if csign == OpSign.NON_POSITIVE:
+            lst = [OpSign.POSITIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.NEGATIVE, lst, sign_dict)
+            lst = [OpSign.NON_NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                set_deps_sign(self.deps, OpSign.ZERO, sign_dict)
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.NON_POSITIVE, lst, sign_dict)
+            return
+        if csign == OpSign.POSITIVE:
+            lst = [OpSign.NON_POSITIVE, OpSign.NEGATIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.POSITIVE, lst, sign_dict)
+            return
+        if csign == OpSign.NEGATIVE:
+            lst = [OpSign.NON_NEGATIVE, OpSign.POSITIVE]
+            signs1, signs2 = separate_signs(signs, lst)
+            if len(signs2) == 0:
+                raise ContradictError
+            if len(signs2) == 1:
+                revinfer_polynomial_sign(
+                    self.deps, signs, OpSign.NEGATIVE, lst, sign_dict)
+            return
+        assert False

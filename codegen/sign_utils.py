@@ -125,6 +125,22 @@ def infer_mutual_sign(x_sign, y_sign):
         return OpSign.NON_ZERO
     return OpSign.UNDEFINED
 
+def infer_multiply_sign_consec(signs):
+    assert len(signs) > 0
+    csign = signs[0]
+    for sign in signs[1:]:
+        csign = infer_multiply_sign(csign, sign)
+    return csign
+
+def infer_add_sign_consec(signs):
+    assert len(signs) > 0
+    csign = signs[0]
+    for sign in signs[1:]:
+        csign = infer_add_sign(csign, sign)
+    return csign
+
+""" infer relation functions
+"""
 def infer_lessthan(a_sign, b_sign):
     if a_sign == OpSign.NEGATIVE and \
         b_sign in [Opsign.ZERO, OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
@@ -226,10 +242,6 @@ def revinfer_add_sign(csign, xsign):
             return OpSign.NEGATIVE
         if xsign == OpSign.NON_NEGATIVE:
             return OpSign.NON_POSITIVE
-        if ysign == OpSign.POSITIVE:
-            return OpSign.NEGATIVE
-        if ysign == OpSign.NON_NEGATIVE:
-            return OpSign.NON_POSITIVE
         return OpSign.UNDEFINED
     if csign == OpSign.POSITIVE:
         if xsign in [OpSign.NON_POSITIVE, OpSign.NEGATIVE]:
@@ -315,13 +327,6 @@ def merge_sign(sign1, sign2):
             return sign1
         return OpSign.ZERO
     raise_merge_sign_error(sign1, sign2)
-
-def merge_signs(signs):
-    assert len(signs) > 0
-    csign = signs[0]
-    for sign in signs[1:]:
-        csign = merge_assertion(csign, sign)
-    return signs
 
 def separate_signs(signs, lst):
     signs1 = []

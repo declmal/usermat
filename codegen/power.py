@@ -101,21 +101,26 @@ class Power(Op):
         for op_id, data in nm_dict.items():
             if op_id == -1:
                 continue
-            assert isinstance(data, Fraction), type(data)
-            nume_in = data.numerator
-            if nume_in % 2 == 0 and deno >= nume_in and \
-                deno % nume_in == 0:
-                del m_dict[op_id]
+            deno_in, nume_in = data.denominator, data.numerator
+            if deno_in == 1 and nume_in % 2 == 0 and \
+                deno >= nume_in and deno % nume_in == 0:
+                sign = sign_dict[op_id]
+                if sign in \
+                    [OpSign.POSITIVE, OpSign.NON_NEGATIVE, OpSign.ZERO]:
+                    continue
                 cop = od.get_op(op_id)
-                nop = od.abs(cop)
+                if sign in [OpSign.NEGATIVE, OpSign.NON_NEGATIVE]:
+                    m_dict_tmp = {-1: MinusOne, op_id: One}
+                    nop = create_monomial_op(m_dict_tmp)
+                else:
+                    nop = od.abs(cop)
+                del m_dict[op_id]
                 nid = nop.id
                 if nid not in m_dict:
                     m_dict[nid] = data
                 else:
                     # unittest test_power_2.py
                     m_dict[nid] += data
-                    assert isinstance(m_dict[nid], Fraction), type(m_dict[nid])
-        # update m_dict by power
         nm_dict = m_dict.copy()
         for op_id, data in nm_dict.items():
             if op_id == -1:
@@ -123,20 +128,15 @@ class Power(Op):
                 m_dict[-1] = scalar_data
                 continue
             ndata = data * exp_data
-            assert isinstance(ndata, Fraction), type(ndata)
             m_dict[op_id] = ndata
-        # m_dict: {-1: scalar_data, i1: e1, i2: e2, ... }
-        # in case that en = Fraction(2*k, deno_in)
-        # and op with op_id i_n is abs(sop)
-        # then op should be turned into sop
         nm_dict = m_dict.copy()
         for op_id, data in nm_dict.items():
             if op_id == -1:
                 continue
-            assert isinstance(data, Fraction), type(data)
-            nume_in = data.numerator
+            deno_in, nume_in = data.denominator, data.numerator
             op = od.get_op(op_id)
-            if nume_in % 2 == 0 and isinstance(op, org.get_op_cls("abs")):
+            if deno_in == 1 and nume_in % 2 == 0 and \
+                isinstance(op, org.get_op_cls("abs")):
                 del m_dict[op_id]
                 sop = op.deps[0]
                 sid = sop.id
@@ -145,8 +145,6 @@ class Power(Op):
                 else:
                     # unittest test_power_1.py
                     m_dict[sid] += data
-                    assert isinstance(
-                        m_dict[sid], Fraction), type(m_dict[sid])
         # create monomial op
         op = create_monomial_op(m_dict)
         return op

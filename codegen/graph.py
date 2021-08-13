@@ -272,6 +272,7 @@ class Graph(object):
         cnt = 0
         while True:
             self.fuse()
+            self.degenerate()
             info_dict_2 = self.info()
             cnt += 1
             if info_dict_1 == info_dict_2:

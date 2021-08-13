@@ -339,6 +339,7 @@ class Monomial(Op):
             frac_id = frac.id
             exp_data = exp.data
             m_dict[frac_id] = exp_data
+            # TODO fuse abs
         op = create_monomial_op(m_dict)
         return op
 

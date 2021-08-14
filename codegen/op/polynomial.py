@@ -6,7 +6,7 @@ from codegen.op_utils import \
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op
-from codegen.op.monomial import mial_valid_func
+from codegen.op.monomial import mial_valid_func, create_monomial_op
 
 """ polynomial util functions
 """
@@ -107,11 +107,12 @@ def create_polynomial_op(m_dict):
         coef = od.scalar(coef_data)
         deps.append(coef)
     if len(deps) == 2 and scalar_data == Zero:
-        coef = deps[1]
+        var, coef = deps[:2]
         coef_data = coef.data
-        if coef_data == One:
-            op = deps[0]
-            return op
+        var_id = var.id
+        m_dict = {-1: coef_data, var_id: One}
+        op = create_monomial_op(m_dict)
+        return op
     scalar = od.scalar(scalar_data)
     deps = [scalar] + deps
     op = od.polynomial(*deps)
@@ -154,6 +155,25 @@ class Polynomial(Op):
             else:
                 summation += v[i]*v[i+1]
         return summation
+
+    @classmethod
+    def topo_fuse(cls, sign_dict, *deps):
+        scalar = deps[0]
+        scalar_data = scalar.data
+        m_dict = {-1: scalar_data}
+        for i in range(1, len(deps), 2):
+            var, coef = deps[i:i+2]
+            var_id = var.id
+            coef_data = coef.data
+            m_dict_var = get_polynomial_dict(var)
+            nm_dict_var = m_dict_var.copy()
+            for op_id, data in nm_dict_var.items():
+                scalar_data = nm_dict_var[op_id]
+                nscalar_data = coef_data * scalar_data
+                m_dict_var[op_id] = nscalar_data
+            m_dict = merge_polynomial_dict(m_dict_var, m_dict)
+        op = create_polynomial_op(m_dict)
+        return op
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):

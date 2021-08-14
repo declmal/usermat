@@ -4,10 +4,10 @@ import numpy as np
 import mxnet as mx
 
 from codegen.sign_utils import \
-    infer_abs_sign, infer_add_sign, \
-    infer_multiply_sign, infer_scalar_sign, \
+    infer_abs_sign, infer_add_sign, infer_multiply_sign, \
+    infer_scalar_sign, infer_negative_sign, \
     revinfer_multiply_sign, revinfer_add_sign, \
-    OpSign, merge_sign
+    OpSign, merge_sign, insert_sign
 from codegen.op_utils import \
     One, MinusOne, Zero, FloatTypes, cast_fraction, \
     sequential_equiv_func, swappable_equiv_func
@@ -61,7 +61,7 @@ class Scalar(Op):
 
     def dfs_display(
         self, val_dict, logger=logging.getLogger("op_info")):
-        _info = self.info(val_dict, with_data=True)
+        _info = self.info(with_data=True)
         logger.debug(_info)
 
     def dfs_info(self, val_dict):
@@ -191,13 +191,19 @@ class Abs(Op):
         dep = deps[0]
         dep_id = dep.id
         dep_sign = sign_dict[dep_id]
-        if isinstance(dep, Scalar):
-            op = od.scalar(dep.data)
+        if isinstance(dep, org.get_op_cls("scalar")):
+            dep_data = dep.data
+            abs_data = abs(dep_data)
+            op = od.scalar(abs_data)
             return op
-        if dep_sign == OpSign.POSITIVE and dep_sign == OpSign.NON_NEGATIVE:
+        if dep_sign in [OpSign.POSITIVE, OpSign.NON_NEGATIVE]:
             return dep
-        if dep_sign == OpSign.NEGATIVE and dep_sign == OpSign.NON_POSITIVE:
-            op = od.multiply(dep, MinusOne)
+        if dep_sign in [OpSign.NEGATIVE, OpSign.NON_POSITIVE]:
+            scalar_minusone = od.scalar(MinusOne)
+            op = od.multiply(dep, scalar_minusone)
+            op_id = op.id
+            sign = infer_negative_sign(dep_sign)
+            insert_sign(op_id, sign_dict, sign)
             return op
         op = cls.default_op(*deps)
         return op

@@ -59,6 +59,7 @@ def topo_sort(op_group):
 
 def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
     sign_dict = sign_dict_ref.copy()
+    nsign_dict = {}
     inp_ids = [op.id for op in inps]
     out_ids = [op.id for op in outs]
     assert_ids = [op.id for op in asserts]
@@ -76,7 +77,7 @@ def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
             graph[op_id] = nop
             sign = infer_scalar_sign(data)
             nop_id = nop.id
-            sign_dict[nop_id] = sign
+            nsign_dict[nop_id] = sign
         else:
             ndeps = []
             for dep in op.deps:
@@ -86,7 +87,7 @@ def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
                 ndep = graph[dep_id]
                 ndeps.append(ndep)
             topo_func = org.get_opt(op, callback)
-            nop = topo_func(sign_dict, *ndeps)
+            nop = topo_func(nsign_dict, *ndeps)
             graph[op_id] = nop
             if isinstance(nop, org.get_op_cls("scalar")):
                 data = nop.data
@@ -94,11 +95,11 @@ def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
             else:
                 sign = sign_dict[op_id]
             nop_id = nop.id
-            sign_dict[nop_id] = sign
+            nsign_dict[nop_id] = sign
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
     nasserts = [graph[op_id] for op_id in assert_ids]
-    return ninps, nouts, nasserts
+    return ninps, nouts, nasserts, nsign_dict
 
 def revtopo_visit(outs, callback, sign_dict_ref={}):
     sign_dict = sign_dict_ref.copy()
@@ -133,7 +134,7 @@ def register_graph_topo(cls):
     def graph_topo(callback):
         def wrapper(self):
             sign_dict = self.infer_sign()
-            self.inps, self.outs, self.asserts = topo_visit(
+            self.inps, self.outs, self.asserts, nsign_dict = topo_visit(
                 self.inps, self.outs, self.asserts, callback,
                 sign_dict_ref=sign_dict)
             nasserts = []
@@ -142,6 +143,7 @@ def register_graph_topo(cls):
                     continue
                 nasserts.append(assert_op)
             self.asserts = nasserts
+            return nsign_dict
         return wrapper
 
     for callback in dir(Op):

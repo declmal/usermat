@@ -1,8 +1,9 @@
 from fractions import Fraction
 from codegen.sign_utils import \
     infer_power_sign, infer_scalar_sign, infer_multiply_sign_consec, \
+    infer_negative_sign, infer_abs_sign, \
     revinfer_multiply_sign, revinfer_power_sign, \
-    merge_sign, separate_signs, OpSign
+    merge_sign, separate_signs, OpSign, insert_sign
 from codegen.op_utils import \
     One, Zero, MinusOne, FloatTypes, validate_exp, \
     sequential_equiv_func, ContradictError
@@ -273,15 +274,21 @@ def get_monomial_dict_exp(frac, exp_data, sign_dict):
             if sign in [OpSign.NEGATIVE, OpSign.NON_NEGATIVE]:
                 m_dict_tmp = {-1: MinusOne, op_id: One}
                 nop = create_monomial_op(m_dict_tmp)
+                csign = infer_negative_sign(sign)
+                nop_id = nop.id
+                insert_sign(nop_id, sign_dict, csign)
             else:
                 nop = od.abs(cop)
+                csign = infer_abs_sign(sign)
+                nop_id = nop.id
+                insert_sign(nop_id, sign_dict, csign)
             del m_dict[op_id]
-            nid = nop.id
-            if nid not in m_dict:
-                m_dict[nid] = data
+            nop_id = nop.id
+            if nop_id not in m_dict:
+                m_dict[nop_id] = data
             else:
                 # unittest test_power_2.py
-                m_dict[nid] += data
+                m_dict[nop_id] += data
     # distribute exp_data
     nm_dict = m_dict.copy()
     for op_id, data in nm_dict.items():
@@ -316,6 +323,7 @@ def get_monomial_dict_exp(frac, exp_data, sign_dict):
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_info")
+@org.register_opt("dfs_display")
 @org.register_op(
     valid_func=monomial_valid_func, equiv_func=sequential_equiv_func)
 class Monomial(Op):
@@ -354,13 +362,17 @@ class Monomial(Op):
             frac_sign = sign_dict[frac_id]
             exp_data = exp.data
             deno, nume = exp_data.denominator, exp_data.numerator
-            if deno == 1 and nume % 2 and \
+            if deno == 1 and nume % 2 == 0 and \
                 isinstance(frac, org.get_op_cls("abs")):
                 dep = frac.deps[0]
-                dep_id = dep.id
-                m_dict[dep_id] = exp_data
+                op_id = dep.id
             else:
-                m_dict[frac_id] = exp_data
+                op_id = frac.id
+            if op_id in m_dict:
+                # test_power_3.py
+                m_dict[op_id] += exp_data
+            else:
+                m_dict[op_id] = exp_data
         op = create_monomial_op(m_dict)
         return op
 
@@ -374,6 +386,26 @@ class Monomial(Op):
         val_dict[cop_id] = csign
 
     def revtopo_infer_sign(self, sign_dict):
+        for i in range(1, len(self.deps), 2):
+            frac, exp = self.deps[i:i+2]
+            frac_id = frac.id
+            frac_sign = sign_dict[frac_id]
+            exp_data = exp.data
+            deno, nume = exp_data.denominator, exp_data.numerator
+            if deno == 1 and nume > 0:
+                continue
+            if deno == 1 and nume < 0:
+                sign = merge_sign(frac_sign, OpSign.NON_ZERO)
+                sign_dict[frac_id] = sign
+                continue
+            if deno > 1 and nume < 0:
+                sign = merge_sign(frac_sign, OpSign.POSITIVE)
+                sign_dict[frac_id] = sign
+                continue
+            if deno > 1 and nume > 0:
+                sign = merge_sign(frac_sign, OpSign.NON_NEGATIVE)
+                sign_dict[frac_id] = sign
+                continue
         cop_id = self.id
         csign = sign_dict[cop_id]
         if csign == OpSign.UNDEFINED:
@@ -405,7 +437,7 @@ class Monomial(Op):
         if len(signs2) > 1:
             return
         if len(signs2) == 1:
-            xsign = infer_multiply_sign_consec(signs)
+            xsign = infer_multiply_sign_consec(signs1)
             ysign = revinfer_multiply_sign(csign, xsign)
             revinfer_monomial_sign(
                 self.deps, signs, ysign, lst, sign_dict)
@@ -414,7 +446,7 @@ class Monomial(Op):
         signs1, signs2 = separate_signs(signs, lst)
         for sign in signs2:
             assert sign in [OpSign.NON_NEGATIVE, OpSign.NON_POSITIVE]
-        xsign = infer_multiply_sign_consec(signs)
+        xsign = infer_multiply_sign_consec(signs1)
         if len(signs2) == 0:
             merge_sign(xsign, csign)
             return
@@ -427,9 +459,9 @@ class Monomial(Op):
             OpSign.POSITIVE, OpSign.NEGATIVE,
             OpSign.NON_ZERO, OpSign.NON_NEGATIVE]
         signs1, signs2 = separate_signs(signs, lst)
-        for sign in sign2:
+        for sign in signs2:
             assert sign == OpSign.NON_POSITIVE
-        xsign = infer_multiply_sign_consec(signs)
+        xsign = infer_multiply_sign_consec(signs1)
         if len(signs2) == 0:
             merge_sign(xsign, csign)
             return
@@ -444,7 +476,7 @@ class Monomial(Op):
         signs1, signs2 = separate_signs(signs, lst)
         for sign in signs2:
             assert sign == OpSign.NON_NEGATIVE
-        xsign = infer_multiply_sign_consec(signs)
+        xsign = infer_multiply_sign_consec(signs1)
         if len(signs2) == 0:
             merge_sign(xsign, csign)
             return

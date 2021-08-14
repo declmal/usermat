@@ -143,6 +143,8 @@ def revinfer_polynomial_sign(deps, signs, ysign, lst, sign_dict):
 """
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
+@org.register_opt("dfs_info")
+@org.register_opt("dfs_display")
 @org.register_op(
     valid_func=mial_valid_func, equiv_func=sequential_equiv_func)
 class Polynomial(Op):

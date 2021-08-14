@@ -6,7 +6,7 @@ import numpy as np
 
 from codegen.op_def import OpDef as od
 from codegen.graph import Graph
-from codegen.op_utils import ContradictError
+from codegen.op_utils import ContradictError, MinusOne
 from codegen.utils import random_array
 from codegen.test_utils import register_test
 
@@ -23,7 +23,10 @@ class TestPower3(unittest.TestCase):
         v6 = od.multiply(v5, v3)
         v7 = od.negative(v6)
         v8 = od.power(v7, od.scalar(Fraction(1,2)))
-        g = Graph([v0,v4], [v8])
-        g.standardize()
-        g.degenerate()
-        self.assertRaises(ContradictError, g.merge)
+        v9 = od.multiply(v0, od.scalar(MinusOne))
+        v10 = od.power(v9, od.scalar(Fraction(1,3)))
+        v11 = od.add(v8, v10)
+        g = Graph([v0,v4], [v11])
+        g.optimize()
+        g.merge()
+        g.tosym()

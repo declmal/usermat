@@ -270,7 +270,7 @@ def revinfer_power_sign(csign, exp_data):
         else:
             frac_sign = OpSign.NON_NEGATIVE
         return frac_sign
-    return OpSign.UNDEFINED
+    return csign
 
 """ merge sign util functions
 """
@@ -337,3 +337,13 @@ def separate_signs(signs, lst):
         else:
             signs2.append(sign)
     return signs1, signs2
+
+""" sign dict util functions
+"""
+def insert_sign(op_id, sign_dict, sign):
+    if op_id not in sign_dict:
+        sign_dict[op_id] = sign
+        return
+    osign = sign_dict[op_id]
+    csign = merge_sign(osign, sign)
+    sign_dict[op_id] = csign

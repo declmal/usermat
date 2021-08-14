@@ -6,7 +6,7 @@ from codegen.op_utils import \
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op
-from codegen.monomial import mial_valid_func
+from codegen.op.monomial import mial_valid_func
 
 """ polynomial util functions
 """

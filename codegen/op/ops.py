@@ -15,9 +15,9 @@ from codegen.op_utils import \
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op
-from codegen.monomial import \
+from codegen.op.monomial import \
     get_monomial_dict, merge_monomial_dict, create_monomial_op
-from codegen.polynomial import \
+from codegen.op.polynomial import \
     get_polynomial_dict, merge_polynomial_dict, create_polynomial_op
 
 """ validate functions

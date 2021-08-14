@@ -4,7 +4,7 @@ from codegen.sign_utils import \
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op
-from codegen.ops import num_valid_func
+from codegen.op.ops import num_valid_func
 
 
 @org.register_op(

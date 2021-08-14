@@ -5,8 +5,8 @@ from codegen.sign_utils import \
     merge_sign, separate_signs, OpSign, \
     revinfer_multiply_sign, revinfer_power_sign
 from codegen.op_utils import \
-    One, Zero, FloatTypes, validate_exp, sequential_equiv_func, \
-    ContradictError
+    One, Zero, MinusOne, FloatTypes, validate_exp, \
+    sequential_equiv_func, ContradictError
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op
@@ -33,6 +33,15 @@ def mial_valid_func(mial_type):
             if i > 0:
                 assert data != Zero, \
                     "data could not be zero: {}".format(data)
+        dep_ids = set()
+        for i in range(1, num_deps, 2):
+            dep = deps[i]
+            dep_id = dep.id
+            dep_ids.add(dep_id)
+        num_fracs = (num_deps-1) // 2
+        assert len(dep_ids) == num_fracs, \
+            "duplicate var id, dep ids: {}, num_fracs: {}".format(
+                dep_ids, num_fracs)
         if mial_type == "poly" or num_deps == 1:
             return
         scalar = deps[0]
@@ -180,6 +189,129 @@ def revinfer_monomial_sign(deps, signs, ysign, lst, sign_dict):
     frac_sign = sign_dict[frac_id]
     sign = merge_sign(frac_sign, dep_sign)
     sign_dict[frac_id] = sign
+
+""" m_dict exp util function, only intended for fuse pass
+"""
+def get_monomial_dict_exp(frac, exp_data, sign_dict):
+    deno, nume = exp_data.denominator, exp_data.numerator
+    if deno == 1 and nume == 1:
+        frac_id = frac.id
+        m_dict = {-1: One, frac_id: One}
+        return m_dict
+    if nume == 0:
+        m_dict = {-1: One}
+        return m_dict
+    assert not isinstance(frac, (org.get_op_cls("multiply"),
+        org.get_op_cls("add"), org.get_op_cls("power")))
+    m_dict = get_monomial_dict(frac)
+    if len(m_dict) == 1 or m_dict[-1] == Zero:
+        data = m_dict[-1]
+        validate_exp(data, exp_data)
+        scalar_data = data ** exp_data
+        scalar = od.scalar(scalar_data)
+        return scalar
+    # separate m_dict
+    if deno > 1:
+        nm_dict = {}
+        sm_dict = {}
+        for op_id, data in m_dict.items():
+            if op_id == -1:
+                if data > Zero:
+                    nm_dict[-1] = data
+                    sm_dict[-1] = One
+                else:
+                    nm_dict[-1] = -data
+                    sm_dict[-1] = MinusOne
+                continue
+            deno_in, nume_in = data.denominator, data.numerator
+            sign = sign_dict[op_id]
+            if nume_in % 2 == 0 and sign in \
+                [OpSign.POSITIVE, OpSign.NEGATIVE, OpSign.NON_ZERO] or \
+                sign == OpSign.POSITIVE:
+                nm_dict[op_id] = data
+                continue
+            sm_dict[op_id] = data
+        flag = True
+        for op_id, data in sm_dict.items():
+            if op_id == -1:
+                scalar_data = sm_dict[-1]
+                if scalar_data == MinusOne:
+                    flag = False
+                    break
+                continue
+            deno_in, nume_in = data.denominator, data.numerator
+            sign = sign_dict[op_id]
+            if nume_in % 2 != 0 and sign not in \
+                [OpSign.POSITIVE, OpSign.ZERO, OpSign.NON_NEGATIVE]:
+                flag = False
+                break
+        if flag:
+            for op_id, data in sm_dict.items():
+                if op_id == -1:
+                    continue
+                assert op_id not in nm_dict
+                nm_dict[op_id] = data
+        else:
+            op = create_monomial_op(sm_dict)
+            op_id = op.id
+            if op_id in nm_dict:
+                # TODO: unittest
+                nm_dict[op_id] += One
+            else:
+                nm_dict[op_id] = One
+        m_dict = nm_dict
+    nm_dict = m_dict.copy()
+    # x^(even/odd)^[odd2/(k*even)] = |x|^[odd2/(k*odd)]
+    for op_id, data in nm_dict.items():
+        if op_id == -1:
+            continue
+        deno_in, nume_in = data.denominator, data.numerator
+        if deno_in == 1 and nume_in % 2 == 0 and \
+            deno >= nume_in and deno % nume_in == 0:
+            sign = sign_dict[op_id]
+            if sign in \
+                [OpSign.POSITIVE, OpSign.NON_NEGATIVE, OpSign.ZERO]:
+                continue
+            cop = od.get_op(op_id)
+            if sign in [OpSign.NEGATIVE, OpSign.NON_NEGATIVE]:
+                m_dict_tmp = {-1: MinusOne, op_id: One}
+                nop = create_monomial_op(m_dict_tmp)
+            else:
+                nop = od.abs(cop)
+            del m_dict[op_id]
+            nid = nop.id
+            if nid not in m_dict:
+                m_dict[nid] = data
+            else:
+                # unittest test_power_2.py
+                m_dict[nid] += data
+    # distribute exp_data
+    nm_dict = m_dict.copy()
+    for op_id, data in nm_dict.items():
+        if op_id == -1:
+            scalar_data = data ** exp_data
+            m_dict[-1] = scalar_data
+            continue
+        ndata = data * exp_data
+        m_dict[op_id] = ndata
+    # fuse |x|^even = x^even
+    nm_dict = m_dict.copy()
+    for op_id, data in nm_dict.items():
+        if op_id == -1:
+            continue
+        deno_in, nume_in = data.denominator, data.numerator
+        op = od.get_op(op_id)
+        if deno_in == 1 and nume_in % 2 == 0 and \
+            isinstance(op, org.get_op_cls("abs")):
+            del m_dict[op_id]
+            sop = op.deps[0]
+            sid = sop.id
+            if sid not in m_dict:
+                m_dict[sid] = data
+            else:
+                # unittest test_power_1.py
+                m_dict[sid] += data
+    return m_dict
 
 """ polynomial util functions
 """
@@ -330,7 +462,7 @@ class Monomial(Op):
         return product
 
     @classmethod
-    def topo_degenerate(cls, sign_dict, *deps):
+    def topo_fuse(cls, sign_dict, *deps):
         scalar = deps[0]
         scalar_data = scalar.data
         m_dict = {-1: scalar_data}
@@ -338,8 +470,29 @@ class Monomial(Op):
             frac, exp = deps[i:i+2]
             frac_id = frac.id
             exp_data = exp.data
-            m_dict[frac_id] = exp_data
-            # TODO fuse abs
+            m_dict_frac = get_monomial_dict_exp(frac, exp_data, sign_dict)
+            m_dict = merge_monomial_dict(m_dict_frac, m_dict)
+        op = create_monomial_op(m_dict)
+        return op
+
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        scalar = deps[0]
+        scalar_data = scalar.data
+        m_dict = {-1: scalar_data}
+        for i in range(1, len(deps), 2):
+            frac, exp = deps[i:i+2]
+            frac_id = frac.id
+            frac_sign = sign_dict[frac_id]
+            exp_data = exp.data
+            deno, nume = exp_data.denominator, exp_data.numerator
+            if deno == 1 and nume % 2 and \
+                isinstance(frac, org.get_op_cls("abs")):
+                dep = frac.deps[0]
+                dep_id = dep.id
+                m_dict[dep_id] = exp_data
+            else:
+                m_dict[frac_id] = exp_data
         op = create_monomial_op(m_dict)
         return op
 

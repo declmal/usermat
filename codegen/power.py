@@ -8,7 +8,8 @@ from codegen.op_utils import \
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op
-from codegen.mials import create_monomial_op, get_monomial_dict
+from codegen.mials import \
+    create_monomial_op, get_monomial_dict, get_monomial_dict_exp
 from codegen.ops import num_valid_func
 
 """ validate functions
@@ -36,116 +37,7 @@ class Power(Op):
     def topo_fuse(cls, sign_dict, *deps):
         frac, exp = deps
         exp_data = exp.data
-        deno, nume = exp_data.denominator, exp_data.numerator
-        if deno == 1 and nume == 1:
-            return frac
-        if nume == 0:
-            op = od.scalar(One)
-            return op
-        m_dict = get_monomial_dict(frac)
-        if len(m_dict) == 1 or m_dict[-1] == Zero:
-            data = m_dict[-1]
-            validate_exp(data, exp_data)
-            scalar_data = data ** exp_data
-            scalar = od.scalar(scalar_data)
-            return scalar
-        if deno > 1:
-            nm_dict = {}
-            sm_dict = {}
-            for op_id, data in m_dict.items():
-                if op_id == -1:
-                    if data > Zero:
-                        nm_dict[-1] = data
-                        sm_dict[-1] = One
-                    else:
-                        nm_dict[-1] = -data
-                        sm_dict[-1] = MinusOne
-                    continue
-                deno_in, nume_in = data.denominator, data.numerator
-                sign = sign_dict[op_id]
-                if nume_in % 2 == 0 and sign in \
-                    [OpSign.POSITIVE, OpSign.NEGATIVE, OpSign.NON_ZERO] or \
-                    sign == OpSign.POSITIVE:
-                    nm_dict[op_id] = data
-                    continue
-                sm_dict[op_id] = data
-            flag = True
-            for op_id, data in sm_dict.items():
-                if op_id == -1:
-                    scalar_data = sm_dict[-1]
-                    if scalar_data == MinusOne:
-                        flag = False
-                        break
-                    continue
-                deno_in, nume_in = data.denominator, data.numerator
-                sign = sign_dict[op_id]
-                if nume_in % 2 != 0 and sign not in \
-                    [OpSign.POSITIVE, OpSign.ZERO, OpSign.NON_NEGATIVE]:
-                    flag = False
-                    break
-            if flag:
-                for op_id, data in sm_dict.items():
-                    if op_id == -1:
-                        continue
-                    assert op_id not in nm_dict
-                    nm_dict[op_id] = data
-            else:
-                op = create_monomial_op(sm_dict)
-                op_id = op.id
-                if op_id in nm_dict:
-                    nm_dict[op_id] += One
-                else:
-                    nm_dict[op_id] = One
-            m_dict = nm_dict
-        nm_dict = m_dict.copy()
-        for op_id, data in nm_dict.items():
-            if op_id == -1:
-                continue
-            deno_in, nume_in = data.denominator, data.numerator
-            if deno_in == 1 and nume_in % 2 == 0 and \
-                deno >= nume_in and deno % nume_in == 0:
-                sign = sign_dict[op_id]
-                if sign in \
-                    [OpSign.POSITIVE, OpSign.NON_NEGATIVE, OpSign.ZERO]:
-                    continue
-                cop = od.get_op(op_id)
-                if sign in [OpSign.NEGATIVE, OpSign.NON_NEGATIVE]:
-                    m_dict_tmp = {-1: MinusOne, op_id: One}
-                    nop = create_monomial_op(m_dict_tmp)
-                else:
-                    nop = od.abs(cop)
-                del m_dict[op_id]
-                nid = nop.id
-                if nid not in m_dict:
-                    m_dict[nid] = data
-                else:
-                    # unittest test_power_2.py
-                    m_dict[nid] += data
-        nm_dict = m_dict.copy()
-        for op_id, data in nm_dict.items():
-            if op_id == -1:
-                scalar_data = data ** exp_data
-                m_dict[-1] = scalar_data
-                continue
-            ndata = data * exp_data
-            m_dict[op_id] = ndata
-        nm_dict = m_dict.copy()
-        for op_id, data in nm_dict.items():
-            if op_id == -1:
-                continue
-            deno_in, nume_in = data.denominator, data.numerator
-            op = od.get_op(op_id)
-            if deno_in == 1 and nume_in % 2 == 0 and \
-                isinstance(op, org.get_op_cls("abs")):
-                del m_dict[op_id]
-                sop = op.deps[0]
-                sid = sop.id
-                if sid not in m_dict:
-                    m_dict[sid] = data
-                else:
-                    # unittest test_power_1.py
-                    m_dict[sid] += data
-        # create monomial op
+        m_dict = get_monomial_dict_exp(frac, exp_data, sign_dict)
         op = create_monomial_op(m_dict)
         return op
 

@@ -8,7 +8,7 @@ from codegen.op_utils import \
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op
-from codegen.mials import \
+from codegen.monomial import \
     create_monomial_op, get_monomial_dict, get_monomial_dict_exp
 from codegen.ops import num_valid_func
 

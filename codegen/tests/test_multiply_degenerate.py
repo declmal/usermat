@@ -13,7 +13,7 @@ from .test_utils import register_test,random_array
 class TestMultiplyDegenerate(unittest.TestCase):
     def test_multiply_degenerate(self):
         v0 = od.scalar(1)
-        v1 = od.var()
+        v1 = od.var("x")
         v2 = od.multiply(v0, v1)
         g = Graph([v1], [v2])
         g.degenerate()

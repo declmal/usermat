@@ -9,8 +9,8 @@ from .test_utils import register_test, random_array
 @register_test
 class TestPropagateAssertion1(unittest.TestCase):
     def test_propagate_assertion_1(self):
-        u = od.var()
-        v = od.var()
+        u = od.var("x")
+        v = od.var("y")
         x = od.multiply(u, v)
         y = od.power(x, od.scalar(Fraction(1,2)))
         z = od.divide(y, u)

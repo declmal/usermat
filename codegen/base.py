@@ -3,7 +3,6 @@ import logging
 import mxnet as mx
 
 from .sign_utils import OpSign, merge_sign
-from .type_utils import cast_float
 from .op_def import OpDef as od
 from .op_reg import OpReg as org
 
@@ -26,16 +25,16 @@ class Op(object):
     def set_id(self, op_id):
         self.id = op_id
 
-    def info(self, with_data=True):
+    def info(self, ext=None):
         deps_info = ""
         if self.deps:
             deps_info = "deps:" + \
                 ",".join([str(dep.id) for dep in self.deps])
-        data_info = ""
-        if with_data:
-            data_info = "data:{}".format(cast_float(self.data))
+        ext_info = ""
+        if ext is not None:
+            ext_info = "ext:{}".format(ext)
         s = "id:{},op_type:{}".format(self.id, self.op_type)
-        _info = ",".join([s, data_info, deps_info])
+        _info = ",".join([s, ext_info, deps_info])
         return _info
 
     @classmethod
@@ -84,27 +83,27 @@ class Op(object):
 
     def dfs_display(
         self, val_dict, logger=logging.getLogger("op_info")):
-        _info = self.info(with_data=False)
+        _info = self.info()
         logger.debug(_info)
 
     def dfs_info(self, val_dict):
-        _info = self.info(with_data=False)
+        _info = self.info()
         op_id = self.id
         val_dict[op_id] = _info
 
     def dfs_tosym(self, val_dict):
         cop_id = self.id
         assert cop_id not in val_dict
-        name = self.info(with_data=False)
+        sym_name = self.info()
         dep_syms = []
         for dep in self.deps:
             dep_id = dep.id
             dep_sym = val_dict[dep_id]
             dep_syms.append(dep_sym)
         if len(dep_syms) == 0:
-            sym = mx.sym.var(name=name)
+            sym = mx.sym.var(name=sym_name)
         else:
-            sym = mx.sym.add_n(*dep_syms, name=name)
+            sym = mx.sym.add_n(*dep_syms, name=sym_name)
         val_dict[cop_id] = sym
 
     def dfs_infer_sign(self, val_dict):

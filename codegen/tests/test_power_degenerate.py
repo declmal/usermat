@@ -13,7 +13,7 @@ from .test_utils import register_test, random_array
 class TestPowerDegenerate(unittest.TestCase):
     def test_power_degenerate(self):
         v0 = od.scalar(1)
-        v1 = od.var()
+        v1 = od.var("x")
         v2 = od.power(v1, v0)
         g = Graph([v1], [v2])
         g.degenerate()

@@ -12,10 +12,10 @@ from .test_utils import register_test, random_array
 @register_test
 class Test2(unittest.TestCase):
     def test_2(self):
-        v0 = od.var()
-        v1 = od.var()
-        v2 = od.var()
-        v3 = od.var()
+        v0 = od.var("x")
+        v1 = od.var("y")
+        v2 = od.var("z")
+        v3 = od.var("w")
         v4 = od.divide(v0, v1)
         v5 = od.add(v4, v2)
         v6 = od.sin(v5)

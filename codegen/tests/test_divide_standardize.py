@@ -13,8 +13,8 @@ from .test_utils import register_test, random_array
 @register_test
 class TestDivideStandardize(unittest.TestCase):
     def test_divide_standardize(self):
-        v0 = od.var()
-        v1 = od.var()
+        v0 = od.var("x")
+        v1 = od.var("y")
         v2 = od.divide(v0, v1)
         g = Graph([v0, v1], [v2])
         g.standardize()

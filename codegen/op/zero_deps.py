@@ -32,17 +32,17 @@ class Scalar(Op):
     def dfs_tosym(self, val_dict):
         cop_id = self.id
         assert cop_id not in val_dict
-        name = self.info(with_data=True)
-        sym = mx.sym.var(name=name)
+        sym_name = self.info(ext=self.data)
+        sym = mx.sym.var(name=sym_name)
         val_dict[cop_id] = sym
 
     def dfs_display(
         self, val_dict, logger=logging.getLogger("op_info")):
-        _info = self.info(with_data=True)
+        _info = self.info(ext=self.data)
         logger.debug(_info)
 
     def dfs_info(self, val_dict):
-        _info = self.info(with_data=True)
+        _info = self.info(ext=self.data)
         op_id = self.id
         val_dict[op_id] = _info
 
@@ -63,14 +63,32 @@ class Scalar(Op):
 
 
 @org.register_opt("dfs_infer_sign")
-@org.register_opt("dfs_tosym")
-@org.register_opt("dfs_display")
-@org.register_opt("dfs_info")
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_standardize")
 @org.register_opt("revtopo_infer_sign")
 @org.register_op()
 class Var(Op):
+    def __init__(self, name):
+        self.name = name
+        super().__init__()
+
+    def dfs_tosym(self, val_dict):
+        cop_id = self.id
+        assert cop_id not in val_dict
+        sym_name = self.info(ext=self.name)
+        sym = mx.sym.var(name=sym_name)
+        val_dict[cop_id] = sym
+
+    def dfs_display(
+        self, val_dict, logger=logging.getLogger("op_info")):
+        _info = self.info(ext=self.name)
+        logger.debug(_info)
+
+    def dfs_info(self, val_dict):
+        _info = self.info(ext=self.name)
+        op_id = self.id
+        val_dict[op_id] = _info
+
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
         return cls.default_op(*deps)

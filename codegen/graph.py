@@ -78,6 +78,13 @@ def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
             sign = infer_scalar_sign(data)
             nop_id = nop.id
             nsign_dict[nop_id] = sign
+        elif isinstance(op, org.get_op_cls("var")):
+            name = op.name
+            nop = od.var(name)
+            graph[op_id] = nop
+            sign = sign_dict[op_id]
+            nop_id = nop.id
+            nsign_dict[nop_id] = sign
         else:
             ndeps = []
             for dep in op.deps:

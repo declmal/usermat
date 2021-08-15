@@ -12,9 +12,9 @@ from .test_utils import register_test, random_array
 @register_test
 class TestCnd(unittest.TestCase):
     def test_cnd(self):
-        v0 = od.var()
-        v1 = od.var()
-        v2 = od.var()
+        v0 = od.var("x")
+        v1 = od.var("y")
+        v2 = od.var("z")
         v3 = od.multiply(v1, od.negative(v2))
         v4 = od.sin(v0)
         v5 = od.power(od.add(v1, od.scalar(-1)), od.scalar(2))

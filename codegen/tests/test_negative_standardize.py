@@ -12,7 +12,7 @@ from .test_utils import register_test, random_array
 @register_test
 class TestNegativeStandardize(unittest.TestCase):
     def test_negative_standardize(self):
-        v0 = od.var()
+        v0 = od.var("x")
         v1 = od.negative(v0)
         g = Graph([v0], [v1])
         g.standardize()

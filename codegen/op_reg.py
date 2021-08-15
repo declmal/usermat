@@ -101,8 +101,8 @@ class OpReg(object):
             # set up op_def
             if op_type == "scalar":
                 setattr(od, op_type, OpReg._scalar_func(cls))
-            # elif op_type == "var":
-                # setattr(od, op_type, OpReg._var_func(cls))
+            elif op_type == "var":
+                setattr(od, op_type, OpReg._var_func(cls))
             else:
                 setattr(od, op_type, OpReg._op_func(cls))
             return cls

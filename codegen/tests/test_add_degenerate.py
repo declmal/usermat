@@ -13,7 +13,7 @@ from .test_utils import register_test, random_array
 class TestAddDegenerate(unittest.TestCase):
     def test_add_degenerate(self):
         v0 = od.scalar(0)
-        v1 = od.var()
+        v1 = od.var("x")
         v2 = od.add(v0, v1)
         g = Graph([v1], [v2])
         g.degenerate()

@@ -12,11 +12,11 @@ from .test_utils import register_test, random_array
 @register_test
 class Test3(unittest.TestCase):
     def test_3(self):
-        v0 = od.var()
+        v0 = od.var("x")
         minus_one = od.scalar(-1)
         v00 = od.add(v0, minus_one)
-        v1 = od.var()
-        v2 = od.var()
+        v1 = od.var("y")
+        v2 = od.var("z")
         v3 = od.add(v00, v1)
         v4 = od.multiply(v0, v1)
         v5 = od.sin(v4)

@@ -137,6 +137,9 @@ def register_graph_topo(cls):
             self.inps, self.outs, self.asserts, nsign_dict = topo_visit(
                 self.inps, self.outs, self.asserts, callback,
                 sign_dict_ref=sign_dict)
+            # validate input
+            self.validate_inp()
+            # update asserts
             nasserts = []
             for assert_op in self.asserts:
                 if isinstance(assert_op, org.get_op_cls("null")):
@@ -156,13 +159,8 @@ def register_graph_topo(cls):
 class Graph(object):
     def __init__(self, inps, outs, asserts=None, out_appends=None):
         # validate and set inps
-        inp_ids = set()
-        for inp in inps:
-            inp_id = inp.id
-            assert inp_id not in inp_ids, \
-                "duplicate ops, inp_id: {}".format(inp_id)
-            inp_ids.add(inp_id)
         self.inps = inps
+        self.validate_inp()
         # set outs
         self.outs = outs
         # set asserts
@@ -175,6 +173,24 @@ class Graph(object):
         self.out_appends = out_appends \
             if out_appends is not None else \
             ["Out:{}".format(i) for i in range(len(self.outs))]
+
+    def validate_inp(self):
+        inp_ids = set()
+        var_ids = set()
+        for inp in self.inps:
+            inp_id = inp.id
+            assert inp_id not in inp_ids, \
+                "duplicate ops, inp_id: {}".format(inp_id)
+            inp_ids.add(inp_id)
+            if isinstance(inp, org.get_op_cls("scalar")):
+                continue
+            elif isinstance(inp, org.get_op_cls("var")):
+                assert inp_id not in var_ids, \
+                    "duplicate vars, inp_id: {}".format(inp_id)
+                var_ids.add(inp_id)
+            else:
+                assert False, \
+                    "unsupported op type: {} for inp".format(inp.op_type)
 
     def propagate_assertion(self):
         revtopo_visit(self.outs, "revtopo_propagate_assertion")

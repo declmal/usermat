@@ -3,10 +3,11 @@ from codegen.sign_utils import \
     merge_sign, infer_nomorethan, infer_lessthan
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
-from codegen.base import Op
-from codegen.op.ops import num_valid_func
+from codegen.base import Op, num_valid_func
 
 
+""" ops
+"""
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class AssertLessThan(Op):

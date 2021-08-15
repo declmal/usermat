@@ -49,6 +49,7 @@ class Op(object):
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
+        # TODO: OpSign.ZERO degenerate
         flag = True
         datas = []
         for dep in deps:
@@ -116,3 +117,30 @@ class Op(object):
 
     def dfs_autograph_backward(self, val_dict, var_seq):
         raise NotImplementedError
+
+    def __lt__(self, other):
+        n = len(self.deps)
+        n1 = len(other.deps)
+        if n < n1:
+            return True
+        if n > n1:
+            return False
+        for i in range(n):
+            dep = self.deps[i]
+            dep1 = other.deps[i]
+            if dep < dep1:
+                return True
+            if dep > dep1:
+                return False
+
+""" validate functions
+"""
+def num_valid_func(num_deps):
+    def wrapper(*deps):
+        assert len(deps) == num_deps, \
+            "invalid deps number: {}, ".format(len(deps)) + \
+            "expected: {}".format(num_deps)
+        for dep in deps:
+            assert isinstance(dep, Op), \
+                "invalid type of dep: {}".format(type(dep))
+    return wrapper

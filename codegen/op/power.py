@@ -26,6 +26,7 @@ def power_valid_func(*deps):
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_display")
+@org.register_opt("dfs_sort_deps")
 @org.register_opt("topo_standardize")
 @org.register_op(
     valid_func=power_valid_func, equiv_func=sequential_equiv_func)

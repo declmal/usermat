@@ -16,6 +16,7 @@ class Null(Op):
     pass
 
 
+@org.register_opt("dfs_sort_deps")
 @org.register_opt("revtopo_infer_sign")
 @org.register_op()
 class Scalar(Op):
@@ -66,6 +67,7 @@ class Scalar(Op):
 
 
 @org.register_opt("dfs_infer_sign")
+@org.register_opt("dfs_sort_deps")
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_standardize")
 @org.register_opt("revtopo_infer_sign")

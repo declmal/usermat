@@ -62,6 +62,19 @@ def mial_valid_func(*deps):
 
 """ monomial util functions
 """
+def mial_sort_deps(*deps):
+    arr = []
+    for i in range(1, len(deps), 2):
+        dep, scalar = deps[i:i+2]
+        arr.append((dep, scalar))
+    sorted_arr = sorted(arr, key=lambda x:x[0])
+    scalar = deps[0]
+    ndeps = [scalar]
+    for dep, scalar in sorted_arr:
+        ndeps.append(dep)
+        ndeps.append(scalar)
+    return ndeps
+
 def validate_monomial_dict(m_dict):
     assert isinstance(m_dict, dict) and -1 in m_dict, m_dict
     for op_id, exp_data in m_dict.items():

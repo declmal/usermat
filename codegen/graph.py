@@ -283,6 +283,10 @@ class Graph(object):
             self.inps, outs, asserts=self.asserts, out_appends=out_appends)
         return dg
 
+    def sort_deps(self):
+        outs = self.asserts + self.outs
+        dfs_visit(outs, "dfs_sort_deps")
+
     def optimize(self):
         # var,scalar
         # abs,sin,cos,lessthan,nomorethan

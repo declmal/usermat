@@ -28,4 +28,5 @@ class TestPower3(unittest.TestCase):
         g = Graph([v0,v4], [v11])
         g.optimize()
         g.merge()
+        g.sort_deps()
         g.tosym()

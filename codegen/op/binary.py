@@ -48,6 +48,11 @@ class Multiply(Op):
             sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
+    def dfs_sort_deps(self, val_dict):
+        deps = self.deps
+        ndeps = sorted(deps)
+        self.deps = ndeps
+
     @classmethod
     def topo_fuse(cls, sign_dict, *deps):
         x, y = deps
@@ -134,6 +139,11 @@ class Add(Op):
             dop = od.add(d0[i], d1[i])
             cdiff.append(dop)
         val_dict[cop_id] = cdiff
+
+    def dfs_sort_deps(self, val_dict):
+        deps = self.deps
+        ndeps = sorted(deps)
+        self.deps = ndeps
 
     @classmethod
     def topo_fuse(cls, sign_dict, *deps):

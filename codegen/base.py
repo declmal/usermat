@@ -113,6 +113,9 @@ class Op(object):
             sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
+    def dfs_sort_deps(self, val_dict):
+        pass
+
     def dfs_autograph_backward(self, val_dict, var_seq):
         raise NotImplementedError
 

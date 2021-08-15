@@ -9,7 +9,7 @@ from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import \
     sequential_equiv_func, mial_valid_func, merge_monomial_dict, \
-    create_monomial_op, get_monomial_dict_exp
+    create_monomial_op, get_monomial_dict_exp, mial_sort_deps
 
 """ validate function
 """
@@ -140,6 +140,12 @@ class Monomial(Op):
             sign = val_dict[cop_id]
             csign = merge_sign(csign, sign)
         val_dict[cop_id] = csign
+
+    def dfs_sort_deps(self, val_dict):
+        deps = self.deps
+        ndeps = mial_sort_deps(*deps)
+        monomial_valid_func(*ndeps)
+        self.deps = ndeps
 
     def revtopo_infer_sign(self, sign_dict):
         for i in range(1, len(self.deps), 2):

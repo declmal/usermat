@@ -5,8 +5,8 @@ from ..type_utils import One, Zero, FloatTypes, ContradictError
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import sequential_equiv_func
-from .monomial import mial_valid_func, create_monomial_op
+from .op_utils import \
+    sequential_equiv_func, mial_valid_func, create_monomial_op
 
 """ polynomial util functions
 """

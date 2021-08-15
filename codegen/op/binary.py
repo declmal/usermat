@@ -6,9 +6,9 @@ from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import \
-    num_valid_func, sequential_equiv_func, swappable_equiv_func
-from .monomial import \
-    get_monomial_dict, merge_monomial_dict, create_monomial_op
+    num_valid_func, sequential_equiv_func, swappable_equiv_func, \
+    get_monomial_dict, get_monomial_dict, merge_monomial_dict, \
+    create_monomial_op
 from .polynomial import \
     get_polynomial_dict, merge_polynomial_dict, create_polynomial_op
 

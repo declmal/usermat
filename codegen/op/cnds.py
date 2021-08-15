@@ -6,7 +6,7 @@ from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import num_valid_func, sequential_equiv_func
 
-""" cnd util functions
+""" util functions
 """
 def cnd_auto_backward(deps, od_func, val_dict, var_seq):
     lhs, rhs, lv, rv = deps
@@ -19,7 +19,7 @@ def cnd_auto_backward(deps, od_func, val_dict, var_seq):
     return cdiff
 
 
-""" cnd ops
+""" ops
 """
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")

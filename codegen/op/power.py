@@ -7,8 +7,8 @@ from ..type_utils import \
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import num_valid_func, sequential_equiv_func
-from .monomial import \
+from .op_utils import \
+    num_valid_func, sequential_equiv_func, \
     create_monomial_op, get_monomial_dict, get_monomial_dict_exp
 
 """ validate functions

@@ -2,11 +2,11 @@ import numpy as np
 
 from ..sign_utils import \
     infer_negative_sign,infer_abs_sign, OpSign, merge_sign, insert_sign
-from ..type_utils import MinusOne, sequential_equiv_func
+from ..type_utils import MinusOne
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import num_valid_func
+from .op_utils import num_valid_func, sequential_equiv_func
 
 
 """ ops

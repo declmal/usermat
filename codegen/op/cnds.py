@@ -1,11 +1,10 @@
 from ..sign_utils import \
     infer_nomorethan, infer_mutual_sign, infer_lessthan, \
     OpSign, merge_sign
-from ..type_utils import sequential_equiv_func
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import num_valid_func
+from .op_utils import num_valid_func, sequential_equiv_func
 
 """ cnd util functions
 """

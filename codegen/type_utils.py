@@ -27,16 +27,6 @@ def cast_fraction(scalar):
         return scalar
     return Fraction(scalar)
 
-""" equivalent functions
-"""
-sequential_equiv_func = \
-    lambda op_type, ops: [
-        "{}:[{}]".format(op_type, ",".join([str(op.id) for op in ops]))]
-swappable_equiv_func = \
-    lambda op_type, ops: [
-        "{}:[{}]".format(op_type, ",".join(
-            sorted([str(op.id) for op in ops])))]
-
 """ util functions
 """
 def validate_exp(frac_data, exp_data):

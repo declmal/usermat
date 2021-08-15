@@ -5,11 +5,11 @@ from ..sign_utils import \
     revinfer_multiply_sign, revinfer_power_sign, \
     merge_sign, separate_signs, OpSign, insert_sign
 from ..type_utils import \
-    One, Zero, MinusOne, FloatTypes, validate_exp, \
-    sequential_equiv_func, ContradictError
+    One, Zero, MinusOne, FloatTypes, validate_exp, ContradictError
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
+from .op_utils import sequential_equiv_func
 
 """ mial validate function
 """

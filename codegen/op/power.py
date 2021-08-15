@@ -3,12 +3,11 @@ from fractions import Fraction
 from ..sign_utils import \
     infer_power_sign, merge_sign, revinfer_power_sign, OpSign
 from ..type_utils import \
-    One, MinusOne, Zero, validate_exp, ContradictError, \
-    sequential_equiv_func
+    One, MinusOne, Zero, validate_exp, ContradictError
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import num_valid_func
+from .op_utils import num_valid_func, sequential_equiv_func
 from .monomial import \
     create_monomial_op, get_monomial_dict, get_monomial_dict_exp
 

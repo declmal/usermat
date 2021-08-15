@@ -1,12 +1,12 @@
 from ..sign_utils import \
     infer_add_sign, infer_multiply_sign, \
     revinfer_multiply_sign, revinfer_add_sign, merge_sign
-from ..type_utils import \
-    Zero, One, sequential_equiv_func, swappable_equiv_func
+from ..type_utils import Zero, One
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import num_valid_func
+from .op_utils import \
+    num_valid_func, sequential_equiv_func, swappable_equiv_func
 from .monomial import \
     get_monomial_dict, merge_monomial_dict, create_monomial_op
 from .polynomial import \

@@ -11,3 +11,13 @@ def num_valid_func(num_deps):
             assert isinstance(dep, Op), \
                 "invalid type of dep: {}".format(type(dep))
     return wrapper
+
+""" equivalent functions
+"""
+sequential_equiv_func = \
+    lambda op_type, ops: [
+        "{}:[{}]".format(op_type, ",".join([str(op.id) for op in ops]))]
+swappable_equiv_func = \
+    lambda op_type, ops: [
+        "{}:[{}]".format(op_type, ",".join(
+            sorted([str(op.id) for op in ops])))]

@@ -1,14 +1,14 @@
 from fractions import Fraction
 
-from codegen.sign_utils import \
+from ..sign_utils import \
     infer_power_sign, merge_sign, revinfer_power_sign, OpSign
-from codegen.type_utils import \
+from ..type_utils import \
     One, MinusOne, Zero, validate_exp, ContradictError, \
     sequential_equiv_func
-from codegen.op_def import OpDef as od
-from codegen.op_reg import OpReg as org
-from codegen.base import Op, num_valid_func
-from codegen.op.monomial import \
+from ..op_def import OpDef as od
+from ..op_reg import OpReg as org
+from ..base import Op, num_valid_func
+from .monomial import \
     create_monomial_op, get_monomial_dict, get_monomial_dict_exp
 
 """ validate functions

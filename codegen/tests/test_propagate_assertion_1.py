@@ -1,9 +1,9 @@
 import unittest
 from fractions import Fraction
 
-from codegen.type_utils import One
-from codegen.op_def import OpDef as od
-from codegen.graph import Graph
+from ..type_utils import One
+from ..op_def import OpDef as od
+from ..graph import Graph
 from .test_utils import register_test, random_array
 
 @register_test

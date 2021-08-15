@@ -1,12 +1,12 @@
-from codegen.sign_utils import \
+from ..sign_utils import \
     infer_multiply_sign, infer_add_sign, infer_scalar_sign, \
     merge_sign, separate_signs, OpSign, revinfer_multiply_sign
-from codegen.type_utils import \
+from ..type_utils import \
     One, Zero, FloatTypes, sequential_equiv_func, ContradictError
-from codegen.op_def import OpDef as od
-from codegen.op_reg import OpReg as org
-from codegen.base import Op
-from codegen.op.monomial import mial_valid_func, create_monomial_op
+from ..op_def import OpDef as od
+from ..op_reg import OpReg as org
+from ..base import Op
+from .monomial import mial_valid_func, create_monomial_op
 
 """ polynomial util functions
 """

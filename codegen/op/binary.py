@@ -1,14 +1,14 @@
-from codegen.sign_utils import \
+from ..sign_utils import \
     infer_add_sign, infer_multiply_sign, \
     revinfer_multiply_sign, revinfer_add_sign, merge_sign
-from codegen.type_utils import \
+from ..type_utils import \
     Zero, One, sequential_equiv_func, swappable_equiv_func
-from codegen.op_def import OpDef as od
-from codegen.op_reg import OpReg as org
-from codegen.base import Op, num_valid_func
-from codegen.op.monomial import \
+from ..op_def import OpDef as od
+from ..op_reg import OpReg as org
+from ..base import Op, num_valid_func
+from .monomial import \
     get_monomial_dict, merge_monomial_dict, create_monomial_op
-from codegen.op.polynomial import \
+from .polynomial import \
     get_polynomial_dict, merge_polynomial_dict, create_polynomial_op
 
 

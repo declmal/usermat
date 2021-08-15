@@ -1,10 +1,10 @@
-from codegen.sign_utils import \
+from ..sign_utils import \
     infer_nomorethan, infer_mutual_sign, infer_lessthan, \
     OpSign, merge_sign
-from codegen.type_utils import sequential_equiv_func
-from codegen.op_def import OpDef as od
-from codegen.op_reg import OpReg as org
-from codegen.base import Op, num_valid_func
+from ..type_utils import sequential_equiv_func
+from ..op_def import OpDef as od
+from ..op_reg import OpReg as org
+from ..base import Op, num_valid_func
 
 """ cnd util functions
 """

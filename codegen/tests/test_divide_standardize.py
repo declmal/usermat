@@ -4,9 +4,9 @@ from fractions import Fraction
 
 import numpy as np
 
-from codegen.type_utils import Zero
-from codegen.op_def import OpDef as od
-from codegen.graph import Graph
+from ..type_utils import Zero
+from ..op_def import OpDef as od
+from ..graph import Graph
 from .test_utils import register_test, random_array
 
 

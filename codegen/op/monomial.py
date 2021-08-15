@@ -1,15 +1,15 @@
 from fractions import Fraction
-from codegen.sign_utils import \
+from ..sign_utils import \
     infer_power_sign, infer_scalar_sign, infer_multiply_sign_consec, \
     infer_negative_sign, infer_abs_sign, \
     revinfer_multiply_sign, revinfer_power_sign, \
     merge_sign, separate_signs, OpSign, insert_sign
-from codegen.type_utils import \
+from ..type_utils import \
     One, Zero, MinusOne, FloatTypes, validate_exp, \
     sequential_equiv_func, ContradictError
-from codegen.op_def import OpDef as od
-from codegen.op_reg import OpReg as org
-from codegen.base import Op
+from ..op_def import OpDef as od
+from ..op_reg import OpReg as org
+from ..base import Op
 
 """ mial validate function
 """

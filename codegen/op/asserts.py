@@ -1,9 +1,9 @@
-from codegen.type_utils import sequential_equiv_func
-from codegen.sign_utils import \
+from ..type_utils import sequential_equiv_func
+from ..sign_utils import \
     merge_sign, infer_nomorethan, infer_lessthan
-from codegen.op_def import OpDef as od
-from codegen.op_reg import OpReg as org
-from codegen.base import Op, num_valid_func
+from ..op_def import OpDef as od
+from ..op_reg import OpReg as org
+from ..base import Op, num_valid_func
 
 
 """ ops

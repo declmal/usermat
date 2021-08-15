@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from codegen.op_def import OpDef as od
+from ..op_def import OpDef as od
 
 def register_test(cls):
     def info_func(self, s: str) -> None:

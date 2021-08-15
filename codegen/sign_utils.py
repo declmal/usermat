@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from fractions import Fraction
 
-from codegen.op_utils import ContradictError, Zero
+from codegen.type_utils import ContradictError, Zero
 
 
 """ Op Sign Types

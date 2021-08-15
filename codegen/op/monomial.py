@@ -4,7 +4,7 @@ from codegen.sign_utils import \
     infer_negative_sign, infer_abs_sign, \
     revinfer_multiply_sign, revinfer_power_sign, \
     merge_sign, separate_signs, OpSign, insert_sign
-from codegen.op_utils import \
+from codegen.type_utils import \
     One, Zero, MinusOne, FloatTypes, validate_exp, \
     sequential_equiv_func, ContradictError
 from codegen.op_def import OpDef as od

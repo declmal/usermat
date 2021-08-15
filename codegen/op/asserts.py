@@ -1,4 +1,4 @@
-from codegen.op_utils import sequential_equiv_func
+from codegen.type_utils import sequential_equiv_func
 from codegen.sign_utils import \
     merge_sign, infer_nomorethan, infer_lessthan
 from codegen.op_def import OpDef as od

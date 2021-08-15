@@ -4,7 +4,7 @@ import logging
 
 import mxnet as mx
 
-from codegen.op_utils import cast_float
+from codegen.type_utils import cast_float
 from codegen.sign_utils import infer_scalar_sign
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org

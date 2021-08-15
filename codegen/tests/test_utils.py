@@ -1,5 +1,7 @@
 import logging
 
+import numpy as np
+
 from codegen.op_def import OpDef as od
 
 def register_test(cls):
@@ -31,3 +33,10 @@ def register_test(cls):
         func = register_test_func(func)
         setattr(cls, func_name, func)
     return cls
+
+def random_array(shape, low=0.0, high=1.0, to_list=True):
+    data = np.random.rand(*shape)
+    data = low + (high-low)*data
+    if to_list:
+        data = data.tolist()
+    return data

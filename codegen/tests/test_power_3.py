@@ -6,9 +6,8 @@ import numpy as np
 
 from codegen.op_def import OpDef as od
 from codegen.graph import Graph
-from codegen.op_utils import ContradictError, MinusOne
-from codegen.utils import random_array
-from codegen.test_utils import register_test
+from codegen.type_utils import ContradictError, MinusOne
+from .test_utils import register_test, random_array
 
 
 @register_test

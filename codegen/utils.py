@@ -1,9 +1,7 @@
 import logging
 import time
 from functools import wraps
-from typing import List, Any
 
-import numpy as np
 
 #   int values: 0(None) by default, 10(DEBUG),
 #     20(INFO), 30(WARNING), 40(ERROR), 50(CRITICAL).
@@ -116,12 +114,3 @@ def timethis(func):
             func.__name__, end-start)
         return result
     return _wrapper
-
-def random_array(
-    shape: List[Any], low: float=0.0,
-    high: float=1.0, to_list=True):
-    data = np.random.rand(*shape)
-    data = low + (high-low)*data
-    if to_list:
-        data = data.tolist()
-    return data

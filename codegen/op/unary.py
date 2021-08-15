@@ -2,7 +2,7 @@ import numpy as np
 
 from codegen.sign_utils import \
     infer_negative_sign,infer_abs_sign, OpSign, merge_sign, insert_sign
-from codegen.op_utils import MinusOne, sequential_equiv_func
+from codegen.type_utils import MinusOne, sequential_equiv_func
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op, num_valid_func

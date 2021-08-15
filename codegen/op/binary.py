@@ -1,7 +1,7 @@
 from codegen.sign_utils import \
     infer_add_sign, infer_multiply_sign, \
     revinfer_multiply_sign, revinfer_add_sign, merge_sign
-from codegen.op_utils import \
+from codegen.type_utils import \
     Zero, One, sequential_equiv_func, swappable_equiv_func
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org

@@ -2,7 +2,7 @@ from fractions import Fraction
 
 from codegen.sign_utils import \
     infer_power_sign, merge_sign, revinfer_power_sign, OpSign
-from codegen.op_utils import \
+from codegen.type_utils import \
     One, MinusOne, Zero, validate_exp, ContradictError, \
     sequential_equiv_func
 from codegen.op_def import OpDef as od

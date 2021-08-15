@@ -1,4 +1,4 @@
-from codegen.op_utils import cast_fraction
+from codegen.type_utils import cast_fraction
 
 
 """ Op Definition Manager

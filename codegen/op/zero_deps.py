@@ -3,7 +3,7 @@ import logging
 import mxnet as mx
 
 from codegen.sign_utils import infer_scalar_sign, merge_sign
-from codegen.op_utils import Zero, One, FloatTypes, cast_fraction
+from codegen.type_utils import Zero, One, FloatTypes, cast_fraction
 from codegen.op_def import OpDef as od
 from codegen.op_reg import OpReg as org
 from codegen.base import Op

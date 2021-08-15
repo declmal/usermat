@@ -26,16 +26,15 @@ class Op(object):
         self.id = op_id
 
     def info(self, ext=None):
-        deps_info = ""
+        s = "id:{}____op_type:{}".format(self.id, self.op_type)
         if self.deps:
             deps_info = "deps:" + \
                 ",".join([str(dep.id) for dep in self.deps])
-        ext_info = ""
+            s = "____".join([s, deps_info])
         if ext is not None:
             ext_info = "ext:{}".format(ext)
-        s = "id:{},op_type:{}".format(self.id, self.op_type)
-        _info = ",".join([s, ext_info, deps_info])
-        return _info
+            s = "____".join([s, ext_info])
+        return s
 
     @classmethod
     def default_op(cls, *deps):

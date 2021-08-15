@@ -3,7 +3,7 @@ import logging
 import mxnet as mx
 
 from ..sign_utils import infer_scalar_sign, merge_sign
-from ..type_utils import Zero, One, FloatTypes, cast_fraction
+from ..type_utils import Zero, One, FloatTypes, cast_fraction, cast_float
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
@@ -32,17 +32,20 @@ class Scalar(Op):
     def dfs_tosym(self, val_dict):
         cop_id = self.id
         assert cop_id not in val_dict
-        sym_name = self.info(ext=self.data)
+        data = cast_float(self.data)
+        sym_name = self.info(ext=data)
         sym = mx.sym.var(name=sym_name)
         val_dict[cop_id] = sym
 
     def dfs_display(
         self, val_dict, logger=logging.getLogger("op_info")):
-        _info = self.info(ext=self.data)
+        data = cast_float(self.data)
+        _info = self.info(ext=data)
         logger.debug(_info)
 
     def dfs_info(self, val_dict):
-        _info = self.info(ext=self.data)
+        data = cast_float(self.data)
+        _info = self.info(ext=data)
         op_id = self.id
         val_dict[op_id] = _info
 

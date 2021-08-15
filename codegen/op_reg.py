@@ -6,6 +6,7 @@ from .op_def import OpDef as od
 """
 class OpReg(object):
     supported_ops = {}
+    ops_priority = {}
     op_supported_opts = {}
     supported_opts = set()
 
@@ -19,12 +20,27 @@ class OpReg(object):
         return cls
 
     @staticmethod
+    def _var_func(cls):
+        def wrapper(name):
+            if od.query_var(name):
+                op = od.get_var(name)
+                return op
+            op = cls(name)
+            od.set_id(op)
+            op_id = op.id
+            od.var_map[name] = op
+            od.id_map[op.id] = op
+            return op
+        return wrapper
+
+    @staticmethod
     def _scalar_func(cls):
         def wrapper(data):
             nv = cast_fraction(data)
-            if nv in od.scalar_map:
-                return od.scalar_map[nv]
-            op = cls(data)
+            if od.query_scalar(nv):
+                op = od.get_scalar(nv)
+                return op
+            op = cls(nv)
             od.set_id(op)
             op_id = op.id
             od.scalar_map[nv] = op
@@ -59,6 +75,7 @@ class OpReg(object):
             assert op_type not in OpReg.supported_ops, \
                 "op_type: {} has been registered, ".format(op_type) + \
                 "supported_ops: {}".format(OpReg.supported_ops)
+            assert op_type not in OpReg.ops_priority
             setattr(cls, "op_type", op_type)
             # set validate functions for init
             def op_valid_func(init_func):
@@ -75,6 +92,7 @@ class OpReg(object):
             setattr(cls, "op_equiv_func", op_equiv_func)
             # update op manager
             OpReg.supported_ops[op_type] = cls
+            OpReg.ops_priority[op_type] = len(OpReg.ops_priority)
             _op_supported_opts = OpReg.op_supported_opts[op_type] = set()
             for k, v in cls.__dict__.items():
                 if k.startswith("topo_") or k.startswith("dfs_") or \
@@ -83,6 +101,8 @@ class OpReg(object):
             # set up op_def
             if op_type == "scalar":
                 setattr(od, op_type, OpReg._scalar_func(cls))
+            # elif op_type == "var":
+                # setattr(od, op_type, OpReg._var_func(cls))
             else:
                 setattr(od, op_type, OpReg._op_func(cls))
             return cls
@@ -121,3 +141,10 @@ class OpReg(object):
                 op_type, callback)
         opt_func = getattr(cls, callback)
         return opt_func
+
+    @staticmethod
+    def get_priority(op_type):
+        assert op_type in OpReg.ops_priority, \
+            "invalid op_type: {}".format(op_type)
+        priority = OpReg.ops_priority[op_type]
+        return priority

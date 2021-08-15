@@ -125,6 +125,20 @@ class Op(object):
             return True
         if n > n1:
             return False
+        op_type = self.op_type
+        priority = org.get_priority(op_type)
+        op_type1 = other.op_type
+        priority1 = org.get_priority(op_type1)
+        if priority < priority1:
+            return True
+        if priority > priority1:
+            return False
+        if op_type == org.get_op_cls("scalar"):
+            if self.data < other.data:
+                return True
+            return False
+        if op_type == org.get_op_cls("var"):
+            pass
         for i in range(n):
             dep = self.deps[i]
             dep1 = other.deps[i]
@@ -132,3 +146,7 @@ class Op(object):
                 return True
             if dep > dep1:
                 return False
+        return False
+
+    def __gt__(self, other):
+        pass

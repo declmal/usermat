@@ -1,14 +1,36 @@
 from ..sign_utils import \
     infer_multiply_sign, infer_add_sign, infer_scalar_sign, \
     merge_sign, separate_signs, OpSign, revinfer_multiply_sign
-from ..type_utils import One, Zero, FloatTypes, ContradictError
-from ..op_def import OpDef as od
+from ..type_utils import One, ContradictError
 from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import \
-    sequential_equiv_func, mial_valid_func, create_monomial_op
+    sequential_equiv_func, mial_valid_func, \
+    get_polynomial_dict, merge_polynomial_dict, create_polynomial_op
 
-""" polynomial util functions
+""" revinfer function
+"""
+def revinfer_polynomial_sign(deps, signs, ysign, lst, sign_dict):
+    for i, sign in enumerate(signs):
+        if sign not in signs:
+            break
+    if i == 0:
+        scalar = deps[0]
+        scalar_data = scalar.data
+        scalar_sign = infer_scalar_sign(scalar_data)
+        merge_sign(scalar_sign, ysign)
+        return
+    ind = 2*i - 1
+    var, coef = deps[ind:ind+2]
+    coef_data = coef.data
+    coef_sign = infer_scalar_sign(coef_data)
+    dep_sign = revinfer_multiply_sign(ysign, coef_sign)
+    var_id = var.id
+    var_sign = sign_dict[var_id]
+    sign = merge_sign(var_sign, dep_sign)
+    sign_dict[var_id] = sign
+
+""" util functions
 """
 def set_polynomial_deps_sign(deps, isign, sign_dict):
     for i in range(1, len(self.deps), 2):
@@ -36,107 +58,6 @@ def get_polynomial_signs(deps, sign_dict):
         sign = infer_multiply_sign(var_sign, coef_sign)
         signs.append(sign)
     return signs
-
-def validate_polynomial_dict(m_dict):
-    assert isinstance(m_dict, dict) and -1 in m_dict, m_dict
-    for op_id, coef_data in m_dict.items():
-        assert isinstance(op_id, int), type(op_id)
-        assert isinstance(coef_data, FloatTypes), type(coef_data)
-        if op_id == -1:
-            continue
-        frac = od.get_op(op_id)
-
-def get_polynomial_dict(op):
-    if isinstance(op, org.get_op_cls("polynomial")):
-        scalar = op.deps[0]
-        scalar_data = scalar.data
-        m_dict = {-1: scalar_data}
-        for i in range(1, len(op.deps), 2):
-            var, coef = op.deps[i:i+2]
-            coef_data = coef.data
-            var_id = var.id
-            m_dict[var_id] = coef_data
-    elif isinstance(op, org.get_op_cls("scalar")):
-        scalar_data = op.data
-        m_dict = {-1: scalar_data}
-    else:
-        op_id = op.id
-        m_dict = {-1: Zero, op_id: One}
-    validate_polynomial_dict(m_dict)
-    return m_dict
-
-def merge_polynomial_dict(m_dict1, m_dict2):
-    validate_polynomial_dict(m_dict1)
-    validate_polynomial_dict(m_dict2)
-    m_dict = m_dict2.copy()
-    for op_id, scalar_data in m_dict1.items():
-        if op_id == -1:
-            m_dict[-1] += scalar_data
-            continue
-        if op_id not in m_dict:
-            m_dict[op_id] = scalar_data
-            continue
-        scalar_data2 = m_dict[op_id]
-        _sum = scalar_data2 + scalar_data
-        if _sum == Zero:
-            del m_dict[op_id]
-        else:
-            m_dict[op_id] = _sum
-    validate_polynomial_dict(m_dict)
-    return m_dict
-
-def create_polynomial_op(m_dict):
-    validate_polynomial_dict(m_dict)
-    scalar_data = m_dict[-1]
-    if len(m_dict) == 1:
-        op = od.scalar(scalar_data)
-        return op
-    deps = []
-    for op_id, coef_data in m_dict.items():
-        if op_id == -1:
-            continue
-        if coef_data == Zero:
-            continue
-        var = od.get_op(op_id)
-        if isinstance(var, org.get_op_cls("scalar")):
-            var_data = var.data
-            inc = var_data * coef_data
-            scalar_data += inc
-            continue
-        deps.append(var)
-        coef = od.scalar(coef_data)
-        deps.append(coef)
-    if len(deps) == 2 and scalar_data == Zero:
-        var, coef = deps[:2]
-        coef_data = coef.data
-        var_id = var.id
-        m_dict = {-1: coef_data, var_id: One}
-        op = create_monomial_op(m_dict)
-        return op
-    scalar = od.scalar(scalar_data)
-    deps = [scalar] + deps
-    op = od.polynomial(*deps)
-    return op
-
-def revinfer_polynomial_sign(deps, signs, ysign, lst, sign_dict):
-    for i, sign in enumerate(signs):
-        if sign not in signs:
-            break
-    if i == 0:
-        scalar = deps[0]
-        scalar_data = scalar.data
-        scalar_sign = infer_scalar_sign(scalar_data)
-        merge_sign(scalar_sign, ysign)
-        return
-    ind = 2*i - 1
-    var, coef = deps[ind:ind+2]
-    coef_data = coef.data
-    coef_sign = infer_scalar_sign(coef_data)
-    dep_sign = revinfer_multiply_sign(ysign, coef_sign)
-    var_id = var.id
-    var_sign = sign_dict[var_id]
-    sign = merge_sign(var_sign, dep_sign)
-    sign_dict[var_id] = sign
 
 
 """ polynomial op

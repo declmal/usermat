@@ -11,28 +11,9 @@ from ..base import Op
 
 """ ops
 """
-@org.register_opt("dfs_infer_sign")
-@org.register_opt("dfs_tosym")
-@org.register_opt("dfs_display")
-@org.register_opt("dfs_info")
-@org.register_opt("topo_fuse")
-@org.register_opt("topo_standardize")
-@org.register_opt("revtopo_infer_sign")
 @org.register_op()
-class Var(Op):
-    @classmethod
-    def topo_degenerate(cls, sign_dict, *deps):
-        return cls.default_op(*deps)
-
-    def dfs_forward(self, val_dict):
-        pass
-
-    def dfs_autograph_backward(self, val_dict, var_seq):
-        cop_id = self.id
-        assert cop_id not in val_dict
-        cdiff = [od.scalar(Zero)] * len(var_seq)
-        cdiff[var_seq[cop_id]] = od.scalar(One)
-        val_dict[cop_id] = cdiff
+class Null(Op):
+    pass
 
 
 @org.register_opt("revtopo_infer_sign")
@@ -81,6 +62,25 @@ class Scalar(Op):
         val_dict[cop_id] = sign
 
 
+@org.register_opt("dfs_infer_sign")
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_display")
+@org.register_opt("dfs_info")
+@org.register_opt("topo_fuse")
+@org.register_opt("topo_standardize")
+@org.register_opt("revtopo_infer_sign")
 @org.register_op()
-class Null(Op):
-    pass
+class Var(Op):
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        return cls.default_op(*deps)
+
+    def dfs_forward(self, val_dict):
+        pass
+
+    def dfs_autograph_backward(self, val_dict, var_seq):
+        cop_id = self.id
+        assert cop_id not in val_dict
+        cdiff = [od.scalar(Zero)] * len(var_seq)
+        cdiff[var_seq[cop_id]] = od.scalar(One)
+        val_dict[cop_id] = cdiff

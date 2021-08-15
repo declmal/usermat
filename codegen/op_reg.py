@@ -20,16 +20,26 @@ class OpReg(object):
         return cls
 
     @staticmethod
+    def _null_func(cls):
+        def wrapper():
+            if od.query_null():
+                op = od.get_null()
+                return op
+            op = cls()
+            od.set_null(op)
+            od.set_op(op)
+            return op
+        return wrapper
+
+    @staticmethod
     def _var_func(cls):
         def wrapper(name):
             if od.query_var(name):
                 op = od.get_var(name)
                 return op
             op = cls(name)
-            od.set_id(op)
-            op_id = op.id
-            od.var_map[name] = op
-            od.id_map[op.id] = op
+            od.set_var(name, op)
+            od.set_op(op)
             return op
         return wrapper
 
@@ -41,10 +51,8 @@ class OpReg(object):
                 op = od.get_scalar(nv)
                 return op
             op = cls(nv)
-            od.set_id(op)
-            op_id = op.id
-            od.scalar_map[nv] = op
-            od.id_map[op.id] = op
+            od.set_scalar(nv, op)
+            od.set_op(op)
             return op
         return wrapper
 
@@ -53,16 +61,13 @@ class OpReg(object):
         def wrapper(*deps):
             equivs = cls.op_equiv_func(deps)
             for equiv in equivs:
-                if equiv in od.equiv_map:
-                    equiv_op = od.equiv_map[equiv]
-                    return equiv_op
+                if od.query_equiv(equiv):
+                    op = od.get_equiv(equiv)
+                    return op
             op = cls(*deps)
-            od.set_id(op)
+            od.set_op(op)
             for equiv in equivs:
-                od.equiv_map[equiv] = op
-            op_id = op.id
-            od.id_map[op_id] = op
-            op_type = getattr(cls, "op_type")
+                od.set_equiv(equiv, op)
             return op
         return wrapper
 
@@ -103,6 +108,8 @@ class OpReg(object):
                 setattr(od, op_type, OpReg._scalar_func(cls))
             elif op_type == "var":
                 setattr(od, op_type, OpReg._var_func(cls))
+            elif op_type == "null":
+                setattr(od, op_type, OpReg._null_func(cls))
             else:
                 setattr(od, op_type, OpReg._op_func(cls))
             return cls

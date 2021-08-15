@@ -5,7 +5,7 @@ import logging
 import mxnet as mx
 
 from .type_utils import cast_float
-from .sign_utils import infer_scalar_sign
+from .sign_utils import infer_scalar_sign, OpSign
 from .op_def import OpDef as od
 from .op_reg import OpReg as org
 from .base import Op
@@ -85,6 +85,11 @@ def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
             sign = sign_dict[op_id]
             nop_id = nop.id
             nsign_dict[nop_id] = sign
+        elif isinstance(op, org.get_op_cls("null")):
+            nop = od.null()
+            graph[op_id] = nop
+            nop_id = nop.id
+            nsign_dict[nop_id] = OpSign.UNDEFINED
         else:
             ndeps = []
             for dep in op.deps:

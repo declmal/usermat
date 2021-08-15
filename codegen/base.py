@@ -136,7 +136,9 @@ class Op(object):
                 return True
             return False
         if op_type == org.get_op_cls("var"):
-            pass
+            if self.name < other.name:
+                return True
+            return False
         for i in range(n):
             dep = self.deps[i]
             dep1 = other.deps[i]
@@ -147,4 +149,45 @@ class Op(object):
         return False
 
     def __gt__(self, other):
-        pass
+        n = len(self.deps)
+        n1 = len(other.deps)
+        if n > n1:
+            return True
+        if n < n1:
+            return False
+        op_type = self.op_type
+        priority = org.get_priority(op_type)
+        op_type1 = other.op_type
+        priority1 = org.get_priority(op_type1)
+        if priority > priority1:
+            return True
+        if priority < priority1:
+            return False
+        if op_type == org.get_op_cls("scalar"):
+            if self.data > other.data:
+                return True
+            return False
+        if op_type == org.get_op_cls("var"):
+            if self.name > other.name:
+                return True
+            return False
+        for i in range(n):
+            dep = self.deps[i]
+            dep1 = other.deps[i]
+            if dep > dep1:
+                return True
+            if dep < dep1:
+                return False
+        return False
+
+    def __eq__(self, other):
+        return not self.__lt__(other) and not self.__gt__(other)
+
+    def __le__(self, other):
+        return not self.__gt__(other)
+
+    def __ge__(self, other):
+        return not self.__lt__(other)
+
+    def __ne__(self, other):
+        return self.__lt__(other) or self.__gt__(other)

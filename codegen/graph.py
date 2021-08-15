@@ -332,3 +332,15 @@ class Graph(object):
         logger.debug(
             "graph infer_sign has been run for {} passes".format(cnt))
         return sign_dict_1
+
+    def __eq__(self, other):
+        self.sort_deps()
+        other.sort_deps()
+        outs = self.outs + self.asserts
+        outs1 = other.outs + other.asserts
+        if len(outs) != len(outs1):
+            return False
+        for i in range(len(outs)):
+            if outs[i] != outs1[i]:
+                return False
+        return True

@@ -7,7 +7,8 @@ from ..type_utils import \
     sequential_equiv_func
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from ..base import Op, num_valid_func
+from ..base import Op
+from .op_utils import num_valid_func
 from .monomial import \
     create_monomial_op, get_monomial_dict, get_monomial_dict_exp
 

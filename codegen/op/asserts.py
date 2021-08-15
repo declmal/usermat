@@ -3,7 +3,8 @@ from ..sign_utils import \
     merge_sign, infer_nomorethan, infer_lessthan
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from ..base import Op, num_valid_func
+from ..base import Op
+from .op_utils import num_valid_func
 
 
 """ ops

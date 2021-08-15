@@ -4,7 +4,8 @@ from ..sign_utils import \
 from ..type_utils import sequential_equiv_func
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from ..base import Op, num_valid_func
+from ..base import Op
+from .op_utils import num_valid_func
 
 """ cnd util functions
 """

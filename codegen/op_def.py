@@ -11,7 +11,6 @@ class OpDef(object):
     id_map = {}
     scalar_map = {}
     var_map = {}
-    sign_map = {}
     null_op = None
 
     @staticmethod
@@ -20,15 +19,8 @@ class OpDef(object):
         OpDef.equiv_map.clear()
         OpDef.id_map.clear()
         OpDef.scalar_map.clear()
-        OpDef.sign_map.clear()
         OpDef.var_map.clear()
         OpDef.null_op = None
-
-    @staticmethod
-    def get_sign(op_id):
-        assert op_id in OpDef.sign_map, \
-            "op id: {} not in sign_map: {}".format(op_id, OpDef.sign_map)
-        return OpDef.sign_map[op_id]
 
     @staticmethod
     def query_equiv(equiv):

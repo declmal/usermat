@@ -1,13 +1,13 @@
 import logging
 
-import utils
-import codegen.op.monomial
-import codegen.op.polynomial
-import codegen.op.cnds
-import codegen.op.binary
-import codegen.op.unary
-import codegen.op.power
-import codegen.op.asserts
-import codegen.op.zero_deps
+from .log_utils import log_init
+from .op import monomial
+from .op import polynomial
+from .op import cnds
+from .op import binary
+from .op import unary
+from .op import power
+from .op import asserts
+from .op import zero_deps
 
-utils.log_init(level=logging.DEBUG)
+log_init(level=logging.DEBUG)

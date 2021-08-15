@@ -4,12 +4,12 @@ import logging
 
 import mxnet as mx
 
-from codegen.type_utils import cast_float
-from codegen.sign_utils import infer_scalar_sign
-from codegen.op_def import OpDef as od
-from codegen.op_reg import OpReg as org
-from codegen.base import Op
-from codegen.sym_utils import sym_rename
+from .type_utils import cast_float
+from .sign_utils import infer_scalar_sign
+from .op_def import OpDef as od
+from .op_reg import OpReg as org
+from .base import Op
+from .sym_utils import sym_rename
 
 """ visit passes
 """

@@ -1,5 +1,5 @@
-from codegen.type_utils import cast_fraction
-from codegen.op_def import OpDef as od
+from .type_utils import cast_fraction
+from .op_def import OpDef as od
 
 
 """ Op Registration Manager

@@ -2,10 +2,10 @@ import logging
 
 import mxnet as mx
 
-from codegen.sign_utils import OpSign, merge_sign
-from codegen.type_utils import cast_float
-from codegen.op_def import OpDef as od
-from codegen.op_reg import OpReg as org
+from .sign_utils import OpSign, merge_sign
+from .type_utils import cast_float
+from .op_def import OpDef as od
+from .op_reg import OpReg as org
 
 """ base Op
 """

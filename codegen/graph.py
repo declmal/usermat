@@ -57,6 +57,16 @@ def topo_sort(op_group):
                 del res[nid]
     return topo_seq
 
+def od_infer_sign(op):
+    op_id = op.id
+    if od.query_sign(op_id):
+        return
+    for dep in op.deps:
+        od_infer_sign(dep)
+    od_sign_dict = od.get_sign_dict()
+    infer_sign_func = org.get_opt(op, "dfs_infer_sign")
+    infer_sign_func(op, od_sign_dict)
+
 def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
     sign_dict = sign_dict_ref.copy()
     nsign_dict = {}
@@ -74,22 +84,14 @@ def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
         if isinstance(op, org.get_op_cls("scalar")):
             data = op.data
             nop = od.scalar(data)
-            graph[op_id] = nop
             sign = infer_scalar_sign(data)
-            nop_id = nop.id
-            nsign_dict[nop_id] = sign
         elif isinstance(op, org.get_op_cls("var")):
             name = op.name
             nop = od.var(name)
-            graph[op_id] = nop
             sign = sign_dict[op_id]
-            nop_id = nop.id
-            nsign_dict[nop_id] = sign
         elif isinstance(op, org.get_op_cls("null")):
             nop = od.null()
-            graph[op_id] = nop
-            nop_id = nop.id
-            nsign_dict[nop_id] = OpSign.UNDEFINED
+            sign = OpSign.UNDEFINED
         else:
             ndeps = []
             for dep in op.deps:
@@ -100,14 +102,20 @@ def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
                 ndeps.append(ndep)
             topo_func = org.get_opt(op, callback)
             nop = topo_func(nsign_dict, *ndeps)
-            graph[op_id] = nop
             if isinstance(nop, org.get_op_cls("scalar")):
                 data = nop.data
                 sign = infer_scalar_sign(data)
+            elif isinstance(nop, org.get_op_cls("null")):
+                sign = OpSign.UNDEFINED
             else:
                 sign = sign_dict[op_id]
-            nop_id = nop.id
-            nsign_dict[nop_id] = sign
+        # update graph
+        graph[op_id] = nop
+        # update nsign_dict
+        nop_id = nop.id
+        nsign_dict[nop_id] = sign
+        # infer sign for op def
+        od_infer_sign(nop)
     ninps = [graph[op_id] for op_id in inp_ids]
     nouts = [graph[op_id] for op_id in out_ids]
     nasserts = [graph[op_id] for op_id in assert_ids]
@@ -144,7 +152,8 @@ def dfs_visit(outs, callback, init_val_dict={}, **kwargs):
 """
 def register_graph_topo(cls):
     def graph_topo(callback):
-        def wrapper(self):
+        def wrapper(
+            self, logger=logging.getLogger("graph.{}".format(callback))):
             sign_dict = self.infer_sign()
             self.inps, self.outs, self.asserts, nsign_dict = topo_visit(
                 self.inps, self.outs, self.asserts, callback,
@@ -158,6 +167,7 @@ def register_graph_topo(cls):
                     continue
                 nasserts.append(assert_op)
             self.asserts = nasserts
+            logger.info("graph has been optimized: {}".format(callback))
             return nsign_dict
         return wrapper
 
@@ -280,7 +290,8 @@ class Graph(object):
             for o in out_diff:
                 outs.append(o)
         dg = Graph(
-            self.inps, outs, asserts=self.asserts, out_appends=out_appends)
+            self.inps, outs, asserts=self.asserts,
+            out_appends=out_appends)
         return dg
 
     def sort_deps(self):

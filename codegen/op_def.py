@@ -1,6 +1,7 @@
 from fractions import Fraction
 
 from .type_utils import cast_fraction
+from .sign_utils import OpSign
 
 
 """ Op Definition Manager
@@ -12,6 +13,7 @@ class OpDef(object):
     scalar_map = {}
     var_map = {}
     null_op = None
+    sign_dict = {}
 
     @staticmethod
     def reset():
@@ -21,6 +23,18 @@ class OpDef(object):
         OpDef.scalar_map.clear()
         OpDef.var_map.clear()
         OpDef.null_op = None
+        OpDef.sign_dict.clear()
+
+    @staticmethod
+    def query_sign(op_id):
+        assert isinstance(op_id, int), type(op_id)
+        if op_id in OpDef.sign_dict:
+            return True
+        return False
+
+    @staticmethod
+    def get_sign_dict():
+        return OpDef.sign_dict
 
     @staticmethod
     def query_equiv(equiv):

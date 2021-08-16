@@ -305,6 +305,7 @@ class Graph(object):
             info_dict_1 = info_dict_2.copy()
         logger.debug(
             "graph merge has been run for {} passes".format(cnt))
+        self.sort_deps()
 
     def infer_sign(self, logger=logging.getLogger("graph.infer_sign")):
         sign_dict_1 = {}

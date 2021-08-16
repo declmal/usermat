@@ -15,6 +15,7 @@ from .op_utils import num_valid_func, sequential_equiv_func
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_display")
 @org.register_opt("dfs_info")
+@org.register_opt("dfs_sort_deps")
 @org.register_opt("topo_standardize")
 @org.register_opt("topo_fuse")
 @org.register_op(

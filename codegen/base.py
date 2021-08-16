@@ -26,6 +26,9 @@ class Op(object):
     def set_id(self, op_id):
         self.id = op_id
 
+    def merge(self, other):
+        raise NotImplementedError
+
     def info(self, ext=None):
         s = "id:{}____op_type:{}".format(self.id, self.op_type)
         if self.deps:

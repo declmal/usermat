@@ -1,49 +1,100 @@
-from ..type_utils import Zero
+from ..type_utils import Zero, ContradictError
 from ..sign_utils import \
     merge_sign, infer_nomorethan, infer_lessthan, OpSign
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import \
-    num_valid_func, sequential_equiv_func, swappable_equiv_func, \
-    swap_sort_deps
+from .op_utils import num_valid_func, sequential_equiv_func
 
 
 """ ops
 """
 @org.register_opt("dfs_sort_deps")
 @org.register_op(
-    valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
-class AssertLessThan(Op):
-    def fwd_func(cls, v0, v1):
-        assert v0 < v1
+    valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
+class AssertNegative(Op):
+    def fwd_func(cls):
+        assert v0 < 0
         return 1.0
+
+    def merge(self, other):
+        op_type = other.op_type
+        assert op_type.startswith("assert"), type(op_type)
+        dep, odep = self.deps[0], other.deps[0]
+        dep_id, odep_id = dep.id, odep.id
+        assert dep_id == odep_id, \
+            "dep_id: {}, odep_id: {}".format(dep_id, odep_id)
+        if self == other:
+            return self
+        if isinstance(
+            other, (org.get_op_cls("assertnotzero"),
+                org.get_op_cls("assertnonpositive"))):
+            return self
+        raise ContradictError
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        x, y = deps
-        xid, yid = x.id, y.id
-        xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if infer_nomorethan(ysign, xsign):
+        dep = deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        if infer_nomorethan(OpSign.ZERO, dep_sign):
             raise ContradictError
-        if infer_lessthan(xsign, ysign):
+        if infer_lessthan(dep_sign, OpSign):
             op = od.null()
             return op
         op = cls.default_op(*deps)
         return op
 
     def revtopo_infer_sign(self, sign_dict):
-        x, y = self.deps
-        xid, yid = x.id, y.id
-        xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if xsign in [OpSign.NON_NEGATIVE, OpSign.POSITIVE]:
-            ysign = merge_sign(ysign, OpSign.POSITIVE)
-            sign_dict[yid] = ysign
-            return
-        if ysign in [OpSign.ZERO, OpSign.NON_POSITIVE, OpSign.NEGATIVE]:
-            xsign = merge_sign(xsign, OpSign.NEGATIVE)
-            sign_dict[xid] = xsign
-            return
+        dep = self.deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        sign = merge_sign(dep_sign, OpSign.NEGATIVE)
+        sign_dict[dep_id] = sign
+
+
+@org.register_opt("dfs_sort_deps")
+@org.register_op(
+    valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
+class AssertPositive(Op):
+    def fwd_func(cls):
+        assert v0 > 0
+        return 1.0
+
+    def merge(self, other):
+        op_type = other.op_type
+        assert op_type.startswith("assert"), op_type
+        dep, odep = self.deps[0], other.deps[0]
+        dep_id, odep_id = dep.id, odep.id
+        assert dep_id == odep_id, \
+            "dep_id: {}, odep_id: {}".format(dep_id, odep_id)
+        if self == other:
+            return self
+        if isinstance(
+            other, (org.get_op_cls("assertnotzero"),
+                org.get_op_cls("assertnonnegative"))):
+            return self
+        raise ContradictError
+
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        dep = deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        if infer_nomorethan(dep_sign, OpSign.ZERO):
+            raise ContradictError
+        if infer_lessthan(OpSign.ZERO, dep_sign):
+            op = od.null()
+            return op
+        op = cls.default_op(*deps)
+        return op
+
+    def revtopo_infer_sign(self, sign_dict):
+        dep = self.deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        sign = merge_sign(dep_sign, OpSign.POSITIVE)
+        sign_dict[dep_id] = sign
 
 
 @org.register_opt("dfs_sort_deps")
@@ -51,101 +102,190 @@ class AssertLessThan(Op):
 @org.register_opt("dfs_infer_sign")
 @org.register_opt("topo_zerify")
 @org.register_op(
-    valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
-class AssertNoMoreThan(Op):
-    def fwd_func(cls, v0, v1):
-        assert v0 <= v1
+    valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
+class AssertNonPositive(Op):
+    def fwd_func(cls, v0):
+        assert v0 <= 0
         return 1.0
+
+    def merge(self, other):
+        op_type = other.op_type
+        assert op_type.startswith("assert"), op_type
+        dep, odep = self.deps[0], other.deps[0]
+        dep_id, odep_id = dep.id, odep.id
+        assert dep_id == odep_id, \
+            "dep_id: {}, odep_id: {}".format(dep_id, odep_id)
+        if self == other:
+            return self
+        if isinstance(
+            other, (org.get_op_cls("assertzero"),
+                org.get_op_cls("assertnegative"))):
+            return other
+        if isinstance(other, org.get_op_cls("assertnonzero")):
+            op = od.assertnegative(dep)
+            return op
+        if isinstance(other, org.get_op_cls("assertnonnegative")):
+            op = od.assertzero(dep)
+            return op
+        raise ContradictError
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        x, y = deps
-        xid, yid = x.id, y.id
-        xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if infer_lessthan(ysign, xsign):
+        dep = deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        if infer_lessthan(OpSign.ZERO, dep_sign):
             raise ContradictError
-        if infer_nomorethan(xsign, ysign):
+        if infer_nomorethan(dep_sign, OpSign.ZERO):
             op = od.null()
             return op
         op = cls.default_op(*deps)
         return op
 
     def revtopo_infer_sign(self, sign_dict):
-        x, y = self.deps
-        xid, yid = x.id, y.id
-        xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if xsign == OpSign.POSITIVE:
-            ysign = merge_sign(ysign, OpSign.POSITIVE)
-            sign_dict[yid] = ysign
-            return
-        if xsign in [OpSign.ZERO, OpSign.NON_NEGATIVE]:
-            ysign = merge_sign(ysign, OpSign.NON_NEGATIVE)
-            sign_dict[yid] = ysign
-            return
-        if ysign in [OpSign.ZERO, OpSign.NON_POSITIVE]:
-            xsign = merge_sign(xsign, OpSign.NON_POSITIVE)
-            sign_dict[xid] = xsign
-            return
-        if ysign == OpSign.NEGATIVE:
-            xsign = merge_sign(xsign, OpSign.NEGATIVE)
-            sign_dict[xid] = xsign
-            return
+        dep = deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        sign = merge_sign(dep_sign, OpSign.NON_POSITIVE)
+        sign_dict[dep_id] = sign
 
 
+@org.register_opt("dfs_sort_deps")
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_infer_sign")
+@org.register_opt("topo_zerify")
 @org.register_op(
-    valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
-class AssertNotEqual(Op):
-    def fwd_func(cls, v0, v1):
-        assert v0 != v1
+    valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
+class AssertNonNegative(Op):
+    def fwd_func(cls, v0):
+        assert v0 >= 0
         return 1.0
+
+    def merge(self, other):
+        op_type = other.op_type
+        assert op_type.startswith("assert"), op_type
+        dep, odep = self.deps[0], other.deps[0]
+        dep_id, odep_id = dep.id, odep.id
+        assert dep_id == odep_id, \
+            "dep_id: {}, odep_id: {}".format(dep_id, odep_id)
+        if self == other:
+            return self
+        if isinstance(
+            other, (org.get_op_cls("assertzero"),
+                org.get_op_cls("assertpositive"))):
+            return other
+        if isinstance(other, org.get_op_cls("assertnonzero")):
+            op = od.assertpositive(dep)
+            return op
+        if isinstance(other, org.get_op_cls("assertnonpositive")):
+            op = od.assertzero(dep)
+            return op
+        raise ContradictError
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        x, y = deps
-        xid, yid = x.id, y.id
-        xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if infer_notequal(xsign, ysign):
+        dep = deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        if infer_lessthan(dep_sign, OpSign.ZERO):
+            raise ContradictError
+        if infer_nomorethan(OpSign.ZERO, dep_sign):
             op = od.null()
             return op
         op = cls.default_op(*deps)
         return op
 
     def revtopo_infer_sign(self, sign_dict):
-        x, y = self.deps
-        xid, yid = x.id, y.id
-        xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if xsign == OpSign.ZERO:
-            ysign = merge_sign(ysign, OpSign.NON_ZERO)
-            sign_dict[yid] = ysign
-            return
-        if ysign == OpSign.ZERO:
-            xsign = merge_sign(xsign, OpSign.NON_ZERO)
-            sign_dict[xid] = xsign
-            return
-
-    def dfs_sort_deps(self, val_dict):
-        deps = self.deps
-        ndeps = swap_sort_deps(*deps)
-        valid_func = num_valid_func(2)
-        valid_func(*ndeps)
-        self.deps = ndeps
+        dep = deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        sign = merge_sign(dep_sign, OpSign.NON_NEGATIVE)
+        sign_dict[dep_id] = sign
 
 
+@org.register_opt("dfs_sort_deps")
+@org.register_op(
+    valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
+class AssertNonZero(Op):
+    def fwd_func(cls, v0):
+        assert v0 != 0
+        return 1.0
+
+    def merge(self, other):
+        op_type = other.op_type
+        assert op_type.startswith("assert"), op_type
+        dep, odep = self.deps[0], other.deps[0]
+        dep_id, odep_id = dep.id, odep.id
+        assert dep_id == odep_id, \
+            "dep_id: {}, odep_id: {}".format(dep_id, odep_id)
+        if self == other:
+            return self
+        if isinstance(
+            other, (org.get_op_cls("assertnegative"),
+                org.get_op_cls("assertpositive"))):
+            return other
+        if isinstance(other, org.get_op_cls("assertnonnegative")):
+            op = od.assertpositive(dep)
+            return op
+        if isinstance(other, org.get_op_cls("assertnonpositive")):
+            op = od.assertnegative(dep)
+            return op
+        raise ContradictError
+
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        dep = self.deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        if dep_sign == OpSign.ZERO:
+            raise ContradictError
+        if infer_notequal(dep_sign, OpSign.ZERO):
+            op = od.null()
+            return op
+        op = cls.default_op(*deps)
+        return op
+
+    def revtopo_infer_sign(self, sign_dict):
+        dep = self.deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        sign = merge_sign(dep_sign, OpSign.NON_ZERO)
+        sign_dict[dep_id] = sign
+
+
+@org.register_opt("dfs_sort_deps")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_infer_sign")
 @org.register_op(
-    valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
-class AssertEqual(Op):
-    def fwd_func(cls, v0, v1):
-        assert v0 == v1
+    valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
+class AssertZero(Op):
+    def fwd_func(cls, v0):
+        assert v0 == 0
         return 1.0
+
+    def merge(self, other):
+        op_type = other.op_type
+        assert op_type.startswith("assert"), op_type
+        dep, odep = self.deps[0], other.deps[0]
+        dep_id, odep_id = dep.id, odep.id
+        assert dep_id == odep_id, \
+            "dep_id: {}, odep_id: {}".format(dep_id, odep_id)
+        if self == other:
+            return self
+        if isinstance(
+            other, (org.get_op_cls("assertnonnegative"),
+                org.get_op_cls("assertnonpositive"))):
+            return self
+        raise ContradictError
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        x, y = deps
-        xid, yid = x.id, y.id
-        xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if xsign == ysign == OpSign.ZERO:
+        dep = self.deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        if infer_notequal(dep_sign, OpSign.ZERO):
+            raise ContradictError
+        if dep_sign == OpSign.ZERO:
             op = od.null()
             return op
         op = cls.default_op(*deps)
@@ -153,36 +293,20 @@ class AssertEqual(Op):
 
     @classmethod
     def topo_zerify(cls, sign_dict, *deps):
-        ndeps = []
-        for dep in deps:
-            if isinstance(dep, org.get_op_cls("scalar")):
-                ndeps.append(dep)
-                continue
-            dep_id = dep.id
-            sign = sign_dict[dep_id]
-            if sign != OpSign.ZERO:
-                ndeps.append(dep)
-                continue
-            od_sign = od.get_sign(dep_id)
-            if od_sign != OpSign.ZERO:
-                ndeps.append(dep)
-                continue
+        dep = self.deps[0]
+        dep_id = dep.id
+        od_sign = od.get_sign(dep_id)
+        if od_sign == OpSign.ZERO:
             zero = od.scalar(Zero)
-            ndeps.append(zero)
-        return cls.default_op(*ndeps)
+            ndeps = [zero]
+            op = cls.default_op(*ndeps)
+            return op
+        op = cls.default_op(*deps)
+        return op
 
     def revtopo_infer_sign(self, sign_dict):
-        x, y = self.deps
-        xid, yid = x.id, y.id
-        xsign, ysign = sign_dict[xid], sign_dict[yid]
-        ysign = merge_sign(xsign, ysign)
-        sign_dict[yid] = ysign
-        xsign = merge_sign(xsign, ysign)
-        sign_dict[xid] = xsign
-
-    def dfs_sort_deps(self, val_dict):
-        deps = self.deps
-        ndeps = swap_sort_deps(*deps)
-        valid_func = num_valid_func(2)
-        valid_func(*ndeps)
-        self.deps = ndeps
+        dep = self.deps[0]
+        dep_id = dep.id
+        dep_sign = sign_dict[dep_id]
+        sign = merge_sign(dep_sign, OpSign.ZERO)
+        sign_dict[dep_id] = sign

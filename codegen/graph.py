@@ -58,12 +58,12 @@ def topo_sort(op_group):
                 del res[nid]
     return topo_seq
 
-def od_infer_sign(op):
+def graph_infer_sign(op):
     op_id = op.id
     if od.query_sign(op_id):
         return
     for dep in op.deps:
-        od_infer_sign(dep)
+        graph_infer_sign(dep)
     od_sign_dict = od.get_sign_dict()
     infer_sign_func = org.get_opt(op, "dfs_infer_sign")
     infer_sign_func(op, od_sign_dict)
@@ -115,7 +115,7 @@ def topo_visit(
         # update graph
         graph[op_id] = nop
         # update sign
-        od_infer_sign(nop)
+        graph_infer_sign(nop)
         nop_id = nop.id
         od_sign = od.get_sign(nop_id)
         merged_sign = merge_sign(od_sign, sign)
@@ -175,9 +175,9 @@ def register_graph_topo(cls):
                 self.inps, self.outs, self.asserts, callback,
                 sign_dict_ref=sign_dict)
             # validate input
-            self.validate_inp()
+            self.validate_inps()
             # update asserts
-            self.clear_asserts()
+            self.fuse_asserts()
             logger.info("graph has been optimized: {}".format(callback))
             return nsign_dict
         return wrapper
@@ -193,7 +193,7 @@ class Graph(object):
     def __init__(self, inps, outs, asserts=None, out_appends=None):
         # validate and set inps
         self.inps = inps
-        self.validate_inp()
+        self.validate_inps()
         # set outs
         self.outs = outs
         # set asserts
@@ -201,14 +201,14 @@ class Graph(object):
             self.asserts = []
         else:
             self.asserts = asserts
-            self.clear_asserts()
+            self.fuse_asserts()
         # out_appends: suffix that comes
         # after "##" of the output symbol name
         self.out_appends = out_appends \
             if out_appends is not None else \
             ["Out:{}".format(i) for i in range(len(self.outs))]
 
-    def validate_inp(self):
+    def validate_inps(self):
         inp_ids = set()
         var_ids = set()
         for inp in self.inps:
@@ -227,21 +227,39 @@ class Graph(object):
                 assert False, \
                     "unsupported op type: {} for inp".format(inp.op_type)
 
-    def clear_asserts(self):
+    def fuse_asserts(self):
+        # fuse null
         nasserts = []
         for assert_op in self.asserts:
             if isinstance(assert_op, org.get_op_cls("null")):
                 continue
             nasserts.append(assert_op)
+        self.asserts = nasserts
+        # fuse duplicate
         assert_ids = set()
-        nnasserts = []
-        for assert_op in nasserts:
+        nasserts = []
+        for assert_op in self.asserts:
             assert_id = assert_op.id
             if assert_id in assert_ids:
                 continue
             assert_ids.add(assert_id)
-            nnasserts.append(assert_op)
-        self.asserts = nnasserts
+            nasserts.append(assert_op)
+        self.asserts = nasserts
+        # merge asserts for the same op
+        assert_map = {}
+        for assert_op in self.asserts:
+            dep = assert_op.deps[0]
+            dep_id = dep.id
+            if dep_id not in assert_map:
+                assert_map[dep_id] = assert_op
+            else:
+                org_assert_op = assert_map[dep_id]
+                nassert_op = assert_op.merge(org_assert_op)
+                assert_map[dep_id] = nassert_op
+        nasserts = []
+        for assert_op in assert_map.values():
+            nasserts.append(assert_op)
+        self.asserts = nasserts
 
     def propagate_assertion(self):
         revtopo_visit(self.outs, "revtopo_propagate_assertion")
@@ -416,7 +434,7 @@ class Graph(object):
             assert assert_id not in org_assert_ids, assert_id
             nasserts.append(assert_op)
         self.asserts += nasserts
-        self.clear_asserts()
+        self.fuse_asserts()
         # validate asserts
         nsign_dict_f = self.infer_sign()
         for assert_op in self.asserts:

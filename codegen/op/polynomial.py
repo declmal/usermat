@@ -66,6 +66,7 @@ def get_polynomial_signs(deps, sign_dict):
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_info")
 @org.register_opt("dfs_display")
+@org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=mial_valid_func, equiv_func=mial_equiv_func)
 class Polynomial(Op):

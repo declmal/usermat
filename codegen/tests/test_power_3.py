@@ -28,7 +28,8 @@ class TestPower3(unittest.TestCase):
         g = Graph([v0,v4], [v11])
         g.optimize()
         g.merge()
-        # g.set_asserts()
+        # g.assert_graph()
+        g.tosym()
         # reference graph
         v0 = od.var("x")
         v1 = od.var("y")

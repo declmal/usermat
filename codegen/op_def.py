@@ -33,6 +33,14 @@ class OpDef(object):
         return False
 
     @staticmethod
+    def get_sign(op_id):
+        assert isinstance(op_id, int), type(op_id)
+        ret = OpDef.query_sign(op_id)
+        assert ret, "op_id: {} not in sign_dict".format(op_id)
+        sign = OpDef.sign_dict[op_id]
+        return sign
+
+    @staticmethod
     def get_sign_dict():
         return OpDef.sign_dict
 

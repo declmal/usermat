@@ -80,6 +80,7 @@ def get_monomial_signs(deps, sign_dict):
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_info")
 @org.register_opt("dfs_display")
+@org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=monomial_valid_func, equiv_func=mial_equiv_func)
 class Monomial(Op):

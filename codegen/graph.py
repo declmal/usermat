@@ -19,9 +19,10 @@ def topo_sort(op_group):
     nxt = {}
     for op in op_group:
         op_id = op.id
-        nxt[op_id] = set()
-        visited.add(op_id)
-        sops.append(op)
+        if op_id not in visited:
+            nxt[op_id] = set()
+            visited.add(op_id)
+            sops.append(op)
     res = {}
     op_map = {}
     zero_deps = []
@@ -67,7 +68,9 @@ def od_infer_sign(op):
     infer_sign_func = org.get_opt(op, "dfs_infer_sign")
     infer_sign_func(op, od_sign_dict)
 
-def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
+def topo_visit(
+    inps, outs, asserts, callback, sign_dict_ref={},
+    logger=logging.getLogger("topo_visit")):
     sign_dict = sign_dict_ref.copy()
     nsign_dict = {}
     inp_ids = [op.id for op in inps]
@@ -111,12 +114,21 @@ def topo_visit(inps, outs, asserts, callback, sign_dict_ref={}):
                 sign = sign_dict[op_id]
         # update graph
         graph[op_id] = nop
-        # update nsign_dict
-        nop_id = nop.id
-        nsign_dict[nop_id] = sign
-        # infer sign for op def
+        # update sign
         od_infer_sign(nop)
-    ninps = [graph[op_id] for op_id in inp_ids]
+        nop_id = nop.id
+        od_sign = od.get_sign(nop_id)
+        merged_sign = merge_sign(od_sign, sign)
+        # update nsign_dict
+        nsign_dict[nop_id] = merged_sign
+    ninps = []
+    for i, op_id in enumerate(inp_ids):
+        if op_id in graph:
+            ninp = graph[op_id]
+        else:
+            logger.warning("the {}-th inp has been deprecated".format(i))
+            ninp = od.null()
+        ninps.append(ninp)
     nouts = [graph[op_id] for op_id in out_ids]
     nasserts = [graph[op_id] for op_id in assert_ids]
     return ninps, nouts, nasserts, nsign_dict
@@ -153,20 +165,19 @@ def dfs_visit(outs, callback, init_val_dict={}, **kwargs):
 def register_graph_topo(cls):
     def graph_topo(callback):
         def wrapper(
-            self, logger=logging.getLogger("graph.{}".format(callback))):
-            sign_dict = self.infer_sign()
+            self, logger=logging.getLogger("graph.{}".format(callback)),
+            sign_dict_ref=None):
+            if sign_dict_ref is None:
+                sign_dict = self.infer_sign()
+            else:
+                sign_dict = sign_dict_ref.copy()
             self.inps, self.outs, self.asserts, nsign_dict = topo_visit(
                 self.inps, self.outs, self.asserts, callback,
                 sign_dict_ref=sign_dict)
             # validate input
             self.validate_inp()
             # update asserts
-            nasserts = []
-            for assert_op in self.asserts:
-                if isinstance(assert_op, org.get_op_cls("null")):
-                    continue
-                nasserts.append(assert_op)
-            self.asserts = nasserts
+            self.clear_asserts()
             logger.info("graph has been optimized: {}".format(callback))
             return nsign_dict
         return wrapper
@@ -190,6 +201,7 @@ class Graph(object):
             self.asserts = []
         else:
             self.asserts = asserts
+            self.clear_asserts()
         # out_appends: suffix that comes
         # after "##" of the output symbol name
         self.out_appends = out_appends \
@@ -204,7 +216,8 @@ class Graph(object):
             assert inp_id not in inp_ids, \
                 "duplicate ops, inp_id: {}".format(inp_id)
             inp_ids.add(inp_id)
-            if isinstance(inp, org.get_op_cls("scalar")):
+            if isinstance(
+                inp, (org.get_op_cls("scalar"), org.get_op_cls("null"))):
                 continue
             elif isinstance(inp, org.get_op_cls("var")):
                 assert inp_id not in var_ids, \
@@ -213,6 +226,22 @@ class Graph(object):
             else:
                 assert False, \
                     "unsupported op type: {} for inp".format(inp.op_type)
+
+    def clear_asserts(self):
+        nasserts = []
+        for assert_op in self.asserts:
+            if isinstance(assert_op, org.get_op_cls("null")):
+                continue
+            nasserts.append(assert_op)
+        assert_ids = set()
+        nnasserts = []
+        for assert_op in nasserts:
+            assert_id = assert_op.id
+            if assert_id in assert_ids:
+                continue
+            assert_ids.add(assert_id)
+            nnasserts.append(assert_op)
+        self.asserts = nnasserts
 
     def propagate_assertion(self):
         revtopo_visit(self.outs, "revtopo_propagate_assertion")
@@ -246,14 +275,20 @@ class Graph(object):
         return info_dict
 
     def tosym(self, json_path=path.expanduser("~/mx.json")):
-        outs = self.asserts + self.outs
+        outs = self.outs + self.asserts
         sym_dict = dfs_visit(outs, "dfs_tosym")
         sym_outs = []
         for i, out in enumerate(self.outs):
             out_id = out.id
             out_sym = sym_dict[out_id]
-            name = "{}##{}".format(
+            name = "{}~~~~{}".format(
                 out_sym.attr("name"), self.out_appends[i])
+            sym = sym_rename(out_sym, name)
+            sym_outs.append(sym)
+        for i, out in enumerate(self.asserts):
+            out_id = out.id
+            out_sym = sym_dict[out_id]
+            name = "{}~~~~Assert:{}".format(out_sym.attr("name"), i)
             sym = sym_rename(out_sym, name)
             sym_outs.append(sym)
         sym = mx.sym.Group(sym_outs)
@@ -337,7 +372,14 @@ class Graph(object):
             "graph infer_sign has been run for {} passes".format(cnt))
         return sign_dict_1
 
-    def set_asserts(self):
+    def infer_sign_forward(self):
+        outs = self.outs + self.asserts
+        sign_dict = dfs_visit(
+            outs, "dfs_infer_sign", init_val_dict={})
+        return sign_dict
+
+    def assert_graph(self):
+        # set asserts
         sign_dict_f = self.infer_sign()
         outs = self.outs + self.asserts
         sign_dict_0 = dfs_visit(outs, "dfs_infer_sign")
@@ -371,9 +413,15 @@ class Graph(object):
             else:
                 assert False
             assert_id = assert_op.id
-            assert assert_id not in org_assert_ids
+            assert assert_id not in org_assert_ids, assert_id
             nasserts.append(assert_op)
         self.asserts += nasserts
+        self.clear_asserts()
+        # zerify
+        self.zerify()
+        sign_dict = self.infer_sign_forward()
+        self.degenerate(sign_dict_ref=sign_dict)
+        # fuse redundant asserts
 
     def __eq__(self, other):
         self.sort_deps()

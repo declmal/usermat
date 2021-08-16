@@ -57,8 +57,10 @@ def infer_add_sign(x_sign, y_sign):
     return OpSign.UNDEFINED
 
 def infer_abs_sign(sign):
-    if sign in [OpSign.NON_ZERO, OpSign.POSITIVE, OpSign.NEGATIVE]:
+    if sign in [OpSign.POSITIVE, OpSign.NEGATIVE]:
         return OpSign.POSITIVE
+    if sign == OpSign.ZERO:
+        return OpSign.ZERO
     return OpSign.NON_NEGATIVE
 
 def infer_multiply_sign(x_sign, y_sign):
@@ -263,7 +265,8 @@ def revinfer_power_sign(csign, exp_data):
         if nume < 0:
             assert csign == OpSign.POSITIVE, csign
         else:
-            assert csign == OpSign.NON_NEGATIVE, csign
+            assert csign in [ \
+                OpSign.NON_NEGATIVE, OpSign.POSITIVE, OpSign.ZERO], csign
     if deno > 1:
         if nume < 0:
             frac_sign = OpSign.POSITIVE

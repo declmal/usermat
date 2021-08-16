@@ -11,6 +11,7 @@ from ..base import Op
 
 """ ops
 """
+@org.register_opt("dfs_infer_sign")
 @org.register_op()
 class Null(Op):
     pass

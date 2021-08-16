@@ -2,6 +2,7 @@ import logging
 
 import mxnet as mx
 
+from .type_utils import Zero
 from .sign_utils import OpSign, merge_sign
 from .op_def import OpDef as od
 from .op_reg import OpReg as org
@@ -65,6 +66,20 @@ class Op(object):
     @classmethod
     def topo_fuse(cls, sign_dict, *deps):
         return cls.default_op(*deps)
+
+    @classmethod
+    def topo_zerify(cls, sign_dict, *deps):
+        ndeps = []
+        for dep in deps:
+            dep_id = dep.id
+            dep_sign = sign_dict[dep_id]
+            if dep_sign == OpSign.ZERO:
+                zero = od.scalar(Zero)
+                ndeps.append(zero)
+                continue
+            ndeps.append(dep)
+        op = cls.default_op(*ndeps)
+        return op
 
     def revtopo_infer_sign(self, sign_dict):
         pass

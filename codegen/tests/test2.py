@@ -30,7 +30,7 @@ class Test2(unittest.TestCase):
         outs1 = g.forward(a, b, c, d)
         self.assertEqual(outs1, [np.sin(a/b+c)*d*d*d])
         ng = g.autograph_backward()
-        ng.fuse()
+        ng.merge()
         ng.tosym()
         outs2 = ng.forward(a,b,c,d)
         self.assertEqual(

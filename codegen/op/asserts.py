@@ -1,5 +1,6 @@
+from ..type_utils import Zero
 from ..sign_utils import \
-    merge_sign, infer_nomorethan, infer_lessthan
+    merge_sign, infer_nomorethan, infer_lessthan, OpSign
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
@@ -20,7 +21,7 @@ class AssertLessThan(Op):
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        x, y = self.deps
+        x, y = deps
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]
         if infer_nomorethan(ysign, xsign):
@@ -46,6 +47,9 @@ class AssertLessThan(Op):
 
 
 @org.register_opt("dfs_sort_deps")
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_infer_sign")
+@org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class AssertNoMoreThan(Op):
@@ -55,7 +59,7 @@ class AssertNoMoreThan(Op):
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        x, y = self.deps
+        x, y = deps
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]
         if infer_lessthan(ysign, xsign):
@@ -97,7 +101,7 @@ class AssertNotEqual(Op):
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        x, y = self.deps
+        x, y = deps
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]
         if infer_notequal(xsign, ysign):
@@ -127,6 +131,8 @@ class AssertNotEqual(Op):
         self.deps = ndeps
 
 
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
 class AssertEqual(Op):
@@ -136,7 +142,7 @@ class AssertEqual(Op):
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        x, y = self.deps
+        x, y = deps
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]
         if xsign == ysign == OpSign.ZERO:
@@ -144,6 +150,26 @@ class AssertEqual(Op):
             return op
         op = cls.default_op(*deps)
         return op
+
+    @classmethod
+    def topo_zerify(cls, sign_dict, *deps):
+        ndeps = []
+        for dep in deps:
+            if isinstance(dep, org.get_op_cls("scalar")):
+                ndeps.append(dep)
+                continue
+            dep_id = dep.id
+            sign = sign_dict[dep_id]
+            if sign != OpSign.ZERO:
+                ndeps.append(dep)
+                continue
+            od_sign = od.get_sign(dep_id)
+            if od_sign != OpSign.ZERO:
+                ndeps.append(dep)
+                continue
+            zero = od.scalar(Zero)
+            ndeps.append(zero)
+        return cls.default_op(*ndeps)
 
     def revtopo_infer_sign(self, sign_dict):
         x, y = self.deps

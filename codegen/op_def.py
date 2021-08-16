@@ -10,9 +10,6 @@ class OpDef(object):
     current_id = 0
     equiv_map = {}
     id_map = {}
-    scalar_map = {}
-    var_map = {}
-    null_op = None
     sign_dict = {}
 
     @staticmethod
@@ -20,9 +17,6 @@ class OpDef(object):
         OpDef.current_id = 0
         OpDef.equiv_map.clear()
         OpDef.id_map.clear()
-        OpDef.scalar_map.clear()
-        OpDef.var_map.clear()
-        OpDef.null_op = None
         OpDef.sign_dict.clear()
 
     @staticmethod
@@ -46,14 +40,12 @@ class OpDef(object):
 
     @staticmethod
     def query_equiv(equiv):
-        assert isinstance(equiv, str), type(equiv)
         if equiv in OpDef.equiv_map:
             return True
         return False
 
     @staticmethod
     def get_equiv(equiv):
-        assert isinstance(equiv, str), type(equiv)
         ret = OpDef.query_equiv(equiv)
         assert ret, "equiv: {} not in equiv_map".format(equiv)
         op = OpDef.equiv_map[equiv]
@@ -61,7 +53,6 @@ class OpDef(object):
 
     @staticmethod
     def set_equiv(equiv, op):
-        assert isinstance(equiv, str), type(equiv)
         ret = OpDef.query_equiv(equiv)
         assert not ret, "equiv: {} already in equiv_map".format(equiv)
         OpDef.equiv_map[equiv] = op
@@ -89,64 +80,3 @@ class OpDef(object):
         op.set_id(op_id)
         OpDef.current_id += 1
         OpDef.id_map[op_id] = op
-
-    @staticmethod
-    def query_scalar(data):
-        assert isinstance(data, Fraction), type(data)
-        if data in OpDef.scalar_map:
-            return True
-        return False
-
-    @staticmethod
-    def get_scalar(data):
-        assert isinstance(data, Fraction), type(data)
-        ret = OpDef.query_scalar(data)
-        assert ret, "data: {} not in scalar_map".format(data)
-        scalar = OpDef.scalar_map[data]
-        return scalar
-
-    @staticmethod
-    def set_scalar(data, scalar):
-        assert isinstance(data, Fraction), type(data)
-        ret = OpDef.query_scalar(data)
-        assert not ret, "data: {} already in scalar_map".format(data)
-        OpDef.scalar_map[data] = scalar
-
-    @staticmethod
-    def query_var(name):
-        assert isinstance(name, str), type(name)
-        if name in OpDef.var_map:
-            return True
-        return False
-
-    @staticmethod
-    def get_var(name):
-        assert isinstance(name, str), type(name)
-        ret = OpDef.query_var(name)
-        assert ret, "name: {} not in var_map".format(name)
-        var = OpDef.var_map[name]
-        return var
-
-    @staticmethod
-    def set_var(name, var):
-        assert isinstance(name, str), type(name)
-        ret = OpDef.query_var(name)
-        assert not ret, "name: {} already in var_map".format(name)
-        OpDef.var_map[name] = var
-
-    @staticmethod
-    def query_null():
-        return OpDef.null_op is not None
-
-    @staticmethod
-    def get_null():
-        ret = OpDef.query_null()
-        assert ret, "null op not exist in op def"
-        null = OpDef.null_op
-        return null
-
-    @staticmethod
-    def set_null(null):
-        ret = OpDef.query_null()
-        assert not ret, "null op already exist in op def"
-        OpDef.null_op = null

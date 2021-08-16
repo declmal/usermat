@@ -20,58 +20,20 @@ class OpReg(object):
         return cls
 
     @staticmethod
-    def _null_func(cls):
-        def wrapper():
-            if od.query_null():
-                op = od.get_null()
-                return op
-            op = cls()
-            od.set_null(op)
-            od.set_op(op)
-            return op
-        return wrapper
-
-    @staticmethod
-    def _var_func(cls):
-        def wrapper(name):
-            if od.query_var(name):
-                op = od.get_var(name)
-                return op
-            op = cls(name)
-            od.set_var(name, op)
-            od.set_op(op)
-            return op
-        return wrapper
-
-    @staticmethod
-    def _scalar_func(cls):
-        def wrapper(data):
-            nv = cast_fraction(data)
-            if od.query_scalar(nv):
-                op = od.get_scalar(nv)
-                return op
-            op = cls(nv)
-            od.set_scalar(nv, op)
-            od.set_op(op)
-            return op
-        return wrapper
-
-    @staticmethod
-    def _op_func(cls):
-        def wrapper(*deps):
-            equiv = cls.op_equiv_func(deps)
-            if od.query_equiv(equiv):
-                op = od.get_equiv(equiv)
-                return op
-            op = cls(*deps)
-            od.set_op(op)
-            od.set_equiv(equiv, op)
-            return op
-        return wrapper
-
-    @staticmethod
     def register_op(
-        valid_func=lambda *deps: None, equiv_func=lambda op_type, ops: []):
+        valid_func=lambda *args: None,
+        equiv_func=lambda op_type, *args: None):
+        def op_func(cls):
+            def wrapper(*args):
+                equiv = cls.op_equiv_func(*args)
+                if od.query_equiv(equiv):
+                    op = od.get_equiv(equiv)
+                    return op
+                op = cls(*args)
+                od.set_op(op)
+                od.set_equiv(equiv, op)
+                return op
+            return wrapper
         def wrapper(cls):
             # set op type
             op_type = cls.__name__.lower()
@@ -82,16 +44,16 @@ class OpReg(object):
             setattr(cls, "op_type", op_type)
             # set validate functions for init
             def op_valid_func(init_func):
-                def _wrapper(self, *deps):
-                    valid_func(*deps)
-                    init_func(self, *deps)
+                def _wrapper(self, *args):
+                    valid_func(*args)
+                    init_func(self, *args)
                 return _wrapper
             init_func = getattr(cls, "__init__")
             init_func = op_valid_func(init_func)
             setattr(cls, "__init__", init_func)
             # set equivalent function
-            def op_equiv_func(ops):
-                return equiv_func(op_type, ops)
+            def op_equiv_func(*args):
+                return equiv_func(op_type, *args)
             setattr(cls, "op_equiv_func", op_equiv_func)
             # update op manager
             OpReg.supported_ops[op_type] = cls
@@ -102,14 +64,7 @@ class OpReg(object):
                     k.startswith("revtopo_"):
                     _op_supported_opts.add(k)
             # set up op_def
-            if op_type == "scalar":
-                setattr(od, op_type, OpReg._scalar_func(cls))
-            elif op_type == "var":
-                setattr(od, op_type, OpReg._var_func(cls))
-            elif op_type == "null":
-                setattr(od, op_type, OpReg._null_func(cls))
-            else:
-                setattr(od, op_type, OpReg._op_func(cls))
+            setattr(od, op_type, op_func(cls))
             return cls
         return wrapper
 

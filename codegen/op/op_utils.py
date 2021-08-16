@@ -22,27 +22,27 @@ def num_valid_func(num_deps):
 
 """ equivalent functions
 """
-def sequential_equiv_func(op_type, ops):
-    ids_str = ",".join([str(op.id) for op in ops])
+def sequential_equiv_func(op_type, *deps):
+    ids_str = ",".join([str(dep.id) for dep in deps])
     s = "{}:[{}]".format(op_type, ids_str)
     return s
 
-def swappable_equiv_func(op_type, ops):
-    ids = [op.id for op in ops]
+def swappable_equiv_func(op_type, *deps):
+    ids = [dep.id for dep in deps]
     sorted_ids = sorted(ids)
     ids_str = ",".join([str(op_id) for op_id in sorted_ids])
     s = "{}:[{}]".format(op_type, ids_str)
     return s
 
-def mial_equiv_func(op_type, ops):
+def mial_equiv_func(op_type, *deps):
     arr = []
-    for i in range(1, len(ops), 2):
-        dep, scalar = ops[i:i+2]
+    for i in range(1, len(deps), 2):
+        dep, scalar = deps[i:i+2]
         dep_id = dep.id
         scalar_id = scalar.id
         arr.append((dep_id, scalar_id))
     narr = sorted(arr, key=lambda x: x[0])
-    scalar = ops[0]
+    scalar = deps[0]
     scalar_id = scalar.id
     ids = [scalar_id]
     for op_id, scalar_id in narr:

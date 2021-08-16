@@ -8,6 +8,15 @@ from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
 
+""" equivalent functions
+"""
+def scalar_valid_func(data):
+    assert isinstance(data, FloatTypes), \
+        "data: {}, type of data: {}".format(data, type(data))
+
+def var_valid_func(name):
+    assert isinstance(name, str), \
+        "name: {}, type of name: {}".format(name, type(name))
 
 """ ops
 """
@@ -19,7 +28,8 @@ class Null(Op):
 
 @org.register_opt("dfs_sort_deps")
 @org.register_opt("revtopo_infer_sign")
-@org.register_op()
+@org.register_op(
+    valid_func=scalar_valid_func, equiv_func=lambda op_type, data: data)
 class Scalar(Op):
     def __init__(self, data):
         assert isinstance(data, FloatTypes)
@@ -72,7 +82,8 @@ class Scalar(Op):
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_standardize")
 @org.register_opt("revtopo_infer_sign")
-@org.register_op()
+@org.register_op(
+    valid_func=var_valid_func, equiv_func=lambda op_type, name: name)
 class Var(Op):
     def __init__(self, name):
         self.name = name

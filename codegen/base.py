@@ -36,9 +36,6 @@ class Op(object):
             s = "____".join([s, ext_info])
         return s
 
-    def infer_sign(*signs):
-        return OpSign.UNDEFINED
-
     @classmethod
     def default_op(cls, *deps):
         od_func = getattr(od, cls.op_type)
@@ -109,12 +106,7 @@ class Op(object):
         val_dict[cop_id] = sym
 
     def dfs_infer_sign(self, val_dict):
-        signs = []
-        for dep in self.deps:
-            dep_id = dep.id
-            dep_sign = val_dict[dep_id]
-            signs.append(dep_sign)
-        sign = self.infer_sign(*signs)
+        sign = OpSign.UNDEFINED
         cop_id = self.id
         if cop_id in val_dict:
             csign = val_dict[cop_id]

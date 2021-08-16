@@ -22,14 +22,59 @@ def num_valid_func(num_deps):
 
 """ equivalent functions
 """
-sequential_equiv_func = \
-    lambda op_type, ops: [
-        "{}:[{}]".format(
-            op_type, ",".join([str(op.id) for op in ops]))]
-swappable_equiv_func = \
-    lambda op_type, ops: [
-        "{}:[{}]".format(op_type, ",".join(
-            sorted([str(op.id) for op in ops])))]
+def sequential_equiv_func(op_type, ops):
+    ids_str = ",".join([str(op.id) for op in ops])
+    s = "{}:[{}]".format(op_type, ids_str)
+    return s
+
+def swappable_equiv_func(op_type, ops):
+    ids = [op.id for op in ops]
+    sorted_ids = sorted(ids)
+    ids_str = ",".join([str(op_id) for op_id in sorted_ids])
+    s = "{}:[{}]".format(op_type, ids_str)
+    return s
+
+def mial_equiv_func(op_type, ops):
+    arr = []
+    for i in range(1, len(ops), 2):
+        dep, scalar = ops[i:i+2]
+        dep_id = dep.id
+        scalar_id = scalar.id
+        arr.append((dep_id, scalar_id))
+    narr = sorted(arr, key=lambda x: x[0])
+    scalar = ops[0]
+    scalar_id = scalar.id
+    ids = [scalar_id]
+    for op_id, scalar_id in narr:
+        ids.append(op_id)
+        ids.append(scalar_id)
+    ids_str = ",".join([str(op_id) for op_id in ids])
+    s = "{}:[{}]".format(op_type, ids_str)
+    return s
+
+""" sort functions
+"""
+def mial_sort_deps(*deps):
+    arr = []
+    for i in range(1, len(deps), 2):
+        dep, scalar = deps[i:i+2]
+        arr.append((dep, scalar))
+    sorted_arr = sorted(arr, key=lambda x:x[0])
+    scalar = deps[0]
+    ndeps = [scalar]
+    for dep, scalar in sorted_arr:
+        ndeps.append(dep)
+        ndeps.append(scalar)
+    return ndeps
+
+def swap_sort_deps(*deps):
+    assert len(deps) == 2, len(deps)
+    x, y = deps
+    if x < y:
+        ndeps = [x, y]
+    else:
+        ndeps = [y, x]
+    return ndeps
 
 """ mial validate function
 """
@@ -62,19 +107,6 @@ def mial_valid_func(*deps):
 
 """ monomial util functions
 """
-def mial_sort_deps(*deps):
-    arr = []
-    for i in range(1, len(deps), 2):
-        dep, scalar = deps[i:i+2]
-        arr.append((dep, scalar))
-    sorted_arr = sorted(arr, key=lambda x:x[0])
-    scalar = deps[0]
-    ndeps = [scalar]
-    for dep, scalar in sorted_arr:
-        ndeps.append(dep)
-        ndeps.append(scalar)
-    return ndeps
-
 def validate_monomial_dict(m_dict):
     assert isinstance(m_dict, dict) and -1 in m_dict, m_dict
     for op_id, exp_data in m_dict.items():

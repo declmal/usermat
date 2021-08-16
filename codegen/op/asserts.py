@@ -3,11 +3,14 @@ from ..sign_utils import \
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import num_valid_func, sequential_equiv_func
+from .op_utils import \
+    num_valid_func, sequential_equiv_func, swappable_equiv_func, \
+    swap_sort_deps
 
 
 """ ops
 """
+@org.register_opt("dfs_sort_deps")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class AssertLessThan(Op):
@@ -42,6 +45,7 @@ class AssertLessThan(Op):
             return
 
 
+@org.register_opt("dfs_sort_deps")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
 class AssertNoMoreThan(Op):
@@ -85,7 +89,7 @@ class AssertNoMoreThan(Op):
 
 
 @org.register_op(
-    valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
+    valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
 class AssertNotEqual(Op):
     def fwd_func(cls, v0, v1):
         assert v0 != v1
@@ -106,19 +110,53 @@ class AssertNotEqual(Op):
         x, y = self.deps
         xid, yid = x.id, y.id
         xsign, ysign = sign_dict[xid], sign_dict[yid]
-        if xsign == OpSign.NON_ZERO:
-            ysign = merge_sign(ysign, OpSign.ZERO)
-            sign_dict[yid] = ysign
-            return
         if xsign == OpSign.ZERO:
             ysign = merge_sign(ysign, OpSign.NON_ZERO)
             sign_dict[yid] = ysign
-            return
-        if ysign == OpSign.NON_ZERO:
-            xsign = merge_sign(xsign, OpSign.ZERO)
-            sign_dict[xid] = xsign
             return
         if ysign == OpSign.ZERO:
             xsign = merge_sign(xsign, OpSign.NON_ZERO)
             sign_dict[xid] = xsign
             return
+
+    def dfs_sort_deps(self, val_dict):
+        deps = self.deps
+        ndeps = swap_sort_deps(*deps)
+        valid_func = num_valid_func(2)
+        valid_func(*ndeps)
+        self.deps = ndeps
+
+
+@org.register_op(
+    valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
+class AssertEqual(Op):
+    def fwd_func(cls, v0, v1):
+        assert v0 == v1
+        return 1.0
+
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        x, y = self.deps
+        xid, yid = x.id, y.id
+        xsign, ysign = sign_dict[xid], sign_dict[yid]
+        if xsign == ysign == OpSign.ZERO:
+            op = od.null()
+            return op
+        op = cls.default_op(*deps)
+        return op
+
+    def revtopo_infer_sign(self, sign_dict):
+        x, y = self.deps
+        xid, yid = x.id, y.id
+        xsign, ysign = sign_dict[xid], sign_dict[yid]
+        ysign = merge_sign(xsign, ysign)
+        sign_dict[yid] = ysign
+        xsign = merge_sign(xsign, ysign)
+        sign_dict[xid] = xsign
+
+    def dfs_sort_deps(self, val_dict):
+        deps = self.deps
+        ndeps = swap_sort_deps(*deps)
+        valid_func = num_valid_func(2)
+        valid_func(*ndeps)
+        self.deps = ndeps

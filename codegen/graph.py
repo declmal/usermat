@@ -4,8 +4,8 @@ import logging
 
 import mxnet as mx
 
-from .type_utils import cast_float
-from .sign_utils import infer_scalar_sign, OpSign
+from .type_utils import cast_float, Zero
+from .sign_utils import infer_scalar_sign, OpSign, merge_sign
 from .op_def import OpDef as od
 from .op_reg import OpReg as org
 from .base import Op
@@ -318,12 +318,13 @@ class Graph(object):
     def infer_sign(self, logger=logging.getLogger("graph.infer_sign")):
         sign_dict_1 = {}
         cnt = 0
+        outs = self.outs + self.asserts
         while True:
             sign_dict_2 = dfs_visit(
-                self.outs, "dfs_infer_sign", init_val_dict=sign_dict_1)
+                outs, "dfs_infer_sign", init_val_dict=sign_dict_1)
             flag1 = sign_dict_1 == sign_dict_2
             sign_dict_3 = revtopo_visit(
-                self.outs, "revtopo_infer_sign", sign_dict_ref=sign_dict_2)
+                outs, "revtopo_infer_sign", sign_dict_ref=sign_dict_2)
             flag2 = sign_dict_2 == sign_dict_3
             cnt += 1
             if flag1 and flag2:
@@ -332,6 +333,44 @@ class Graph(object):
         logger.debug(
             "graph infer_sign has been run for {} passes".format(cnt))
         return sign_dict_1
+
+    def set_asserts(self):
+        sign_dict_f = self.infer_sign()
+        outs = self.outs + self.asserts
+        sign_dict_0 = dfs_visit(outs, "dfs_infer_sign")
+        assert len(sign_dict_f) == len(sign_dict_0)
+        nasserts = []
+        org_assert_ids = set()
+        for assert_id in self.asserts:
+            org_assert_ids.add(assert_id)
+        for op_id, sign_f in sign_dict_f.items():
+            assert op_id in sign_dict_f, op_id
+            sign_0 = sign_dict_0[op_id]
+            if sign_0 == sign_f:
+                continue
+            msign = merge_sign(sign_0, sign_f)
+            assert msign == sign_f, \
+                "sign_0: {}, sign_f: {}".format(sign_0, sign_f)
+            zero = od.scalar(Zero)
+            op = od.get_op(op_id)
+            if sign_f == OpSign.NON_ZERO:
+                assert_op = od.assertnotequal(op, zero)
+            elif sign_f == OpSign.ZERO:
+                assert_op = od.assertequal(op, zero)
+            elif sign_f == OpSign.NON_NEGATIVE:
+                assert_op = od.assertnomorethan(zero, op)
+            elif sign_f == OpSign.NON_POSITIVE:
+                assert_op = od.assertnomorethan(op, zero)
+            elif sign_f == OpSign.POSITIVE:
+                assert_op = od.assertlessthan(zero, op)
+            elif sign_f == OpSign.NEGATIVE:
+                assert_op = od.assertlessthan(op, zero)
+            else:
+                assert False
+            assert_id = assert_op.id
+            assert assert_id not in org_assert_ids
+            nasserts.append(assert_op)
+        self.asserts += nasserts
 
     def __eq__(self, other):
         self.sort_deps()

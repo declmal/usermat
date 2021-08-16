@@ -59,15 +59,13 @@ class OpReg(object):
     @staticmethod
     def _op_func(cls):
         def wrapper(*deps):
-            equivs = cls.op_equiv_func(deps)
-            for equiv in equivs:
-                if od.query_equiv(equiv):
-                    op = od.get_equiv(equiv)
-                    return op
+            equiv = cls.op_equiv_func(deps)
+            if od.query_equiv(equiv):
+                op = od.get_equiv(equiv)
+                return op
             op = cls(*deps)
             od.set_op(op)
-            for equiv in equivs:
-                od.set_equiv(equiv, op)
+            od.set_equiv(equiv, op)
             return op
         return wrapper
 

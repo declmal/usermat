@@ -8,7 +8,7 @@ from ..type_utils import One, Zero, ContradictError
 from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import \
-    sequential_equiv_func, mial_valid_func, merge_monomial_dict, \
+    mial_equiv_func, mial_valid_func, merge_monomial_dict, \
     create_monomial_op, get_monomial_dict_exp, mial_sort_deps
 
 """ validate function
@@ -81,7 +81,7 @@ def get_monomial_signs(deps, sign_dict):
 @org.register_opt("dfs_info")
 @org.register_opt("dfs_display")
 @org.register_op(
-    valid_func=monomial_valid_func, equiv_func=sequential_equiv_func)
+    valid_func=monomial_valid_func, equiv_func=mial_equiv_func)
 class Monomial(Op):
     @classmethod
     def fwd_func(cls, *v):

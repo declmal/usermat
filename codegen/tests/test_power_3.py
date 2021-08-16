@@ -28,7 +28,8 @@ class TestPower3(unittest.TestCase):
         g = Graph([v0,v4], [v11])
         g.optimize()
         g.merge()
-        g.sort_deps()
+        # g.set_asserts()
+        # reference graph
         v0 = od.var("x")
         v1 = od.var("y")
         half = od.scalar(Fraction(1,2))
@@ -43,4 +44,5 @@ class TestPower3(unittest.TestCase):
         zero = od.scalar(Fraction(0,1))
         v6 = od.polynomial(zero, v3, one, v5, one)
         g2 = Graph([v0,v1], [v6])
+        # assertion
         self.assertEqual(g, g2)

@@ -5,7 +5,7 @@ from ..type_utils import One, ContradictError
 from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import \
-    sequential_equiv_func, mial_valid_func, mial_sort_deps, \
+    mial_equiv_func, mial_valid_func, mial_sort_deps, \
     get_polynomial_dict, merge_polynomial_dict, create_polynomial_op
 
 """ revinfer function
@@ -67,7 +67,7 @@ def get_polynomial_signs(deps, sign_dict):
 @org.register_opt("dfs_info")
 @org.register_opt("dfs_display")
 @org.register_op(
-    valid_func=mial_valid_func, equiv_func=sequential_equiv_func)
+    valid_func=mial_valid_func, equiv_func=mial_equiv_func)
 class Polynomial(Op):
     @classmethod
     def fwd_func(cls, *v):

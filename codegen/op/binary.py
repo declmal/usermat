@@ -9,7 +9,7 @@ from .op_utils import \
     num_valid_func, sequential_equiv_func, swappable_equiv_func, \
     get_monomial_dict, get_monomial_dict, merge_monomial_dict, \
     create_monomial_op, get_polynomial_dict, merge_polynomial_dict, \
-    create_polynomial_op
+    create_polynomial_op, swap_sort_deps
 
 
 """ ops
@@ -50,7 +50,9 @@ class Multiply(Op):
 
     def dfs_sort_deps(self, val_dict):
         deps = self.deps
-        ndeps = sorted(deps)
+        ndeps = swap_sort_deps(*deps)
+        valid_func = num_valid_func(2)
+        valid_func(*ndeps)
         self.deps = ndeps
 
     @classmethod
@@ -142,7 +144,9 @@ class Add(Op):
 
     def dfs_sort_deps(self, val_dict):
         deps = self.deps
-        ndeps = sorted(deps)
+        ndeps = swap_sort_deps(*deps)
+        valid_func = num_valid_func(2)
+        valid_func(*ndeps)
         self.deps = ndeps
 
     @classmethod

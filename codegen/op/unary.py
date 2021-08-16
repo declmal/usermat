@@ -107,6 +107,7 @@ class Negative(Op):
 @org.register_opt("dfs_forward")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_display")
+@org.register_opt("dfs_sort_deps")
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_degenerate")
 @org.register_opt("topo_standardize")

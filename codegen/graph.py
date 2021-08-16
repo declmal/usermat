@@ -288,18 +288,9 @@ class Graph(object):
         dfs_visit(outs, "dfs_sort_deps")
 
     def optimize(self):
-        # var,scalar
-        # abs,sin,cos,lessthan,nomorethan
-        # add,power,multiply
-        # divide,negative,subtract
         self.standardize()
-        # var,scalar
-        # abs,sin,cos,lessthan,nomorethan
-        # add,power,multiply
         self.degenerate()
-        # var,scalar
-        # abs,sin,cos,lessthan,nomorethan
-        # add,power,multiply
+        self.sort_deps()
 
     def merge(self, logger=logging.getLogger("graph.merge")):
         info_dict_1 = {}

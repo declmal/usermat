@@ -379,7 +379,7 @@ class Graph(object):
         return sign_dict
 
     def assert_graph(self):
-        # set asserts
+        # insert asserts
         sign_dict_f = self.infer_sign()
         outs = self.outs + self.asserts
         sign_dict_0 = dfs_visit(outs, "dfs_infer_sign")
@@ -417,11 +417,15 @@ class Graph(object):
             nasserts.append(assert_op)
         self.asserts += nasserts
         self.clear_asserts()
+        # validate asserts
+        nsign_dict_f = self.infer_sign()
+        for assert_op in self.asserts:
+            assert_id = assert_op.id
+            assert assert_id in nsign_dict_f
+            del nsign_dict_f[assert_id]
+        assert nsign_dict_f == sign_dict_f
         # zerify
         self.zerify()
-        sign_dict = self.infer_sign_forward()
-        self.degenerate(sign_dict_ref=sign_dict)
-        # fuse redundant asserts
 
     def __eq__(self, other):
         self.sort_deps()

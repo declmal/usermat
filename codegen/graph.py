@@ -148,6 +148,27 @@ def dfs_visit(outs, callback, init_val_dict={}, **kwargs):
         dfs(out, visited, callback, val_dict=val_dict, **kwargs)
     return val_dict
 
+def dfs_ret(op, val_dict, callback, **kwargs):
+    op_id = op.id
+    assert op_id != -1, "invalid id: {}".format(op.id)
+    if op_id in val_dict:
+        val = val_dict[op_id]
+        return val
+    vs = []
+    for dep in op.deps:
+        val = dfs_ret(dep, val_dict, callback, **kwargs)
+        vs.append(val)
+    dfs_func = org.get_opt(op, callback)
+    val = dfs_func(op, *vs, **kwargs)
+    val_dict[op_id] = val
+    return val
+
+def dfs_visit_ret(outs, callback, init_val_dict={}, **kwargs):
+    val_dict = init_val_dict.copy()
+    for out in outs:
+        val = dfs_ret(out, val_dict, callback, **kwargs)
+    return val_dict
+
 """ graph
 """
 def register_graph_topo(cls):

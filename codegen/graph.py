@@ -56,7 +56,32 @@ def topo_sort(op_group):
             if res[nid] == 0:
                 zero_deps.append(nid)
                 del res[nid]
-    return topo_seq
+    # adjacent asserts and deps
+    assert_map = {}
+    for ind, op in enumerate(topo_seq):
+        op_type = op.op_type
+        if op_type.startswith("assert"):
+            op_id = op.id
+            dep = op.deps[0]
+            dep_id = dep.id
+            assert dep_id not in assert_map, \
+                "dep_id: {}, assert_id: {}".format(dep_id, op_id)
+            assert_map[dep_id] = ind
+    visited = set()
+    ntopo_seq = []
+    for op in topo_seq:
+        op_id = op.id
+        if op_id in visited:
+            continue
+        visited.add(op_id)
+        ntopo_seq.append(op)
+        if op_id in assert_map:
+            assert_ind = assert_map[op_id]
+            assert_op = topo_seq[assert_ind]
+            assert_id = assert_op.id
+            visited.add(assert_id)
+            ntopo_seq.append(assert_op)
+    return ntopo_seq
 
 def graph_infer_sign(op):
     op_id = op.id
@@ -165,12 +190,8 @@ def dfs_visit(outs, callback, init_val_dict={}, **kwargs):
 def register_graph_topo(cls):
     def graph_topo(callback):
         def wrapper(
-            self, logger=logging.getLogger("graph.{}".format(callback)),
-            sign_dict_ref=None):
-            if sign_dict_ref is None:
-                sign_dict = self.infer_sign()
-            else:
-                sign_dict = sign_dict_ref.copy()
+            self, logger=logging.getLogger("graph.{}".format(callback))):
+            sign_dict = self.infer_sign()
             self.inps, self.outs, self.asserts, nsign_dict = topo_visit(
                 self.inps, self.outs, self.asserts, callback,
                 sign_dict_ref=sign_dict)
@@ -260,6 +281,8 @@ class Graph(object):
         for assert_op in assert_map.values():
             nasserts.append(assert_op)
         self.asserts = nasserts
+        # sort asserts
+        self.asserts.sort()
 
     def propagate_assertion(self):
         revtopo_visit(self.outs, "revtopo_propagate_assertion")
@@ -354,7 +377,6 @@ class Graph(object):
     def optimize(self):
         self.standardize()
         self.degenerate()
-        self.sort_deps()
 
     def merge(self, logger=logging.getLogger("graph.merge")):
         info_dict_1 = {}
@@ -369,7 +391,6 @@ class Graph(object):
             info_dict_1 = info_dict_2.copy()
         logger.debug(
             "graph merge has been run for {} passes".format(cnt))
-        self.sort_deps()
 
     def infer_sign(self, logger=logging.getLogger("graph.infer_sign")):
         sign_dict_1 = {}
@@ -417,17 +438,17 @@ class Graph(object):
             zero = od.scalar(Zero)
             op = od.get_op(op_id)
             if sign_f == OpSign.NON_ZERO:
-                assert_op = od.assertnotequal(op, zero)
+                assert_op = od.assertnonzero(op)
             elif sign_f == OpSign.ZERO:
-                assert_op = od.assertequal(op, zero)
+                assert_op = od.assertzero(op)
             elif sign_f == OpSign.NON_NEGATIVE:
-                assert_op = od.assertnomorethan(zero, op)
+                assert_op = od.assertnonnegative(op)
             elif sign_f == OpSign.NON_POSITIVE:
-                assert_op = od.assertnomorethan(op, zero)
+                assert_op = od.assertnonpositive(op)
             elif sign_f == OpSign.POSITIVE:
-                assert_op = od.assertlessthan(zero, op)
+                assert_op = od.assertpositive(op)
             elif sign_f == OpSign.NEGATIVE:
-                assert_op = od.assertlessthan(op, zero)
+                assert_op = od.assertnegative(op)
             else:
                 assert False
             assert_id = assert_op.id
@@ -444,6 +465,7 @@ class Graph(object):
         assert nsign_dict_f == sign_dict_f
         # zerify
         self.zerify()
+        self.degenerate()
 
     def __eq__(self, other):
         self.sort_deps()

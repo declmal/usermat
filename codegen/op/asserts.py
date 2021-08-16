@@ -1,6 +1,6 @@
 from ..type_utils import Zero, ContradictError
 from ..sign_utils import \
-    merge_sign, infer_nomorethan, infer_lessthan, OpSign
+    merge_sign, infer_nomorethan, infer_lessthan, OpSign, infer_notequal
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
@@ -36,12 +36,13 @@ class AssertNegative(Op):
     def topo_degenerate(cls, sign_dict, *deps):
         dep = deps[0]
         dep_id = dep.id
-        dep_sign = sign_dict[dep_id]
+        dep_sign = od.get_sign(dep_id)
         if infer_nomorethan(OpSign.ZERO, dep_sign):
             raise ContradictError
         if infer_lessthan(dep_sign, OpSign):
             op = od.null()
             return op
+        od.set_sign(dep_id, OpSign.NEGATIVE)
         op = cls.default_op(*deps)
         return op
 
@@ -80,12 +81,13 @@ class AssertPositive(Op):
     def topo_degenerate(cls, sign_dict, *deps):
         dep = deps[0]
         dep_id = dep.id
-        dep_sign = sign_dict[dep_id]
+        dep_sign = od.get_sign(dep_id)
         if infer_nomorethan(dep_sign, OpSign.ZERO):
             raise ContradictError
         if infer_lessthan(OpSign.ZERO, dep_sign):
             op = od.null()
             return op
+        od.set_sign(dep_id, OpSign.POSITIVE)
         op = cls.default_op(*deps)
         return op
 
@@ -133,17 +135,18 @@ class AssertNonPositive(Op):
     def topo_degenerate(cls, sign_dict, *deps):
         dep = deps[0]
         dep_id = dep.id
-        dep_sign = sign_dict[dep_id]
+        dep_sign = od.get_sign(dep_id)
         if infer_lessthan(OpSign.ZERO, dep_sign):
             raise ContradictError
         if infer_nomorethan(dep_sign, OpSign.ZERO):
             op = od.null()
             return op
+        od.set_sign(dep_id, OpSign.NON_POSITIVE)
         op = cls.default_op(*deps)
         return op
 
     def revtopo_infer_sign(self, sign_dict):
-        dep = deps[0]
+        dep = self.deps[0]
         dep_id = dep.id
         dep_sign = sign_dict[dep_id]
         sign = merge_sign(dep_sign, OpSign.NON_POSITIVE)
@@ -186,17 +189,18 @@ class AssertNonNegative(Op):
     def topo_degenerate(cls, sign_dict, *deps):
         dep = deps[0]
         dep_id = dep.id
-        dep_sign = sign_dict[dep_id]
+        dep_sign = od.get_sign(dep_id)
         if infer_lessthan(dep_sign, OpSign.ZERO):
             raise ContradictError
         if infer_nomorethan(OpSign.ZERO, dep_sign):
             op = od.null()
             return op
+        od.set_sign(dep_id, OpSign.NON_NEGATIVE)
         op = cls.default_op(*deps)
         return op
 
     def revtopo_infer_sign(self, sign_dict):
-        dep = deps[0]
+        dep = self.deps[0]
         dep_id = dep.id
         dep_sign = sign_dict[dep_id]
         sign = merge_sign(dep_sign, OpSign.NON_NEGATIVE)
@@ -234,14 +238,15 @@ class AssertNonZero(Op):
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        dep = self.deps[0]
+        dep = deps[0]
         dep_id = dep.id
-        dep_sign = sign_dict[dep_id]
+        dep_sign = od.get_sign(dep_id)
         if dep_sign == OpSign.ZERO:
             raise ContradictError
         if infer_notequal(dep_sign, OpSign.ZERO):
             op = od.null()
             return op
+        od.set_sign(dep_id, OpSign.NON_ZERO)
         op = cls.default_op(*deps)
         return op
 
@@ -280,20 +285,21 @@ class AssertZero(Op):
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        dep = self.deps[0]
+        dep = deps[0]
         dep_id = dep.id
-        dep_sign = sign_dict[dep_id]
+        dep_sign = od.get_sign(dep_id)
         if infer_notequal(dep_sign, OpSign.ZERO):
             raise ContradictError
         if dep_sign == OpSign.ZERO:
             op = od.null()
             return op
+        od.set_sign(dep_id, OpSign.ZERO)
         op = cls.default_op(*deps)
         return op
 
     @classmethod
     def topo_zerify(cls, sign_dict, *deps):
-        dep = self.deps[0]
+        dep = deps[0]
         dep_id = dep.id
         od_sign = od.get_sign(dep_id)
         if od_sign == OpSign.ZERO:

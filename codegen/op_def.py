@@ -1,7 +1,7 @@
 from fractions import Fraction
 
 from .type_utils import cast_fraction
-from .sign_utils import OpSign
+from .sign_utils import OpSign, merge_sign
 
 
 """ Op Definition Manager
@@ -33,6 +33,17 @@ class OpDef(object):
         assert ret, "op_id: {} not in sign_dict".format(op_id)
         sign = OpDef.sign_dict[op_id]
         return sign
+
+    @staticmethod
+    def set_sign(op_id, sign):
+        assert isinstance(op_id, int), type(op_id)
+        ret = OpDef.query_sign(op_id)
+        if not ret:
+            OpDef.sign_dict[op_id] = sign
+        else:
+            org_sign = OpDef.sign_dict[op_id]
+            nsign = merge_sign(org_sign, sign)
+            OpDef.sign_dict[op_id] = nsign
 
     @staticmethod
     def get_sign_dict():

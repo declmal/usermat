@@ -5,11 +5,9 @@ from functools import wraps
 
 #   int values: 0(None) by default, 10(DEBUG),
 #     20(INFO), 30(WARNING), 40(ERROR), 50(CRITICAL).
-
 class ColoredFormatter(logging.Formatter):
     def __init__(self, fmt=None, datefmt=None, style='%'):
         super(ColoredFormatter, self).__init__(fmt, datefmt, style)
-
         self.log_colors = {
             "DEBUG": "\033[38;5;111m",
             "INFO": "\033[38;5;47m",
@@ -33,19 +31,18 @@ class ColoredFormatter(logging.Formatter):
 
 class FilterList(logging.Filter):
     """ Filter with logging module
-
         Filter rules as below:
             {allow|disable log name} > level no > keywords >
             {inheritance from parent log name} > by default filter
         TODO:
     """
-    def __init__(self, default=False, allows=[], disables=[],
-            keywords=[], log_level=logging.INFO):
+    def __init__(
+        self, default=False, allows=[], disables=[],
+        keywords=[], log_level=logging.INFO):
         self.rules = {}
         self._internal_filter_rule = "_internal_filter_rule"
         self.log_level = log_level
         self.keywords = keywords
-
         self.rules[self._internal_filter_rule] = default
         for name in allows:
             splits = name.split(".")
@@ -54,9 +51,7 @@ class FilterList(logging.Filter):
                 if split not in rules:
                     rules[split] = {}
                 rules = rules[split]
-
             rules[self._internal_filter_rule] = True
-
         for name in disables:
             splits = name.split(".")
             rules = self.rules
@@ -64,13 +59,11 @@ class FilterList(logging.Filter):
                 if split not in rules:
                     rules[split] = {}
                 rules = rules[split]
-
             rules[self._internal_filter_rule] = False
 
     def filter(self, record):
         rules = self.rules
         rv = rules[self._internal_filter_rule]
-
         splits = record.name.split(".")
         for split in splits:
             if split in rules:
@@ -80,13 +73,10 @@ class FilterList(logging.Filter):
             else:
                 if record.levelno >= self.log_level:
                     return True
-
                 for keyword in self.keywords:
                     if keyword in record.getMessage():
                         return True
-
                 return rv
-
         return rv
 
 def log_init(level=logging.NOTSET):
@@ -94,10 +84,8 @@ def log_init(level=logging.NOTSET):
     formatter = ColoredFormatter(
             fmt="[ %(asctime)s %(name)s.%(levelname)s ] %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S")
-
     log_filter = FilterList(
-                log_level=logging.DEBUG,
-                default=False)
+        log_level=logging.DEBUG, default=False)
     for handler in logging.root.handlers:
         handler.addFilter(log_filter)
         handler.setFormatter(formatter)

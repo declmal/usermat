@@ -15,6 +15,72 @@ class OpSign(Enum):
     ZERO = auto()
     UNDEFINED = auto()
 
+""" merge sign util functions
+"""
+def raise_merge_sign_error(sign1, sign2):
+    raise ContradictError(
+        "contradictory assertion, sign1: {}, sign2: {}".format(
+            sign1, sign2))
+
+def merge_sign(sign1, sign2):
+    if sign1 == sign2:
+        return sign1
+    if sign1 == OpSign.UNDEFINED:
+        return sign2
+    if sign2 == OpSign.UNDEFINED:
+        return sign1
+    if sign1 == OpSign.NON_ZERO:
+        if sign2 == OpSign.ZERO:
+            raise_merge_sign_error(sign1, sign2)
+        if sign2 == OpSign.NON_NEGATIVE:
+            return OpSign.POSITIVE
+        if sign2 == OpSign.NON_POSITIVE:
+            return OpSign.NEGATIVE
+        return sign2
+    if sign2 == OpSign.NON_ZERO:
+        if sign1 == OpSign.ZERO:
+            raise_merge_sign_error(sign1, sign2)
+        if sign1 == OpSign.NON_NEGATIVE:
+            return OpSign.POSITIVE
+        if sign1 == OpSign.NON_POSITIVE:
+            return OpSign.NEGATIVE
+        return sign1
+    if sign1 == OpSign.NON_POSITIVE:
+        if sign2 == OpSign.POSITIVE:
+            raise_merge_sign_error(sign1, sign2)
+        if sign2 == OpSign.NEGATIVE:
+            return sign2
+        return OpSign.ZERO
+    if sign2 == OpSign.NON_POSITIVE:
+        if sign1 == OpSign.POSITIVE:
+            raise_merge_sign_error(sign1, sign2)
+        if sign1 == OpSign.NEGATIVE:
+            return sign1
+        return OpSign.ZERO
+    if sign1 == OpSign.NON_NEGATIVE:
+        if sign2 == OpSign.NEGATIVE:
+            raise_merge_sign_error(sign1, sign2)
+        if sign2 == OpSign.POSITIVE:
+            return sign2
+        return OpSign.ZERO
+    if sign2 == OpSign.NON_NEGATIVE:
+        if sign1 == OpSign.NEGATIVE:
+            raise_merge_sign_error(sign1, sign2)
+        if sign1 == OpSign.POSITIVE:
+            return sign1
+        return OpSign.ZERO
+    raise_merge_sign_error(sign1, sign2)
+
+def separate_signs(signs, lst):
+    signs1 = []
+    signs2 = []
+    for sign in signs:
+        if sign in lst:
+            signs1.append(sign)
+        else:
+            signs2.append(sign)
+    return signs1, signs2
+
 """ infer_sign util functions
 """
 def infer_scalar_sign(data):
@@ -273,73 +339,11 @@ def revinfer_power_sign(csign, exp_data):
         else:
             frac_sign = OpSign.NON_NEGATIVE
         return frac_sign
-    return csign
-
-""" merge sign util functions
-"""
-def raise_merge_sign_error(sign1, sign2):
-    raise ContradictError(
-        "contradictory assertion, sign1: {}, sign2: {}".format(
-            sign1, sign2))
-
-def merge_sign(sign1, sign2):
-    if sign1 == sign2:
-        return sign1
-    if sign1 == OpSign.UNDEFINED:
-        return sign2
-    if sign2 == OpSign.UNDEFINED:
-        return sign1
-    if sign1 == OpSign.NON_ZERO:
-        if sign2 == OpSign.ZERO:
-            raise_merge_sign_error(sign1, sign2)
-        if sign2 == OpSign.NON_NEGATIVE:
-            return OpSign.POSITIVE
-        if sign2 == OpSign.NON_POSITIVE:
-            return OpSign.NEGATIVE
-        return sign2
-    if sign2 == OpSign.NON_ZERO:
-        if sign1 == OpSign.ZERO:
-            raise_merge_sign_error(sign1, sign2)
-        if sign1 == OpSign.NON_NEGATIVE:
-            return OpSign.POSITIVE
-        if sign1 == OpSign.NON_POSITIVE:
-            return OpSign.NEGATIVE
-        return sign1
-    if sign1 == OpSign.NON_POSITIVE:
-        if sign2 == OpSign.POSITIVE:
-            raise_merge_sign_error(sign1, sign2)
-        if sign2 == OpSign.NEGATIVE:
-            return sign2
-        return OpSign.ZERO
-    if sign2 == OpSign.NON_POSITIVE:
-        if sign1 == OpSign.POSITIVE:
-            raise_merge_sign_error(sign1, sign2)
-        if sign1 == OpSign.NEGATIVE:
-            return sign1
-        return OpSign.ZERO
-    if sign1 == OpSign.NON_NEGATIVE:
-        if sign2 == OpSign.NEGATIVE:
-            raise_merge_sign_error(sign1, sign2)
-        if sign2 == OpSign.POSITIVE:
-            return sign2
-        return OpSign.ZERO
-    if sign2 == OpSign.NON_NEGATIVE:
-        if sign1 == OpSign.NEGATIVE:
-            raise_merge_sign_error(sign1, sign2)
-        if sign1 == OpSign.POSITIVE:
-            return sign1
-        return OpSign.ZERO
-    raise_merge_sign_error(sign1, sign2)
-
-def separate_signs(signs, lst):
-    signs1 = []
-    signs2 = []
-    for sign in signs:
-        if sign in lst:
-            signs1.append(sign)
-        else:
-            signs2.append(sign)
-    return signs1, signs2
+    if nume % 2 == 0:
+        frac_sign = OpSign.UNDEFINED if nume > 0 else OpSign.NON_ZERO
+        return frac_sign
+    frac_sign = csign if nume > 0 else merge_sign(csign, OpSign.NON_ZERO)
+    return frac_sign
 
 """ sign dict util functions
 """

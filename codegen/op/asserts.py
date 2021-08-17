@@ -13,6 +13,7 @@ from .op_utils import num_valid_func, sequential_equiv_func
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertNegative(Op):
+    @classmethod
     def fwd_func(cls):
         assert v0 < 0
         return 1.0
@@ -66,6 +67,7 @@ class AssertNegative(Op):
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertPositive(Op):
+    @classmethod
     def fwd_func(cls):
         assert v0 > 0
         return 1.0
@@ -120,6 +122,7 @@ class AssertPositive(Op):
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertNonPositive(Op):
+    @classmethod
     def fwd_func(cls, v0):
         assert v0 <= 0
         return 1.0
@@ -178,9 +181,11 @@ class AssertNonPositive(Op):
 @org.register_opt("dfs_sort_deps")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_infer_sign")
+@org.register_opt("dfs_forward")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertNonNegative(Op):
+    @classmethod
     def fwd_func(cls, v0):
         assert v0 >= 0
         return 1.0
@@ -237,9 +242,13 @@ class AssertNonNegative(Op):
 
 
 @org.register_opt("dfs_sort_deps")
+@org.register_opt("dfs_infer_sign")
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_forward")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertNonZero(Op):
+    @classmethod
     def fwd_func(cls, v0):
         assert v0 != 0
         return 1.0
@@ -301,6 +310,7 @@ class AssertNonZero(Op):
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertZero(Op):
+    @classmethod
     def fwd_func(cls, v0):
         assert v0 == 0
         return 1.0

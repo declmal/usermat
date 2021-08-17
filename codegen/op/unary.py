@@ -114,6 +114,7 @@ class Negative(Op):
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_degenerate")
 @org.register_opt("topo_standardize")
+@org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Sin(Op):
@@ -165,6 +166,7 @@ class Sin(Op):
 @org.register_opt("dfs_sort_deps")
 @org.register_opt("topo_fuse")
 @org.register_opt("topo_degenerate")
+@org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class Cos(Op):

@@ -28,7 +28,6 @@ class TestPower3(unittest.TestCase):
         g = Graph([v0,v4], [v11])
         g.optimize()
         g.merge()
-        g.assert_graph()
         g.tosym()
         # reference graph
         v0 = od.var("x")
@@ -44,6 +43,6 @@ class TestPower3(unittest.TestCase):
         v5 = od.monomial(one, v4, third)
         v6 = od.assertnonnegative(v1)
         v7 = od.assertnonpositive(v0)
-        g2 = Graph([v0,v1], [v5], asserts=[v6,v7,v3])
+        g2 = Graph([v0,v1], [v5], asserts=[v3,v6,v7])
         # assertion
         self.assertEqual(g, g2)

@@ -374,24 +374,6 @@ class Graph(object):
         outs = self.asserts + self.outs
         dfs_visit(outs, "dfs_sort_deps")
 
-    def optimize(self):
-        self.standardize()
-        self.degenerate()
-
-    def merge(self, logger=logging.getLogger("graph.merge")):
-        info_dict_1 = {}
-        cnt = 0
-        while True:
-            self.fuse()
-            self.degenerate()
-            info_dict_2 = self.info()
-            cnt += 1
-            if info_dict_1 == info_dict_2:
-                break
-            info_dict_1 = info_dict_2.copy()
-        logger.debug(
-            "graph merge has been run for {} passes".format(cnt))
-
     def infer_sign(self, logger=logging.getLogger("graph.infer_sign")):
         sign_dict_1 = {}
         cnt = 0
@@ -411,7 +393,23 @@ class Graph(object):
             "graph infer_sign has been run for {} passes".format(cnt))
         return sign_dict_1
 
-    def assert_graph(self):
+    def optimize(self):
+        self.standardize()
+        self.degenerate()
+
+    def merge(self, logger=logging.getLogger("graph.merge")):
+        info_dict_1 = {}
+        cnt = 0
+        while True:
+            self.fuse()
+            self.degenerate()
+            info_dict_2 = self.info()
+            cnt += 1
+            if info_dict_1 == info_dict_2:
+                break
+            info_dict_1 = info_dict_2.copy()
+        logger.debug(
+            "graph merge has been run for {} passes".format(cnt))
         # insert asserts
         sign_dict_f = self.infer_sign()
         outs = self.outs + self.asserts

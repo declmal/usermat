@@ -15,7 +15,7 @@ from .op_utils import num_valid_func, sequential_equiv_func
 class AssertNegative(Op):
     @classmethod
     def fwd_func(cls, v0):
-        assert v0 < 0
+        assert v0 < 0, v0
         return 1.0
 
     def merge(self, other):
@@ -72,7 +72,7 @@ class AssertNegative(Op):
 class AssertPositive(Op):
     @classmethod
     def fwd_func(cls, v0):
-        assert v0 > 0
+        assert v0 > 0, v0
         return 1.0
 
     def merge(self, other):
@@ -128,7 +128,7 @@ class AssertPositive(Op):
 class AssertNonPositive(Op):
     @classmethod
     def fwd_func(cls, v0):
-        assert v0 <= 0
+        assert v0 <= 0, v0
         return 1.0
 
     def merge(self, other):
@@ -191,7 +191,7 @@ class AssertNonPositive(Op):
 class AssertNonNegative(Op):
     @classmethod
     def fwd_func(cls, v0):
-        assert v0 >= 0
+        assert v0 >= 0, v0
         return 1.0
 
     def merge(self, other):
@@ -254,7 +254,7 @@ class AssertNonNegative(Op):
 class AssertNonZero(Op):
     @classmethod
     def fwd_func(cls, v0):
-        assert v0 != 0
+        assert v0 != 0, v0
         return 1.0
 
     def merge(self, other):
@@ -316,7 +316,7 @@ class AssertNonZero(Op):
 class AssertZero(Op):
     @classmethod
     def fwd_func(cls, v0):
-        assert v0 == 0
+        assert v0 == 0, v0
         return 1.0
 
     def merge(self, other):

@@ -27,10 +27,10 @@ class Test2(unittest.TestCase):
         a, b, c, d = [float(v) for v in [1, 2, 3, 4]]
         outs1 = g.forward(a, b, c, d)
         self.assertEqual(outs1, [np.sin(a/b+c)*d*d*d])
-        ng = g.autodiff()
-        ng.optimize()
-        ng.tosym()
-        outs2 = ng.forward(a,b,c,d)
+        g.autodiff()
+        g.optimize()
+        g.tosym()
+        outs2 = g.forward(a,b,c,d)
         self.assertEqual(
             outs2, [
                 d*d*d*np.cos(a/b+c)/b,

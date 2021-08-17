@@ -33,14 +33,14 @@ class TestCnd(unittest.TestCase):
             outs = g.forward(*datas)
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)
-        dg = g.autodiff()
-        dg.optimize()
-        dg.tosym()
+        g.autodiff()
+        g.optimize()
+        g.tosym()
         for _ in range(10000):
             datas = random_array([3], low=-1000.0, high=1000.0)
             a, b, c = datas
             rets = [0, 2*c*(b-1), (b-1)**2] if -b*c < np.sin(a) else \
                 [0, 2*c, 2*(b-1)]
-            outs = dg.forward(*datas)
+            outs = g.forward(*datas)
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)

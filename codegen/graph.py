@@ -370,11 +370,9 @@ class Graph(object):
             out_diff = diff_dict[out_id]
             for o in out_diff:
                 outs.append(o)
-        dg = Graph(
-            self.inps, outs, asserts=self.asserts,
-            out_appends=out_appends)
-        dg.status = 1
-        return dg
+        self.outs = outs
+        self.out_appends = out_appends
+        self.degenerate()
 
     def sort_deps(self):
         outs = self.asserts + self.outs

@@ -1,7 +1,7 @@
-from ..sign_utils import \
+from ..utils.sign_utils import \
     infer_multiply_sign, infer_add_sign, infer_scalar_sign, \
     merge_sign, separate_signs, OpSign, revinfer_multiply_sign
-from ..type_utils import One, ContradictError
+from ..utils.type_utils import One, ContradictError
 from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import \

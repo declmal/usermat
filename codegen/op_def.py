@@ -1,7 +1,7 @@
 from fractions import Fraction
 
-from .type_utils import cast_fraction
-from .sign_utils import OpSign, merge_sign
+from .utils.type_utils import cast_fraction
+from .utils.sign_utils import OpSign, merge_sign
 
 
 """ Op Definition Manager

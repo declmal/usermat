@@ -1,4 +1,4 @@
-from .type_utils import cast_fraction
+from .utils.type_utils import cast_fraction
 from .op_def import OpDef as od
 
 

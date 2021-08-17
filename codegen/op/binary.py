@@ -1,7 +1,7 @@
-from ..sign_utils import \
+from ..utils.sign_utils import \
     infer_add_sign, infer_multiply_sign, \
     revinfer_multiply_sign, revinfer_add_sign, merge_sign
-from ..type_utils import Zero, One
+from ..utils.type_utils import Zero, One
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op

@@ -1,7 +1,7 @@
 import unittest
 from fractions import Fraction
 
-from ..type_utils import One
+from ..utils.type_utils import One
 from ..op_def import OpDef as od
 from ..graph import Graph
 from .test_utils import register_test, random_array

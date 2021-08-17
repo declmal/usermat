@@ -1,8 +1,8 @@
 import numpy as np
 
-from ..sign_utils import \
+from ..utils.sign_utils import \
     infer_negative_sign,infer_abs_sign, OpSign, merge_sign, insert_sign
-from ..type_utils import MinusOne
+from ..utils.type_utils import MinusOne
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op

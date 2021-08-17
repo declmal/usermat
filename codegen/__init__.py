@@ -1,6 +1,6 @@
 import logging
 
-from .log_utils import log_init
+from .utils.log_utils import log_init
 from .op import zero_deps
 from .op import unary
 from .op import asserts

@@ -2,8 +2,8 @@ import logging
 
 import mxnet as mx
 
-from .type_utils import Zero
-from .sign_utils import OpSign, merge_sign
+from .utils.type_utils import Zero
+from .utils.sign_utils import OpSign, merge_sign
 from .op_def import OpDef as od
 from .op_reg import OpReg as org
 

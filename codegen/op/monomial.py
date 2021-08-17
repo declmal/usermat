@@ -1,10 +1,10 @@
 from fractions import Fraction
 
-from ..sign_utils import \
+from ..utils.sign_utils import \
     infer_power_sign, infer_scalar_sign, infer_multiply_sign_consec, \
     revinfer_multiply_sign, revinfer_power_sign, \
     merge_sign, separate_signs, OpSign
-from ..type_utils import One, Zero, ContradictError
+from ..utils.type_utils import One, Zero, ContradictError
 from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import \

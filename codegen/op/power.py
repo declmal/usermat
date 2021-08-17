@@ -1,8 +1,8 @@
 from fractions import Fraction
 
-from ..sign_utils import \
+from ..utils.sign_utils import \
     infer_power_sign, merge_sign, revinfer_power_sign, OpSign
-from ..type_utils import \
+from ..utils.type_utils import \
     One, MinusOne, Zero, validate_exp, ContradictError
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org

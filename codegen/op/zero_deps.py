@@ -2,8 +2,9 @@ import logging
 
 import mxnet as mx
 
-from ..sign_utils import infer_scalar_sign, merge_sign
-from ..type_utils import Zero, One, FloatTypes, cast_fraction, cast_float
+from ..utils.sign_utils import infer_scalar_sign, merge_sign
+from ..utils.type_utils import \
+    Zero, One, FloatTypes, cast_fraction, cast_float
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op

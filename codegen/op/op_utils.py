@@ -1,8 +1,8 @@
 from fractions import Fraction
 
-from ..sign_utils import \
+from ..utils.sign_utils import \
     infer_negative_sign, infer_abs_sign, OpSign, insert_sign
-from ..type_utils import \
+from ..utils.type_utils import \
     One, Zero, MinusOne, FloatTypes, validate_exp
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org

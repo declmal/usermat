@@ -25,8 +25,10 @@ def cnd_auto_backward(deps, od_func, val_dict, var_seq):
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_display")
 @org.register_opt("dfs_sort_deps")
+@org.register_opt("dfs_info")
 @org.register_opt("topo_standardize")
 @org.register_opt("topo_fuse")
+@org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(4), equiv_func=sequential_equiv_func)
 class LessThan(Op):

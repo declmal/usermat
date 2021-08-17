@@ -211,7 +211,8 @@ def register_graph_topo(cls):
 
 @register_graph_topo
 class Graph(object):
-    def __init__(self, inps, outs, asserts=None, out_appends=None):
+    def __init__(
+        self, inps, outs, asserts=None, out_appends=None):
         # validate and set inps
         self.inps = inps
         self.validate_inps()
@@ -224,10 +225,12 @@ class Graph(object):
             self.asserts = asserts
             self.fuse_asserts()
         # out_appends: suffix that comes
-        # after "##" of the output symbol name
+        # after "~~~~" of the output symbol name
         self.out_appends = out_appends \
             if out_appends is not None else \
             ["Out:{}".format(i) for i in range(len(self.outs))]
+        # graph status
+        self.status = 0
 
     def validate_inps(self):
         inp_ids = set()
@@ -343,6 +346,8 @@ class Graph(object):
             f.write(json.dumps(arr, indent=4))
 
     def autodiff(self):
+        assert self.status == 1, \
+            "graph should be unified but not optimized"
         var_seq = {}
         for i in range(len(self.inps)):
             inp = self.inps[i]
@@ -368,6 +373,7 @@ class Graph(object):
         dg = Graph(
             self.inps, outs, asserts=self.asserts,
             out_appends=out_appends)
+        dg.status = 1
         return dg
 
     def sort_deps(self):
@@ -393,11 +399,15 @@ class Graph(object):
             "graph infer_sign has been run for {} passes".format(cnt))
         return sign_dict_1
 
-    def optimize(self):
+    def unify(self, logger=logging.getLogger("graph.unify")):
+        assert self.status == 0, "graph has already been unified"
         self.standardize()
         self.degenerate()
+        logger.info("graph has been unified")
+        self.status = 1
 
-    def merge(self, logger=logging.getLogger("graph.optimize")):
+    def optimize(self, logger=logging.getLogger("graph.optimize")):
+        assert self.status == 1, "graph has not been unified"
         # merge into mials
         info_dict_1 = {}
         cnt = 0
@@ -462,6 +472,8 @@ class Graph(object):
         self.zerify()
         self.degenerate()
         logger.info("graph has been zerified")
+        self.status = 2
+        logger.info("graph has been optimized")
 
     def __eq__(self, other):
         self.sort_deps()

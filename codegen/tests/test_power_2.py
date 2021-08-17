@@ -18,8 +18,8 @@ class TestPower2(unittest.TestCase):
         v3 = od.multiply(v1, v2)
         v4 = od.power(v3, od.scalar(Fraction(1,4)))
         g = Graph([v0], [v4])
+        g.unify()
         g.optimize()
-        g.merge()
         g.tosym()
         for _ in range(10000):
             datas = random_array([1], low=-100.0, high=100.0)

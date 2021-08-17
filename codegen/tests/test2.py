@@ -23,14 +23,12 @@ class Test2(unittest.TestCase):
         v8 = od.multiply(v7, v3)
         v9 = od.multiply(v6, v8)
         g = Graph([v0,v1,v2,v3], [v9])
-        g.tosym()
-        g.optimize()
-        g.tosym()
+        g.unify()
         a, b, c, d = [float(v) for v in [1, 2, 3, 4]]
         outs1 = g.forward(a, b, c, d)
         self.assertEqual(outs1, [np.sin(a/b+c)*d*d*d])
         ng = g.autodiff()
-        ng.merge()
+        ng.optimize()
         ng.tosym()
         outs2 = ng.forward(a,b,c,d)
         self.assertEqual(

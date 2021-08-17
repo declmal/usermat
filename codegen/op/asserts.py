@@ -14,7 +14,7 @@ from .op_utils import num_valid_func, sequential_equiv_func
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertNegative(Op):
     @classmethod
-    def fwd_func(cls):
+    def fwd_func(cls, v0):
         assert v0 < 0
         return 1.0
 
@@ -64,11 +64,14 @@ class AssertNegative(Op):
 
 
 @org.register_opt("dfs_sort_deps")
+@org.register_opt("dfs_infer_sign")
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_forward")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertPositive(Op):
     @classmethod
-    def fwd_func(cls):
+    def fwd_func(cls, v0):
         assert v0 > 0
         return 1.0
 
@@ -99,6 +102,7 @@ class AssertPositive(Op):
             return op
         od.set_sign(dep_id, OpSign.POSITIVE)
         op = cls.default_op(*deps)
+        return op
 
     @classmethod
     def topo_zerify(cls, sign_dict, *deps):

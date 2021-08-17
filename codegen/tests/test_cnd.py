@@ -22,7 +22,7 @@ class TestCnd(unittest.TestCase):
         v7 = od.lessthan(v3, v4, v5, v6)
         v8 = od.multiply(v7, v2)
         g = Graph([v0, v1, v2], [v8])
-        g.optimize()
+        g.unify()
         g.tosym()
         for _ in range(10000):
             datas = random_array([3], low=-1000.0, high=1000.0)
@@ -34,8 +34,7 @@ class TestCnd(unittest.TestCase):
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)
         dg = g.autodiff()
-        dg.degenerate()
-        dg.fuse()
+        dg.optimize()
         dg.tosym()
         for _ in range(10000):
             datas = random_array([3], low=-1000.0, high=1000.0)

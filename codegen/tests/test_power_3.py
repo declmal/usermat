@@ -26,8 +26,8 @@ class TestPower3(unittest.TestCase):
         v10 = od.power(v9, od.scalar(Fraction(1,3)))
         v11 = od.add(v8, v10)
         g = Graph([v0,v4], [v11])
+        g.unify()
         g.optimize()
-        g.merge()
         g.tosym()
         # reference graph
         v0 = od.var("x")

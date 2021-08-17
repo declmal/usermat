@@ -46,6 +46,14 @@ class AssertNegative(Op):
         op = cls.default_op(*deps)
         return op
 
+    @classmethod
+    def topo_zerify(cls, sign_dict, *deps):
+        dep = deps[0]
+        dep_id = dep.id
+        od.set_sign(dep_id, OpSign.NEGATIVE)
+        op = super().topo_zerify(sign_dict, *deps)
+        return op
+
     def revtopo_infer_sign(self, sign_dict):
         dep = self.deps[0]
         dep_id = dep.id
@@ -89,6 +97,13 @@ class AssertPositive(Op):
             return op
         od.set_sign(dep_id, OpSign.POSITIVE)
         op = cls.default_op(*deps)
+
+    @classmethod
+    def topo_zerify(cls, sign_dict, *deps):
+        dep = deps[0]
+        dep_id = dep.id
+        od.set_sign(dep_id, OpSign.POSITIVE)
+        op = super().topo_zerify(sign_dict, *deps)
         return op
 
     def revtopo_infer_sign(self, sign_dict):
@@ -102,7 +117,6 @@ class AssertPositive(Op):
 @org.register_opt("dfs_sort_deps")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_infer_sign")
-@org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertNonPositive(Op):
@@ -145,6 +159,14 @@ class AssertNonPositive(Op):
         op = cls.default_op(*deps)
         return op
 
+    @classmethod
+    def topo_zerify(cls, sign_dict, *deps):
+        dep = deps[0]
+        dep_id = dep.id
+        od.set_sign(dep_id, OpSign.NON_POSITIVE)
+        op = super().topo_zerify(sign_dict, *deps)
+        return op
+
     def revtopo_infer_sign(self, sign_dict):
         dep = self.deps[0]
         dep_id = dep.id
@@ -156,7 +178,6 @@ class AssertNonPositive(Op):
 @org.register_opt("dfs_sort_deps")
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_infer_sign")
-@org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
 class AssertNonNegative(Op):
@@ -197,6 +218,14 @@ class AssertNonNegative(Op):
             return op
         od.set_sign(dep_id, OpSign.NON_NEGATIVE)
         op = cls.default_op(*deps)
+        return op
+
+    @classmethod
+    def topo_zerify(cls, sign_dict, *deps):
+        dep = deps[0]
+        dep_id = dep.id
+        od.set_sign(dep_id, OpSign.NON_NEGATIVE)
+        op = super().topo_zerify(sign_dict, *deps)
         return op
 
     def revtopo_infer_sign(self, sign_dict):
@@ -248,6 +277,14 @@ class AssertNonZero(Op):
             return op
         od.set_sign(dep_id, OpSign.NON_ZERO)
         op = cls.default_op(*deps)
+        return op
+
+    @classmethod
+    def topo_zerify(cls, sign_dict, *deps):
+        dep = deps[0]
+        dep_id = dep.id
+        od.set_sign(dep_id, OpSign.NON_ZERO)
+        op = super().topo_zerify(sign_dict, *deps)
         return op
 
     def revtopo_infer_sign(self, sign_dict):
@@ -307,6 +344,7 @@ class AssertZero(Op):
             ndeps = [zero]
             op = cls.default_op(*ndeps)
             return op
+        od.set_sign(dep_id, OpSign.ZERO)
         op = cls.default_op(*deps)
         return op
 

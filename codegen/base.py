@@ -21,7 +21,6 @@ class Op(object):
     def insert_assertion(self, sign):
         csign = self.sign
         sign = merge_sign(sign, csign)
-        self.sign = sign
 
     def set_id(self, op_id):
         self.id = op_id
@@ -51,7 +50,6 @@ class Op(object):
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
-        # TODO: OpSign.ZERO degenerate
         flag = True
         datas = []
         for dep in deps:

@@ -23,7 +23,7 @@ from .op_utils import \
 class Multiply(Op):
     fwd_func = lambda v0, v1: v0 * v1
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
         x0, x1 = self.deps
@@ -130,7 +130,7 @@ class Add(Op):
             sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
         x0, x1 = self.deps

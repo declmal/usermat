@@ -134,7 +134,7 @@ class Op(object):
     def dfs_sort_deps(self, val_dict):
         pass
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         raise NotImplementedError
 
     def __lt__(self, other):

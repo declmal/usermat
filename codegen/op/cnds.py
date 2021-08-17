@@ -32,7 +32,7 @@ def cnd_auto_backward(deps, od_func, val_dict, var_seq):
 class LessThan(Op):
     fwd_func = lambda v0, v1, v2, v3: v2 if v0 < v1 else v3
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
         od_func = getattr(od, self.op_type)
@@ -93,7 +93,7 @@ class NoMoreThan(Op):
             return lv
         return super().topo_degenerate(sign_dict, *deps)
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
         od_func = getattr(od, self.op_type)

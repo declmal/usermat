@@ -33,7 +33,7 @@ class TestCnd(unittest.TestCase):
             outs = g.forward(*datas)
             for i in range(len(rets)):
                 self.assertAlmostEqual(outs[i], rets[i], places=14)
-        dg = g.autograph_backward()
+        dg = g.autodiff()
         dg.degenerate()
         dg.fuse()
         dg.tosym()

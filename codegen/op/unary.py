@@ -46,7 +46,7 @@ class Abs(Op):
         op = cls.default_op(*deps)
         return op
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
         x = self.deps[0]
@@ -120,7 +120,7 @@ class Negative(Op):
 class Sin(Op):
     fwd_func = lambda v: np.sin(v)
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
         x = self.deps[0]

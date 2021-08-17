@@ -76,7 +76,7 @@ class Power(Op):
                 return cls.default_op(dep, exp)
         return cls.default_op(*deps)
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
         x, y = self.deps

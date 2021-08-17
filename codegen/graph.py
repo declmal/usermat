@@ -199,7 +199,7 @@ def register_graph_topo(cls):
             self.validate_inps()
             # update asserts
             self.fuse_asserts()
-            logger.info("graph has been optimized: {}".format(callback))
+            logger.debug("graph has been optimized: {}".format(callback))
             return nsign_dict
         return wrapper
 
@@ -342,7 +342,7 @@ class Graph(object):
         with open(json_path, "w") as f:
             f.write(json.dumps(arr, indent=4))
 
-    def autograph_backward(self):
+    def autodiff(self):
         var_seq = {}
         for i in range(len(self.inps)):
             inp = self.inps[i]
@@ -350,7 +350,7 @@ class Graph(object):
             var_seq[inp_id] = i
         out_appends = []
         diff_dict = dfs_visit(
-            self.outs, "dfs_autograph_backward", var_seq=var_seq)
+            self.outs, "dfs_autodiff", var_seq=var_seq)
         for i, out in enumerate(self.outs):
             out_id = out.id
             out_diff = diff_dict[out_id]
@@ -397,7 +397,8 @@ class Graph(object):
         self.standardize()
         self.degenerate()
 
-    def merge(self, logger=logging.getLogger("graph.merge")):
+    def merge(self, logger=logging.getLogger("graph.optimize")):
+        # merge into mials
         info_dict_1 = {}
         cnt = 0
         while True:
@@ -410,6 +411,7 @@ class Graph(object):
             info_dict_1 = info_dict_2.copy()
         logger.debug(
             "graph merge has been run for {} passes".format(cnt))
+        logger.info("graph has been merged")
         # insert asserts
         sign_dict_f = self.infer_sign()
         outs = self.outs + self.asserts
@@ -455,9 +457,11 @@ class Graph(object):
             assert assert_id in nsign_dict_f
             del nsign_dict_f[assert_id]
         assert nsign_dict_f == sign_dict_f
+        logger.info("graph assertions have been inserted")
         # zerify
         self.zerify()
         self.degenerate()
+        logger.info("graph has been zerified")
 
     def __eq__(self, other):
         self.sort_deps()

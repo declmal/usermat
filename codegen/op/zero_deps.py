@@ -61,7 +61,7 @@ class Scalar(Op):
         op_id = self.id
         val_dict[op_id] = _info
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
         cdiff = [od.scalar(Zero)] * len(var_seq)
@@ -113,7 +113,7 @@ class Var(Op):
     def dfs_forward(self, val_dict):
         pass
 
-    def dfs_autograph_backward(self, val_dict, var_seq):
+    def dfs_autodiff(self, val_dict, var_seq):
         cop_id = self.id
         assert cop_id not in val_dict
         cdiff = [od.scalar(Zero)] * len(var_seq)

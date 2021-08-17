@@ -411,12 +411,6 @@ class Graph(object):
             "graph infer_sign has been run for {} passes".format(cnt))
         return sign_dict_1
 
-    def infer_sign_forward(self):
-        outs = self.outs + self.asserts
-        sign_dict = dfs_visit(
-            outs, "dfs_infer_sign", init_val_dict={})
-        return sign_dict
-
     def assert_graph(self):
         # insert asserts
         sign_dict_f = self.infer_sign()

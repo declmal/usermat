@@ -5,11 +5,12 @@ from ..utils.type_utils import Zero, One
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import \
-    num_valid_func, sequential_equiv_func, swappable_equiv_func, \
-    get_monomial_dict, get_monomial_dict, merge_monomial_dict, \
-    create_monomial_op, get_polynomial_dict, merge_polynomial_dict, \
+from .op_utils import (
+    num_valid_func, sequential_equiv_func, swappable_equiv_func,
+    get_monomial_dict, get_monomial_dict, merge_monomial_dict,
+    create_monomial_op, get_polynomial_dict, merge_polynomial_dict,
     create_polynomial_op, swap_sort_deps
+)
 
 
 """ ops

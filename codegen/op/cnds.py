@@ -1,6 +1,7 @@
-from ..utils.sign_utils import \
-    infer_nomorethan, infer_mutual_sign, infer_lessthan, \
+from ..utils.sign_utils import (
+    infer_nomorethan, infer_mutual_sign, infer_lessthan,
     OpSign, merge_sign
+)
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op

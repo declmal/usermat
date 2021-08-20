@@ -1,6 +1,7 @@
 from ..utils.type_utils import Zero, ContradictError
-from ..utils.sign_utils import \
+from ..utils.sign_utils import (
     merge_sign, infer_nomorethan, infer_lessthan, OpSign, infer_notequal
+)
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op

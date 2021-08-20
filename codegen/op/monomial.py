@@ -1,15 +1,17 @@
 from fractions import Fraction
 
-from ..utils.sign_utils import \
-    infer_power_sign, infer_scalar_sign, infer_multiply_sign_consec, \
-    revinfer_multiply_sign, revinfer_power_sign, \
+from ..utils.sign_utils import (
+    infer_power_sign, infer_scalar_sign, infer_multiply_sign_consec,
+    revinfer_multiply_sign, revinfer_power_sign,
     merge_sign, separate_signs, OpSign
+)
 from ..utils.type_utils import One, Zero, ContradictError
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import \
-    mial_equiv_func, mial_valid_func, merge_monomial_dict, \
+from .op_utils import (
+    mial_equiv_func, mial_valid_func, merge_monomial_dict,
     create_monomial_op, get_monomial_dict_exp, mial_sort_deps
+)
 
 """ validate function
 """

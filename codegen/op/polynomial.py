@@ -1,12 +1,14 @@
-from ..utils.sign_utils import \
-    infer_multiply_sign, infer_add_sign, infer_scalar_sign, \
+from ..utils.sign_utils import (
+    infer_multiply_sign, infer_add_sign, infer_scalar_sign,
     merge_sign, separate_signs, OpSign, revinfer_multiply_sign
+)
 from ..utils.type_utils import One, ContradictError
 from ..op_reg import OpReg as org
 from ..base import Op
-from .op_utils import \
-    mial_equiv_func, mial_valid_func, mial_sort_deps, \
+from .op_utils import (
+    mial_equiv_func, mial_valid_func, mial_sort_deps,
     get_polynomial_dict, merge_polynomial_dict, create_polynomial_op
+)
 
 """ revinfer function
 """

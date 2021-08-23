@@ -85,6 +85,9 @@ class Op(object):
     def revtopo_infer_sign(self, sign_dict):
         pass
 
+    def dfs_compile(self, val_dict):
+        raise NotImplementedError
+
     def dfs_forward(self, val_dict):
         cop_id = self.id
         assert cop_id not in val_dict

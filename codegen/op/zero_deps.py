@@ -108,6 +108,9 @@ class Var(Op):
         op_id = self.id
         val_dict[op_id] = _info
 
+    def dfs_compile(self, val_dict):
+        raise NotImplementedError
+
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):
         return cls.default_op(*deps)

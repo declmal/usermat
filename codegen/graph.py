@@ -1,6 +1,8 @@
 from os import path
 import json
 import logging
+import subprocess
+from ctypes import byref, cdll, c_double
 
 import mxnet as mx
 
@@ -231,6 +233,7 @@ class Graph(object):
             ["Out:{}".format(i) for i in range(len(self.outs))]
         # graph status
         self.status = 0
+        self.code = None
 
     def validate_inps(self):
         inp_ids = set()
@@ -472,6 +475,10 @@ class Graph(object):
         logger.info("graph has been zerified")
         self.status = 2
         logger.info("graph has been optimized")
+
+    def compile(self):
+        assert self.status == 2, "graph has not been optimized"
+
 
     def __eq__(self, other):
         self.sort_deps()

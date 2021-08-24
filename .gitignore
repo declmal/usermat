@@ -2,3 +2,4 @@ build
 *.o
 *.a
 __pycache__
+codegen/fortran

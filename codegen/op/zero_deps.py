@@ -108,13 +108,6 @@ class Var(Op):
         op_id = self.id
         val_dict[op_id] = _info
 
-    def dfs_compile(self, val_dict):
-        raise NotImplementedError
-
-    @classmethod
-    def topo_degenerate(cls, sign_dict, *deps):
-        return cls.default_op(*deps)
-
     def dfs_forward(self, val_dict):
         pass
 
@@ -124,3 +117,10 @@ class Var(Op):
         cdiff = [od.scalar(Zero)] * len(var_seq)
         cdiff[var_seq[cop_id]] = od.scalar(One)
         val_dict[cop_id] = cdiff
+
+    def dfs_codegen(self, val_dict):
+        raise NotImplementedError
+
+    @classmethod
+    def topo_degenerate(cls, sign_dict, *deps):
+        return cls.default_op(*deps)

@@ -1,4 +1,5 @@
 from fractions import Fraction
+import sys
 
 import numpy as np
 
@@ -12,6 +13,32 @@ FloatTypes = (
 Zero = Fraction(0)
 One = Fraction(1)
 MinusOne = Fraction(-1)
+Half = Fraction(1, 2)
+PositiveInf = float("inf")
+NegativeInf = -PositiveInf
+Epsilon = sys.float_info.epsilon
+
+def get_positive_eps(v):
+    eps = 1.0
+    while v + eps > v:
+        eps /= 2
+    eps *= 2
+    return eps
+
+def get_negative_eps(v):
+    eps = 1.0
+    while v - eps < v:
+        eps /= 2
+    eps *= 2
+    return eps
+
+def get_infsimal(v, positive=True):
+    assert isinstance(v, FloatTypes), type(v)
+    if positive:
+        nv = v + get_positive_eps(v)
+    else:
+        nv = v - get_negative_eps(v)
+    return nv
 
 """ cast functions
 """

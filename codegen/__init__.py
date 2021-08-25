@@ -9,5 +9,6 @@ from .op import binary
 from .op import cnds
 from .op import monomial
 from .op import polynomial
+from .op import piecewise_linear
 
 log_init(level=logging.DEBUG)

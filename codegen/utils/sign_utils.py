@@ -71,6 +71,15 @@ def merge_sign(sign1, sign2):
         return OpSign.ZERO
     raise_merge_sign_error(sign1, sign2)
 
+def is_sub_sign(sign, sign1):
+    try:
+        merged_sign = merge_sign(sign, sign1)
+    except ConnectionError:
+        return False
+    if merged_sign == sign:
+        return True
+    return False
+
 def separate_signs(signs, lst):
     signs1 = []
     signs2 = []

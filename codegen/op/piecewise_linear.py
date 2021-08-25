@@ -1,6 +1,6 @@
 from ..utils.type_utils import (
     Zero, Half, PositiveInf, NegativeInf, get_infsimal, FloatTypes)
-from ..utils.sign_utils import OpSign
+from ..utils.sign_utils import OpSign, is_sub_sign
 from .op_utils import sequential_equiv_func
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
@@ -160,20 +160,6 @@ def get_negative_threshold(*datas):
         maxv = max(y, maxv)
     return minv, maxv
 
-def get_nonpositive_threshold(*datas):
-    validate_scalar_datas(*datas)
-    npoints = []
-    points = get_critical_points(*datas)
-    x, y = get_zero_point(*datas, mode="exact")
-    points.append((x,y))
-    minv, maxv = PositiveInf, NegativeInf
-    for x, y in points:
-        if x > Zero:
-            continue
-        minv = min(y, minv)
-        maxv = max(y, maxv)
-    return minv, maxv
-
 def get_positive_threshold(*datas):
     validate_scalar_datas(*datas)
     npoints = []
@@ -188,18 +174,22 @@ def get_positive_threshold(*datas):
         maxv = max(y, maxv)
     return minv, maxv
 
+def get_zero_threshold(*datas):
+    _, y = get_zero_point(*datas, mode="exact")
+    return y, y
+
 def get_nonnegative_threshold(*datas):
-    validate_scalar_datas(*datas)
-    npoints = []
-    points = get_critical_points(*datas)
-    x, y = get_zero_point(*datas, mode="exact")
-    points.append((x,y))
-    minv, maxv = PositiveInf, NegativeInf
-    for x, y in points:
-        if x < Zero:
-            continue
-        minv = min(y, minv)
-        maxv = max(y, maxv)
+    minv0, maxv0 = get_positive_threshold(*datas)
+    minv1, maxv1 = get_zero_threshold(*datas)
+    minv = min(minv0, minv1)
+    maxv = max(max0, max1)
+    return minv, maxv
+
+def get_nonpositive_threshold(*datas):
+    minv0, maxv0 = get_negative_threshold(*datas)
+    minv1, maxv1 = get_zero_threshold(*datas)
+    minv = min(minv0, minv1)
+    maxv = max(max0, max1)
     return minv, maxv
 
 def get_nonzero_threshold(*datas):
@@ -208,10 +198,6 @@ def get_nonzero_threshold(*datas):
     minv = min(minv0, minv1)
     maxv = max(max0, max1)
     return minv, maxv
-
-def get_zero_threshold(*datas):
-    _, y = get_zero_point(*datas, mode="exact")
-    return y, y
 
 def get_threshold(*datas):
     validate_scalar_datas(*datas)
@@ -222,6 +208,49 @@ def get_threshold(*datas):
         minv = min(y, minv)
         maxv = max(y, maxv)
     return minv, maxv
+
+""" infer util function
+"""
+def infer_piecewise_linear_sign(var_sign, *datas):
+    if var_sign == OpSign.UNDEFINED:
+        minv, maxv = get_threshold(*datas)
+    elif var_sign == OpSign.ZERO:
+        minv, maxv = get_zero_threshold(*datas)
+    elif var_sign == OpSign.NON_ZERO:
+        minv, maxv = get_nonzero_threshold(*datas)
+    elif var_sign == OpSign.NON_NEGATIVE:
+        minv, maxv = get_nonnegative_threshold(*datas)
+    elif var_sign == OpSign.NON_POSITIVE:
+        minv, maxv = get_nonpositive_threshold(*datas)
+    elif var_sign == OpSign.POSITIVE:
+        minv, maxv = get_positive_threshold(*datas)
+    else:
+        assert var_sign == OpSign.NEGATIVE, var_sign
+        minv, maxv = get_negative_threshold(*datas)
+    if maxv < Zero:
+        sign = OpSign.NEGATIVE
+    elif minv > Zero:
+        sign = OpSign.POSITIVE
+    elif minv == maxv == Zero:
+        sign = OpSign.ZERO
+    elif minv == Zero:
+        sign = OpSign.NON_NEGATIVE
+    elif maxv == Zero:
+        sign = OpSign.NON_POSITIVE
+    else:
+        sign = OpSign.UNDEFINED
+    return sign
+
+def unique_sign(signs, csign):
+    j = -1
+    cnt = 0
+    for i, sign in enumerate(signs):
+        if is_sub_sign(sign, csign):
+            cnt += 1
+            j = i
+    if cnt == 1:
+        return i
+    return -1
 
 """ validate function
 """
@@ -306,33 +335,7 @@ class PiecewiseLinear(Op):
         var_id = var.id
         var_sign = val_dict[var_id]
         datas = [dep.data for dep in self.deps[1:]]
-        if var_sign == OpSign.UNDEFINED:
-            minv, maxv = get_threshold(*datas)
-        elif var_sign == OpSign.ZERO:
-            minv, maxv = get_zero_threshold(*datas)
-        elif var_sign == OpSign.NON_ZERO:
-            minv, maxv = get_nonzero_threshold(*datas)
-        elif var_sign == OpSign.NON_NEGATIVE:
-            minv, maxv = get_nonnegative_threshold(*datas)
-        elif var_sign == OpSign.NON_POSITIVE:
-            minv, maxv = get_nonpositive_threshold(*datas)
-        elif var_sign == OpSign.POSITIVE:
-            minv, maxv = get_positive_threshold(*datas)
-        else:
-            assert var_sign == OpSign.NEGATIVE, var_sign
-            minv, maxv = get_negative_threshold(*datas)
-        if maxv < Zero:
-            sign = OpSign.Negative
-        elif minv > Zero:
-            sign = OpSign.POSITIVE
-        elif minv == maxv == Zero:
-            sign = OpSign.ZERO
-        elif minv == Zero:
-            sign = OpSign.NON_NEGATIVE
-        elif maxv == Zero:
-            sign = OpSign.NON_POSITIVE
-        else:
-            sign = OpSign.UNDEFINED
+        sign = infer_piecewise_linear_sign(var_sign, *datas)
         cop_id = self.id
         if cop_id in val_dict:
             csign = val_dict[cop_id]
@@ -340,5 +343,40 @@ class PiecewiseLinear(Op):
         val_dict[cop_id] = sign
 
     def rev_topo_infer_sign(self, sign_dict):
-        # TODO
-        raise NotImplementedError
+        cop_id = self.id
+        csign = sign_dict[cop_id]
+        var = self.deps[0]
+        var_id = var.id
+        var_sign = sign_dict[var_id]
+        datas = [dep.data for dep in self.deps[1:]]
+        infer_sign_0 = infer_piecewise_linear_sign(var_sign, *datas)
+        if is_sub_sign(infer_sign_0, csign):
+            return
+        sign = OpSign.UNDEFINED
+        if var_sign == OpSign.NON_NEGATIVE:
+            signs = [OpSign.ZERO, OpSign.POSITIVE]
+            ind = unique_sign(signs, csign)
+            if ind != -1:
+                sign = signs[i]
+        elif var_sign == OpSign.NON_POSITIVE:
+            signs = [OpSign.ZERO, OpSign.NEGATIVE]
+            ind = unique_sign(signs, csign)
+            if ind != -1:
+                sign = signs[i]
+        elif var_sign == OpSign.NON_ZERO:
+            signs = [OpSign.POSITIVE, OpSign.NEGATIVE]
+            ind = unique_sign(signs, csign)
+            if ind != -1:
+                sign = signs[i]
+        elif var_sign == OpSign.UNDEFINED:
+            for signs in [
+                [OpSign.ZERO, OpSign.NEGATIVE, OpSign.POSITIVE],
+                [OpSign.NON_NEGATIVE, OpSign.NEGATIVE],
+                [OpSign.NON_POSITIVE, OpSign.POSITIVE],
+                [OpSign.ZERO, OpSign.NON_ZERO]]:
+                ind = unique_sign(signs, csign)
+                if ind != -1:
+                    sign = signs[i]
+                    break
+        var_sign = merge_sign(var_sign, sign)
+        sign_dict[var_id] = var_sign

@@ -16,28 +16,40 @@ MinusOne = Fraction(-1)
 Half = Fraction(1, 2)
 PositiveInf = float("inf")
 NegativeInf = -PositiveInf
-Epsilon = sys.float_info.epsilon
+Epsilon = sys.float_info.min
 
-def get_positive_eps(v):
+def get_forward_eps(v):
     eps = 1.0
     while v + eps > v:
         eps /= 2
-    eps *= 2
+    if eps == Zero:
+        eps = Epsilon
+    else:
+        eps *= 2
     return eps
 
-def get_negative_eps(v):
+def get_backward_eps(v):
     eps = 1.0
     while v - eps < v:
         eps /= 2
-    eps *= 2
+    if eps == Zero:
+        eps = Epsilon
+    else:
+        eps *= 2
     return eps
 
-def get_infsimal(v, positive=True):
+def get_infsimal(v, forward=True):
     assert isinstance(v, FloatTypes), type(v)
-    if positive:
-        nv = v + get_positive_eps(v)
+    if forward:
+        eps = get_forward_eps(v)
+        nv = v + eps
+        assert nv > v, \
+            "eps: {}, nv: {}, v: {}".format(eps, nv ,v)
     else:
-        nv = v - get_negative_eps(v)
+        eps = get_backward_eps(v)
+        nv = v - eps
+        assert nv < v, \
+            "eps: {}, nv: {}, v: {}".format(eps, nv ,v)
     return nv
 
 """ cast functions

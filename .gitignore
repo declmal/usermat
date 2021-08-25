@@ -1,5 +1,7 @@
 build
 *.o
 *.a
+*.ipynb
 __pycache__
 codegen/fortran
+.ipynb_checkpoints

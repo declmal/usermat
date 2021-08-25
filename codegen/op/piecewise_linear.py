@@ -1,46 +1,227 @@
 from ..utils.type_utils import (
-    Zero, Half, PositiveInf, NegativeInf, get_infsimal)
+    Zero, Half, PositiveInf, NegativeInf, get_infsimal, FloatTypes)
+from ..utils.sign_utils import OpSign
 from .op_utils import sequential_equiv_func
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
 
-""" util function
+""" threshold helper function
 """
-def update_min_max(minv, maxv, v):
-    nminv = min(minv, v)
-    nmaxv = max(maxv, v)
-    return nminv, nmaxv
+def validate_scalar_data(data):
+    assert isinstance(data, FloatTypes), \
+        "invalid type of data: {}".format(type(data))
+    assert data not in [PositiveInf, NegativeInf], \
+        "invalid value of data: {}".format(data)
 
-def get_critical_points(*deps):
-    datas = [dep.data for dep in deps[1:]]
+def validate_scalar_datas(*datas):
+    splits = []
+    assert num_data >= 6 and (num_data-2) % 4 == 0, num_data
+    for i, data in enumerate(datas):
+        validate_scalar_data(data)
+        if (i-2) % 4 == 0:
+            if splits:
+                pdata = splits[-1]
+                assert data > pdata, \
+                    "invalid split points, data: {}, i: {}".format(data, i)
+            split_points.append(data)
+
+def get_leftend_point(k, b, spt):
+    for v in [k, b, spt]:
+        validate_scalar_data(v)
+    x = get_infsimal(spt, forward=True)
+    init_y = k*spt + b
+    if k == Zero:
+        y = b
+    elif k > Zero:
+        y = get_infsimal(init_y, forward=True)
+    else:
+        y = get_infsimal(init_y, forward=False)
+    return x, y
+
+def get_rightend_point(k, b, spt):
+    for v in [k, b, spt]:
+        validate_scalar_data(v)
+    x = get_infsimal(spt, forward=False)
+    init_y = k*spt + b
+    if k == Zero:
+        y = b
+    elif k > Zero:
+        y = get_infsimal(init_y, forward=False)
+    else:
+        y = get_infsimal(init_y, forward=True)
+    return x, y
+
+
+def get_critical_points(*datas):
+    validate_scalar_datas(*datas)
+    num_data = len(datas)
     ret = []
-    # leftmost
+    # left inf
     k, b, spt, c = datas[:4]
+    x = NegativeInf
     if k == Zero:
-        point = (NegativeInf, b)
+        y = b
     elif k > Zero:
-        point = (NegativeInf, NegativeInf)
+        y = NegativeInf
     else:
-        point = (NegativeInf, PositiveInf)
-    ret.append(point)
-    raise NotImplementedError
-    # rightmost
-    k, b = datas[-2:]
+        y = PositiveInf
+    ret.append((x,y))
+    # right end of the leftmost segment
+    x, y = get_rightend_point(k, b, spt)
+    ret.append((x,y))
+    # left most split
+    ret.append((spt,c))
+    # middle
+    for i in range(2, len(datas)-4, 4):
+        spt, c, k, b, spt1, c1 = datas[i:i+6]
+        # left end
+        x, y = get_leftend_point(k, b, spt)
+        ret.append((x,y))
+        # right end
+        x, y = get_rightend_point(k, b, spt1)
+        ret.append((x,y))
+        # right split
+        ret.append((spt1,c1))
+    # left end of the rightmost segment
+    spt, c, k, b = datas[-4:]
+    x, y = get_leftend_point(k, b, spt)
+    ret.append((x,y))
+    # right inf
+    x = PositiveInf
     if k == Zero:
-        point = (PositiveInf, b)
+        y = b
     elif k > Zero:
-        point = (PositiveInf, PositiveInf)
+        y = PositiveInf
     else:
-        point = (NegativeInf, NegativeInf)
-    ret.append(point)
+        y = NegativeInf
+    ret.append((x,y))
     return ret
 
-def get_negative_threshold(*deps):
-    raise NotImplementedError
+def get_segment_zero_point(k, b, mode="exact"):
+    for v in [k, b]:
+        validate_scalar_data(v)
+    assert mode in ["exact", "forward", "backward"]
+    if mode == "exact":
+        x = Zero
+        y = b
+    elif mode == "forward":
+        x, y = get_leftend_point(k, b, Zero)
+    else:
+        x, y = get_rightend_point(k, b, Zero)
+    return x, y
 
-def get_positive_threshold(*deps):
-    raise NotImplementedError
+def get_zero_point(*datas, mode="exact"):
+    assert mode in ["exact", "forward", "backward"]
+    validate_scalar_datas(*datas)
+    # split hit
+    for i in range(0, len(datas)-2, 4):
+        k, b, spt, c, k1, b1 = datas[i:i+6]
+        if spt != Zero:
+            continue
+        if mode == "exact":
+            x = spt
+            y = c
+        elif mode == "forward":
+            x, y = get_leftend_point(k1, b1, spt)
+        else:
+            x, y = get_rightend_point(k, b, spt)
+        return x, y
+    # leftmost segment hit
+    k, b, spt, c = datas[:4]
+    if spt > Zero:
+        x, y = get_segment_zero_point(k, b, mode=mode)
+        return x, y
+    # middle segment hit
+    for i in range(2, len(datas)-4, 4):
+        spt, c, k, b, spt1, c1 = datas[i:i+6]
+        if spt > Zero or spt1 < Zero:
+            continue
+        x, y = get_segment_zero_point(k, b, mode=mode)
+        return x, y
+    # rightmost segment hit
+    spt, c, k, b = datas[:4]
+    x, y = get_segment_zero_point(k, b, mode=mode)
+    return x, y
+
+""" threhold functions
+"""
+def get_negative_threshold(*datas):
+    validate_scalar_datas(*datas)
+    npoints = []
+    points = get_critical_points(*datas)
+    x, y = get_zero_point(*datas, mode="backward")
+    points.append((x,y))
+    minv, maxv = PositiveInf, NegativeInf
+    for x, y in points:
+        if x >= Zero:
+            continue
+        minv = min(y, minv)
+        maxv = max(y, maxv)
+    return minv, maxv
+
+def get_nonpositive_threshold(*datas):
+    validate_scalar_datas(*datas)
+    npoints = []
+    points = get_critical_points(*datas)
+    x, y = get_zero_point(*datas, mode="exact")
+    points.append((x,y))
+    minv, maxv = PositiveInf, NegativeInf
+    for x, y in points:
+        if x > Zero:
+            continue
+        minv = min(y, minv)
+        maxv = max(y, maxv)
+    return minv, maxv
+
+def get_positive_threshold(*datas):
+    validate_scalar_datas(*datas)
+    npoints = []
+    points = get_critical_points(*datas)
+    x, y = get_zero_point(*datas, mode="forward")
+    points.append((x,y))
+    minv, maxv = PositiveInf, NegativeInf
+    for x, y in points:
+        if x <= Zero:
+            continue
+        minv = min(y, minv)
+        maxv = max(y, maxv)
+    return minv, maxv
+
+def get_nonnegative_threshold(*datas):
+    validate_scalar_datas(*datas)
+    npoints = []
+    points = get_critical_points(*datas)
+    x, y = get_zero_point(*datas, mode="exact")
+    points.append((x,y))
+    minv, maxv = PositiveInf, NegativeInf
+    for x, y in points:
+        if x < Zero:
+            continue
+        minv = min(y, minv)
+        maxv = max(y, maxv)
+    return minv, maxv
+
+def get_nonzero_threshold(*datas):
+    minv0, maxv0 = get_negative_threshold(*datas)
+    minv1, maxv1 = get_positive_threshold(*datas)
+    minv = min(minv0, minv1)
+    maxv = max(max0, max1)
+    return minv, maxv
+
+def get_zero_threshold(*datas):
+    _, y = get_zero_point(*datas, mode="exact")
+    return y, y
+
+def get_threshold(*datas):
+    validate_scalar_datas(*datas)
+    npoints = []
+    points = get_critical_points(*datas)
+    minv, maxv = PositiveInf, NegativeInf
+    for x, y in points:
+        minv = min(y, minv)
+        maxv = max(y, maxv)
+    return minv, maxv
 
 """ validate function
 """
@@ -51,22 +232,14 @@ def piecewise_linear_valid_func(*deps):
     for dep in deps:
         assert isinstance(dep, Op), \
             "invalid type of dep: {}".format(type(dep))
-    split_points = []
+    datas = []
     for i in range(1, num_deps):
         dep = deps[i]
         assert isinstance(dep, org.get_op_cls("scalar")), \
             "invalid type of dep: {}".format(type(dep))
         data = dep.data
-        assert isinstance(data, FloatTypes), \
-            "invalid type of data: {}".format(type(data))
-        assert data not in [PositiveInf, NegativeInf], \
-            "invalid value of data: {}".format(data)
-        if (i-3) % 4 == 0:
-            if split_points:
-                pdata = split_points[-1]
-                assert data > pdata, \
-                    "invalid split points, data: {}, i: {}".format(data, i)
-            split_points.append(data)
+        datas.append(data)
+    validate_scalar_datas(*datas)
 
 
 """ ops
@@ -132,9 +305,39 @@ class PiecewiseLinear(Op):
         var = self.deps[0]
         var_id = var.id
         var_sign = val_dict[var_id]
-
-        # TODO
-        raise NotImplementedError
+        datas = [dep.data for dep in self.deps[1:]]
+        if var_sign == OpSign.UNDEFINED:
+            minv, maxv = get_threshold(*datas)
+        elif var_sign == OpSign.ZERO:
+            minv, maxv = get_zero_threshold(*datas)
+        elif var_sign == OpSign.NON_ZERO:
+            minv, maxv = get_nonzero_threshold(*datas)
+        elif var_sign == OpSign.NON_NEGATIVE:
+            minv, maxv = get_nonnegative_threshold(*datas)
+        elif var_sign == OpSign.NON_POSITIVE:
+            minv, maxv = get_nonpositive_threshold(*datas)
+        elif var_sign == OpSign.POSITIVE:
+            minv, maxv = get_positive_threshold(*datas)
+        else:
+            assert var_sign == OpSign.NEGATIVE, var_sign
+            minv, maxv = get_negative_threshold(*datas)
+        if maxv < Zero:
+            sign = OpSign.Negative
+        elif minv > Zero:
+            sign = OpSign.POSITIVE
+        elif minv == maxv == Zero:
+            sign = OpSign.ZERO
+        elif minv == Zero:
+            sign = OpSign.NON_NEGATIVE
+        elif maxv == Zero:
+            sign = OpSign.NON_POSITIVE
+        else:
+            sign = OpSign.UNDEFINED
+        cop_id = self.id
+        if cop_id in val_dict:
+            csign = val_dict[cop_id]
+            sign = merge_sign(sign, csign)
+        val_dict[cop_id] = sign
 
     def rev_topo_infer_sign(self, sign_dict):
         # TODO

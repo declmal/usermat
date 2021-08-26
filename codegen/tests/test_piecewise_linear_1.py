@@ -18,21 +18,9 @@ class TestPiecewiseLinear1(unittest.TestCase):
         v1 = od.multiply(v0, v0)
         v2 = od.add(v1, od.scalar(One))
         # piecewise linear operator
-        ends = [
-            (-4.5,-2), (-3.5,1), (-3,2), (-2,0.5), (0,0.5), (1,0), (3,1)]
-        k = -2
-        k1 = 0
-        end_tuples = [(k, ends[0]), (k1, ends[-1])]
-        point_tuples = [
-            (ends[0], ends[1]),
-            (ends[1], ends[2]),
-            (ends[2], ends[3]),
-            (ends[3], ends[4]),
-            (ends[4], ends[5]),
-            (ends[5], ends[6]),
-        ]
-        points = ends.copy()
-        points[4] = (0,-5)
+        end_tuples = [(5,(-2,5)), (0.5,(3,-1))]
+        point_tuples = [((-2,4),(1,1)), ((1,-1),(3,-1))]
+        points = [(-2,4), (1,0), (3,-2)]
         scalar_datas = get_piecewise_linear_info(
             end_tuples, point_tuples, points)
         scalars = [od.scalar(data) for data in scalar_datas]
@@ -43,7 +31,7 @@ class TestPiecewiseLinear1(unittest.TestCase):
         g.unify()
         g.autodiff()
         g.optimize()
-        # reference graph
+        # reference graph validate
         v0 = od.var("x")
         v1 = od.var("y")
         one = od.scalar(One)
@@ -57,6 +45,42 @@ class TestPiecewiseLinear1(unittest.TestCase):
         v6 = od.monomial(two, v0, one, v1, one, v5, one)
         gref = Graph([v0,v1], [v6,v4])
         self.assertEqual(gref, g)
+        # reference pl funciton
+        def fref(x):
+            if x < -2:
+                ret = 5*x + 15
+            elif x < 1:
+                ret = -x + 2
+            elif x == 1:
+                ret = 0
+            elif x < 3:
+                ret = -1
+            elif x == 3:
+                ret = -2
+            else:
+                ret = 0.5*x - 2.5
+            return ret
+        # reference pl diff
+        def dfref(x):
+            if x < -2:
+                ret = 5
+            elif x < 1:
+                ret = -1
+            elif x == 1:
+                ret = -0.5
+            elif x < 3:
+                ret = 0
+            elif x == 3:
+                ret = 0.25
+            else:
+                ret = 0.5
+            return ret
+        # value validate
         for _ in range(1000):
-            datas = random_array([2], low=-1000.0, high=1000.0)
-            x, y = datas
+            xf, y = random_array([2], low=-4.0, high=6.0)
+            xs = [xf, -2, 1, 3]
+            ind = np.random.randint(len(xs))
+            x = xs[ind]
+            outs = g.forward(x, y)
+            ref_outs = [2*dfref(x**2+1)*x*y, fref(x**2+1)]
+            self.assertEqual(outs, ref_outs)

@@ -263,6 +263,7 @@ def piecewise_linear_valid_func(*deps):
 @org.register_opt("dfs_tosym")
 @org.register_opt("dfs_info")
 @org.register_opt("dfs_sort_deps")
+@org.register_opt("dfs_forward")
 @org.register_op(
     valid_func=piecewise_linear_valid_func,
     equiv_func=sequential_equiv_func)
@@ -270,7 +271,7 @@ class PiecewiseLinear(Op):
     @classmethod
     def fwd_func(cls, *v):
         x = v[0]
-        for i in range(1, len(v), 4):
+        for i in range(1, len(v)-2, 4):
             k, b, spt, c = v[i:i+4]
             if v[0] < spt:
                 ret = k*x + b

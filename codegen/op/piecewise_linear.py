@@ -1,6 +1,6 @@
 from ..utils.type_utils import (
     Zero, Half, PositiveInf, NegativeInf, get_infsimal, FloatTypes)
-from ..utils.sign_utils import OpSign, is_sub_sign
+from ..utils.sign_utils import OpSign, is_sub_sign, merge_sign
 from .op_utils import sequential_equiv_func
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
@@ -15,8 +15,9 @@ def validate_scalar_data(data):
         "invalid value of data: {}".format(data)
 
 def validate_scalar_datas(*datas):
-    splits = []
+    num_data = len(datas)
     assert num_data >= 6 and (num_data-2) % 4 == 0, num_data
+    splits = []
     for i, data in enumerate(datas):
         validate_scalar_data(data)
         if (i-2) % 4 == 0:
@@ -24,7 +25,7 @@ def validate_scalar_datas(*datas):
                 pdata = splits[-1]
                 assert data > pdata, \
                     "invalid split points, data: {}, i: {}".format(data, i)
-            split_points.append(data)
+            splits.append(data)
 
 def get_leftend_point(k, b, spt):
     for v in [k, b, spt]:
@@ -55,7 +56,6 @@ def get_rightend_point(k, b, spt):
 
 def get_critical_points(*datas):
     validate_scalar_datas(*datas)
-    num_data = len(datas)
     ret = []
     # left inf
     k, b, spt, c = datas[:4]
@@ -273,6 +273,12 @@ def piecewise_linear_valid_func(*deps):
 
 """ ops
 """
+@org.register_opt("topo_standardize")
+@org.register_opt("topo_degenerate")
+@org.register_opt("topo_fuse")
+@org.register_opt("topo_zerify")
+@org.register_opt("dfs_tosym")
+@org.register_opt("dfs_info")
 @org.register_op(
     valid_func=piecewise_linear_valid_func,
     equiv_func=sequential_equiv_func)
@@ -292,14 +298,14 @@ class PiecewiseLinear(Op):
         return ret
 
     def dfs_autodiff(self, val_dict, var_seq):
-        cop = self.id
+        cop_id = self.id
         assert cop_id not in val_dict
         var = self.deps[0]
         var_id = var.id
         diff = val_dict[var_id]
         ndeps = [var]
         scalar_zero = od.scalar(Zero)
-        for i in range(1, len(self.deps), 4):
+        for i in range(1, len(self.deps)-2, 4):
             kop, bop, sptop, cop, k1op, b1op = self.deps[i:i+6]
             k = kop.data
             b = bop.data
@@ -330,7 +336,7 @@ class PiecewiseLinear(Op):
             cdiff.append(dop)
         val_dict[cop_id] = cdiff
 
-    def dfs_infer_sign(self, val_dict, var_seq):
+    def dfs_infer_sign(self, val_dict):
         var = self.deps[0]
         var_id = var.id
         var_sign = val_dict[var_id]
@@ -342,7 +348,7 @@ class PiecewiseLinear(Op):
             sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
-    def rev_topo_infer_sign(self, sign_dict):
+    def revtopo_infer_sign(self, sign_dict):
         cop_id = self.id
         csign = sign_dict[cop_id]
         var = self.deps[0]

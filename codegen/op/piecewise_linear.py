@@ -1,3 +1,5 @@
+from ..utils.math_utils import (
+    validate_scalar_data, validate_pl_scalar_datas, get_piecewise_linear_diff_info)
 from ..utils.type_utils import (
     Zero, Half, PositiveInf, NegativeInf, get_infsimal, FloatTypes)
 from ..utils.sign_utils import OpSign, is_sub_sign, merge_sign
@@ -8,25 +10,6 @@ from ..base import Op
 
 """ threshold helper function
 """
-def validate_scalar_data(data):
-    assert isinstance(data, FloatTypes), \
-        "invalid type of data: {}".format(type(data))
-    assert data not in [PositiveInf, NegativeInf], \
-        "invalid value of data: {}".format(data)
-
-def validate_scalar_datas(*datas):
-    num_data = len(datas)
-    assert num_data >= 6 and (num_data-2) % 4 == 0, num_data
-    splits = []
-    for i, data in enumerate(datas):
-        validate_scalar_data(data)
-        if (i-2) % 4 == 0:
-            if splits:
-                pdata = splits[-1]
-                assert data > pdata, \
-                    "invalid split points, data: {}, i: {}".format(data, i)
-            splits.append(data)
-
 def get_leftend_point(k, b, spt):
     for v in [k, b, spt]:
         validate_scalar_data(v)
@@ -55,7 +38,7 @@ def get_rightend_point(k, b, spt):
 
 
 def get_critical_points(*datas):
-    validate_scalar_datas(*datas)
+    validate_pl_scalar_datas(*datas)
     ret = []
     # left inf
     k, b, spt, c = datas[:4]
@@ -113,7 +96,7 @@ def get_segment_zero_point(k, b, mode="exact"):
 
 def get_zero_point(*datas, mode="exact"):
     assert mode in ["exact", "forward", "backward"]
-    validate_scalar_datas(*datas)
+    validate_pl_scalar_datas(*datas)
     # split hit
     for i in range(0, len(datas)-2, 4):
         k, b, spt, c, k1, b1 = datas[i:i+6]
@@ -147,7 +130,7 @@ def get_zero_point(*datas, mode="exact"):
 """ threhold functions
 """
 def get_negative_threshold(*datas):
-    validate_scalar_datas(*datas)
+    validate_pl_scalar_datas(*datas)
     npoints = []
     points = get_critical_points(*datas)
     x, y = get_zero_point(*datas, mode="backward")
@@ -161,7 +144,7 @@ def get_negative_threshold(*datas):
     return minv, maxv
 
 def get_positive_threshold(*datas):
-    validate_scalar_datas(*datas)
+    validate_pl_scalar_datas(*datas)
     npoints = []
     points = get_critical_points(*datas)
     x, y = get_zero_point(*datas, mode="forward")
@@ -200,7 +183,7 @@ def get_nonzero_threshold(*datas):
     return minv, maxv
 
 def get_threshold(*datas):
-    validate_scalar_datas(*datas)
+    validate_pl_scalar_datas(*datas)
     npoints = []
     points = get_critical_points(*datas)
     minv, maxv = PositiveInf, NegativeInf
@@ -268,7 +251,7 @@ def piecewise_linear_valid_func(*deps):
             "invalid type of dep: {}".format(type(dep))
         data = dep.data
         datas.append(data)
-    validate_scalar_datas(*datas)
+    validate_pl_scalar_datas(*datas)
 
 
 """ ops
@@ -303,32 +286,10 @@ class PiecewiseLinear(Op):
         var = self.deps[0]
         var_id = var.id
         diff = val_dict[var_id]
-        ndeps = [var]
-        scalar_zero = od.scalar(Zero)
-        for i in range(1, len(self.deps)-2, 4):
-            kop, bop, sptop, cop, k1op, b1op = self.deps[i:i+6]
-            k = kop.data
-            b = bop.data
-            c = cop.data
-            spt = sptop.data
-            k1 = k1op.data
-            b1 = b1op.data
-            ndeps.append(scalar_zero)
-            ndeps.append(kop)
-            ndeps.append(sptop)
-            dst = abs(k*spt+b-c)
-            dst1 = abs(k1*spt+b1-c)
-            if dst < dst1:
-                ncop = kop
-            elif dst > dst1:
-                ncop = k1op
-            else:
-                nc = Half * (k+k1)
-                ncop = od.scalar(nc)
-            ndeps.append(ncop)
-        kop = self.deps[-2]
-        ndeps.append(scalar_zero)
-        ndeps.append(kop)
+        datas = [dep.data for dep in self.deps[1:]]
+        ndatas = get_piecewise_linear_diff_info(*datas)
+        nscalars = [od.scalar(data) for data in ndatas]
+        ndeps = [var] + nscalars
         nop = od.piecewiselinear(*ndeps)
         cdiff = []
         for d in diff:

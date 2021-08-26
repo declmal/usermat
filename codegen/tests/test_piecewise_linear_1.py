@@ -37,8 +37,20 @@ class TestPiecewiseLinear1(unittest.TestCase):
             end_tuples, point_tuples, points)
         scalars = [od.scalar(data) for data in scalar_datas]
         v3 = od.piecewiselinear(v2, *scalars)
-        g = Graph([v0], [v3])
+        v4 = od.var("y")
+        v5 = od.multiply(v4, v3)
+        g = Graph([v0, v4], [v5])
         g.unify()
         g.autodiff()
         g.optimize()
-        g.tosym()
+        # reference graph
+        v0 = od.var("x")
+        v1 = od.var("y")
+        one = od.scalar(One)
+        two = od.scalar(2)
+        v2 = od.monomial(one, v0, two)
+        v3 = od.polynomial(one, v2, one)
+        v4 = od.piecewiselinear(v3, *scalars)
+        for _ in range(1000):
+            datas = random_array([2], low=-1000.0, high=1000.0)
+            x, y = datas

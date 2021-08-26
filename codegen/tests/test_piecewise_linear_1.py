@@ -4,7 +4,7 @@ from fractions import Fraction
 
 import numpy as np
 
-from ..utils.math_utils import get_piecewise_linear_info
+from ..utils.math_utils import get_piecewise_linear_info, get_piecewise_linear_diff_info
 from ..utils.type_utils import One
 from ..op_def import OpDef as od
 from ..graph import Graph
@@ -51,6 +51,12 @@ class TestPiecewiseLinear1(unittest.TestCase):
         v2 = od.monomial(one, v0, two)
         v3 = od.polynomial(one, v2, one)
         v4 = od.piecewiselinear(v3, *scalars)
+        nscalar_datas = get_piecewise_linear_diff_info(*scalar_datas)
+        nscalars = [od.scalar(data) for data in nscalar_datas]
+        v5 = od.piecewiselinear(v3, *nscalars)
+        v6 = od.monomial(two, v0, one, v1, one, v5, one)
+        gref = Graph([v0,v1], [v6,v4])
+        self.assertEqual(gref, g)
         for _ in range(1000):
             datas = random_array([2], low=-1000.0, high=1000.0)
             x, y = datas

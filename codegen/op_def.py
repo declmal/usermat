@@ -11,6 +11,7 @@ class OpDef(object):
     equiv_map = {}
     id_map = {}
     sign_dict = {}
+    name_set = set()
 
     @staticmethod
     def reset():
@@ -18,6 +19,7 @@ class OpDef(object):
         OpDef.equiv_map.clear()
         OpDef.id_map.clear()
         OpDef.sign_dict.clear()
+        OpDef.name_set.clear()
 
     @staticmethod
     def query_sign(op_id):
@@ -91,3 +93,11 @@ class OpDef(object):
         op.set_id(op_id)
         OpDef.current_id += 1
         OpDef.id_map[op_id] = op
+        name = op.name
+        if name is None:
+            name = "v{}".format(op_id)
+            op.set_name(name)
+        assert name not in OpDef.name_set, \
+            "duplicate name: {}, name_set: {}".format(
+                name, OpDef.name_set)
+        OpDef.name_set.add(name)

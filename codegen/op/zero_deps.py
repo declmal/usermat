@@ -88,8 +88,8 @@ class Scalar(Op):
     valid_func=var_valid_func, equiv_func=lambda op_type, name: name)
 class Var(Op):
     def __init__(self, name):
-        self.name = name
         super().__init__()
+        self.name = name
 
     def dfs_tosym(self, val_dict):
         cop_id = self.id
@@ -118,8 +118,9 @@ class Var(Op):
         cdiff[var_seq[cop_id]] = od.scalar(One)
         val_dict[cop_id] = cdiff
 
-    def dfs_codegen(self, val_dict):
-        raise NotImplementedError
+    def dfs_ast(self, val_dict, variables, assignments):
+        var_name = self.name
+        variables.append(var_name)
 
     @classmethod
     def topo_degenerate(cls, sign_dict, *deps):

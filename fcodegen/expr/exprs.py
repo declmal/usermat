@@ -1,48 +1,16 @@
-class CodePrinter(object):
-    pass
+from .expr_utils import (
+    codegen_line, supported_data_types, validate_unique
+)
+from ..expr_def import ExprDef as ed
 
 
-start_col = 7
-maximum_col = 73
-default_prefix = " " * 6
-
-
-class Printable(object):
+class Expr(object):
     def codegen(self):
         raise NotImplementedError
 
 
-class MaxColumnExceedError(Exception):
-    pass
-
-
-def codegen_line(string, code_lines):
-    assert isinstance(string, str), \
-        "invalid type of string: {}".format(string)
-    if not code_lines:
-        code_lines.append(default_prefix)
-    cur_line = code_lines[-1]
-    cur_len = len(cur_line)
-    string_len = len(string)
-    end_col = cur_len + string_len
-    if end_col <= maximum_col:
-        cur_line += string
-        code_lines[-1] = cur_line
-        return code_lines
-    cur_line += "\n"
-    code_lines[-1] = cur_line
-    cur_line = " "*(start_col-2) + "&"
-    end_col = start_col - 1 + string_len
-    if end_col > maximum_col:
-        error_info = "string: {} exceed maximum col: {}".format(
-            string, maximum_col)
-        raise MaxColumnExceedError(error_info)
-    cur_line += string
-    code_lines.append(cur_line)
-    return code_lines
-
-
-class StringList(Printable):
+@ed.register_expr
+class StringList(Expr):
     def __init__(self, *strings):
         self.strings = []
         for string in strings:
@@ -60,6 +28,7 @@ class StringList(Printable):
         return code
 
 
+@ed.register_expr
 class CommaList(StringList):
     def __init__(self, *strings):
         self.strings = []
@@ -71,23 +40,14 @@ class CommaList(StringList):
             self.strings.append(string)
 
 
-class TupleCommaList(CommaList):
+@ed.register_expr
+class Tuple(CommaList):
     def __init__(self, *strings):
         super().__init__(*strings)
         self.strings = ["("] + self.strings + [")"]
 
-supported_data_types = ["real*8", "real"]
 
-def validate_unique(*strings):
-    string_set = set()
-    for string in strings:
-        assert isinstance(string, str), \
-            "invalid type of string instance: {}".format(type(string))
-        assert string not in string_set, \
-            "duplicate string: {} in strings: {}".format(string, strings)
-        string_set.add(string)
-
-
+@ed.register_expr
 class Declaration(CommaList):
     def __init__(self, *variables, data_type="real*8"):
         assert isinstance(data_type, str) and \
@@ -98,18 +58,63 @@ class Declaration(CommaList):
         self.strings = [data_type, " :: "] + self.strings
 
 
-class Assignment(StringList):
-    def __init__(self, lhs, *rhs):
-        assert isinstance(lhs, str), \
-            "invalid type of lhs: {}".format(type(lhs))
-        self.strings = [lhs, " = "]
-        for string in rhs:
-            assert isinstance(string, str), \
-                "invalid type of string instance: {}".format(type(string))
+@ed.register_expr
+class Binary(StringList):
+    def __init__(self, lhs, rhs):
+        assert isinstance(lhs, ed.get_expr_cls("stringlist")), \
+            "invalid type of lhs: {}".format(lhs)
+        assert isinstance(rhs, ed.get_expr_cls("stringlist")), \
+            "invalid type of rhs: {}".format(rhs)
+        self.strings = []
+        for string in lhs.strings:
+            self.strings.append(string)
+        op = self.get_binary_op()
+        self.strings.append(op)
+        for string in rhs.strings:
             self.strings.append(string)
 
+    def get_binary_op(self):
+        raise NotImplementedError
 
-class Subroutine:
+
+@ed.register_expr
+class Assignment(Binary):
+    def get_binary_op(self):
+        return " = "
+
+
+@ed.register_expr
+class Add(Binary):
+    def get_binary_op(self):
+        return " + "
+
+
+@ed.register_expr
+class Subtract(Binary):
+    def get_binary_op(self):
+        return " - "
+
+
+@ed.register_expr
+class Multiply(Binary):
+    def get_binary_op(self):
+        return " * "
+
+
+@ed.register_expr
+class Divide(Binary):
+    def get_binary_op(self):
+        return " / "
+
+
+@ed.register_expr
+class Power(Binary):
+    def get_binary_op(self):
+        return " ** "
+
+
+@ed.register_expr
+class Subroutine(Expr):
     def __init__(self, func_name, arg_tuple, printable_list):
         self.func_name = func_name
         self.strings = [

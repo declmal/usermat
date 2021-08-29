@@ -5,14 +5,14 @@ from ..utils.sign_utils import (
     revinfer_multiply_sign, revinfer_power_sign,
     merge_sign, separate_signs, OpSign
 )
-from ..utils.type_utils import One, Zero, ContradictError
+from ..utils.type_utils import One, Zero, ContradictError, cast_float
 from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import (
     mial_equiv_func, mial_valid_func, merge_monomial_dict,
     create_monomial_op, get_monomial_dict_exp, mial_sort_deps
 )
-from ..fcode import Assignment
+from ..expr_def import ExprDef as ed
 
 """ validate function
 """
@@ -154,10 +154,25 @@ class Monomial(Op):
         self.deps = ndeps
 
     def dfs_ast(self, val_dict, variables, assignments):
+        var_name = self.name
+        lhs = ed.stringlist(var_name)
+        dep_names = []
+        for dep in self.deps:
+            dep_name = dep.name
+            dep_names.append(dep_name)
+        rhs = []
+        for i in range(len(self.deps)):
+            dep = self.deps[i]
+            if isinstance(dep, org.get_op_cls("scalar")):
+                data = dep.data
+                if i > 0 and data < Zero:
+                    data = -data
+                else:
+                    data_str = str(cast_float(data))
+                data_str = str(cast_float(data))
         raise NotImplementedError
-        lhs = self.name
-        assignment = Assignment(lhs, *rhs)
-        variables.append(lhs)
+        assignment = ed.assignment(lhs, rhs)
+        variables.append(var_name)
         assignments.append(assignment)
 
     def revtopo_infer_sign(self, sign_dict):

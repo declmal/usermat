@@ -8,7 +8,7 @@ from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
 from ..base import Op
 from .op_utils import num_valid_func, sequential_equiv_func
-from ..fcode import Assignment
+from ..expr_def import ExprDef as ed
 
 
 """ ops
@@ -149,12 +149,13 @@ class Sin(Op):
         val_dict[cop_id] = sign
 
     def dfs_ast(self, val_dict, variables, assignments):
+        var_name = self.name
+        lhs = ed.stringlist(var_name)
         dep = self.deps[0]
         dep_name = dep.name
-        lhs = self.name
-        rhs = [self.op_type, "(", dep_name, ")"]
-        assignment = Assignment(lhs, *rhs)
-        variables.append(lhs)
+        rhs = ed.stringlist(self.op_type, "(", dep_name, ")")
+        assignment = ed.assignment(lhs, rhs)
+        variables.append(var_name)
         assignments.append(assignment)
 
     def revtopo_infer_sign(self, sign_dict):

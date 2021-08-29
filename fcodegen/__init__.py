@@ -10,5 +10,6 @@ from .op import cnds
 from .op import monomial
 from .op import polynomial
 from .op import piecewise_linear
+from .expr import exprs
 
 log_init(level=logging.DEBUG)

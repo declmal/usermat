@@ -1,6 +1,7 @@
 import unittest
 
-from ..fcode import codegen_line, TupleCommaList, Declaration
+from ..expr.expr_utils import codegen_line
+from ..expr_def import ExprDef as ed
 from .test_utils import register_test
 from ..utils.type_utils import MinusOne, One, Half
 from ..op_def import OpDef as od
@@ -19,7 +20,7 @@ class TestAst(unittest.TestCase):
     def test_tuple_string_list(self):
         string = "abcdefghi   "
         strings = [string] * 10
-        strlst = TupleCommaList(*strings)
+        strlst = ed.tuple(*strings)
         code = strlst.codegen()
         code_ref = \
             "      (abcdefghi   , abcdefghi   , abcdefghi   ," + \
@@ -31,7 +32,7 @@ class TestAst(unittest.TestCase):
 
     def test_declaration(self):
         strings = ["x", "y", "z"]
-        dec = Declaration(*strings, data_type="real")
+        dec = ed.declaration(*strings, data_type="real")
         code = dec.codegen()
         code_ref = "      real :: x, y, z"
         self.assertEqual(code, code_ref)
@@ -57,11 +58,24 @@ class TestAst(unittest.TestCase):
         s1 = od.scalar(One)
         s2 = od.scalar(Half)
         s3 = od.scalar(-Half)
+        half_name = s2.name
         op_list = [
             od.monomial(s0, v0, s0, v1, s1, v2, s2, v3, s3),
             od.monomial(s1, v0, s0, v1, s1, v2, s2, v3, s3),
             od.monomial(s2, v0, s0, v1, s1, v2, s2, v3, s3),
-            od.monomial(s3, v0, s0, v1, s1, v2, s2, v3, s3)
+            od.monomial(s3, v0, s0, v1, s1, v2, s2, v3, s3),
+            od.monomial(s0, v2, s2, v1, s1, v0, s0, v3, s3),
+            od.monomial(s1, v2, s2, v1, s1, v0, s0, v3, s3),
+            od.monomial(s2, v2, s2, v1, s1, v0, s0, v3, s3),
+            od.monomial(s3, v2, s2, v1, s1, v0, s0, v3, s3),
+            od.monomial(s0, v1, s1, v0, s0, v2, s2, v3, s3),
+            od.monomial(s1, v1, s1, v0, s0, v2, s2, v3, s3),
+            od.monomial(s2, v1, s1, v0, s0, v2, s2, v3, s3),
+            od.monomial(s3, v1, s1, v0, s0, v2, s2, v3, s3),
+            od.monomial(s0, v3, s3, v1, s1, v2, s2, v0, s0),
+            od.monomial(s1, v3, s3, v1, s1, v2, s2, v0, s0),
+            od.monomial(s2, v3, s3, v1, s1, v2, s2, v0, s0),
+            od.monomial(s3, v3, s3, v1, s1, v2, s2, v0, s0),
         ]
         code_list = []
         for op in op_list:
@@ -73,5 +87,41 @@ class TestAst(unittest.TestCase):
             code_list.append(code)
         name_list = [op.name for op in op_list]
         code_ref_list = []
-        for name in name_list:
-            code_ref = "      {} = -1.0 / "
+        code_ref_list = [
+            "      {} = -1.0 / x * y * z ** {} / u ** {}".format(
+                name_list[0], half_name, half_name),
+            "      {} = 1.0 / x * y * z ** {} / u ** {}".format(
+                name_list[1], half_name, half_name),
+            "      {} = 0.5 / x * y * z ** {} / u ** {}".format(
+                name_list[2], half_name, half_name),
+            "      {} = -0.5 / x * y * z ** {} / u ** {}".format(
+                name_list[3], half_name, half_name),
+            "      {} = - z ** {} * y / x / u ** {}".format(
+                name_list[4], half_name, half_name),
+            "      {} = z ** {} * y / x / u ** {}".format(
+                name_list[5], half_name, half_name),
+            "      {} = 0.5 * z ** {} * y / x / u ** {}".format(
+                name_list[6], half_name, half_name),
+            "      {} = -0.5 * z ** {} * y / x / u ** {}".format(
+                name_list[7], half_name, half_name),
+            "      {} = - y / x * z ** {} / u ** {}".format(
+                name_list[8], half_name, half_name),
+            "      {} = y / x * z ** {} / u ** {}".format(
+                name_list[9], half_name, half_name),
+            "      {} = 0.5 * y / x * z ** {} / u ** {}".format(
+                name_list[10], half_name, half_name),
+            "      {} = -0.5 * y / x * z ** {} / u ** {}".format(
+                name_list[11], half_name, half_name),
+            "      {} = -1.0 / u ** {} * y * z ** {} / x".format(
+                name_list[12], half_name, half_name),
+            "      {} = 1.0 / u ** {} * y * z ** {} / x".format(
+                name_list[13], half_name, half_name),
+            "      {} = 0.5 / u ** {} * y * z ** {} / x".format(
+                name_list[14], half_name, half_name),
+            "      {} = -0.5 / u ** {} * y * z ** {} / x".format(
+                name_list[15], half_name, half_name),
+        ]
+        for i in range(len(code_ref_list)):
+            code = code_list[i]
+            code_ref = code_ref_list[i]
+            self.assertEqual(code, code_ref)

@@ -1,6 +1,6 @@
 import unittest
 
-from ..ast import codegen_line, TupleCommaList, Declaration
+from ..fcode import codegen_line, TupleCommaList, Declaration
 from .test_utils import register_test
 from ..utils.type_utils import MinusOne, One, Half
 from ..op_def import OpDef as od
@@ -74,4 +74,4 @@ class TestAst(unittest.TestCase):
         name_list = [op.name for op in op_list]
         code_ref_list = []
         for name in name_list:
-            code_ref = "      {} = 1.0 / "
+            code_ref = "      {} = -1.0 / "

@@ -18,13 +18,13 @@ class Op(object):
     def __init__(self, *deps):
         self.deps = list(deps)
         self.id = -1
-
-    def insert_assertion(self, sign):
-        csign = self.sign
-        sign = merge_sign(sign, csign)
+        self.name = None
 
     def set_id(self, op_id):
         self.id = op_id
+
+    def set_name(self, name):
+        self.name = name
 
     def merge(self, other):
         raise NotImplementedError
@@ -86,7 +86,7 @@ class Op(object):
     def revtopo_infer_sign(self, sign_dict):
         pass
 
-    def dfs_codegen(self, val_dict):
+    def dfs_ast(self, val_dict):
         raise NotImplementedError
 
     def dfs_forward(self, val_dict):

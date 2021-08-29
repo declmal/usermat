@@ -150,6 +150,12 @@ class Monomial(Op):
         monomial_valid_func(*ndeps)
         self.deps = ndeps
 
+    def dfs_ast(self, val_dict):
+        lhs = self.name
+        assignment = Assignment(lhs, *rhs)
+        variables.append(lhs)
+        assignments.append(assignment)
+
     def revtopo_infer_sign(self, sign_dict):
         for i in range(1, len(self.deps), 2):
             frac, exp = self.deps[i:i+2]

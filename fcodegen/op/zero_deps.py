@@ -8,7 +8,6 @@ from ..utils.type_utils import (
 )
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from ..base import Op
 
 """ equivalent functions
 """
@@ -24,7 +23,7 @@ def var_valid_func(name):
 """
 @org.register_opt("dfs_infer_sign")
 @org.register_op()
-class Null(Op):
+class Null(org.get_op_cls("op")):
     pass
 
 
@@ -32,7 +31,7 @@ class Null(Op):
 @org.register_opt("revtopo_infer_sign")
 @org.register_op(
     valid_func=scalar_valid_func, equiv_func=lambda op_type, data: data)
-class Scalar(Op):
+class Scalar(org.get_op_cls("op")):
     def __init__(self, data):
         assert isinstance(data, FloatTypes)
         self.data = cast_fraction(data)
@@ -86,7 +85,7 @@ class Scalar(Op):
 @org.register_opt("revtopo_infer_sign")
 @org.register_op(
     valid_func=var_valid_func, equiv_func=lambda op_type, name: name)
-class Var(Op):
+class Var(org.get_op_cls("op")):
     def __init__(self, name):
         super().__init__()
         self.name = name

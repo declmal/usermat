@@ -8,7 +8,6 @@ from ..utils.type_utils import (
 )
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from ..base import Op
 
 """ validate functions
 """
@@ -18,7 +17,7 @@ def num_valid_func(num_deps):
             "invalid deps number: {}, ".format(len(deps)) + \
             "expected: {}".format(num_deps)
         for dep in deps:
-            assert isinstance(dep, Op), \
+            assert isinstance(dep, org.get_op_cls("op")), \
                 "invalid type of dep: {}".format(type(dep))
     return wrapper
 
@@ -85,7 +84,7 @@ def mial_valid_func(*deps):
     assert num_deps >= 1 and num_deps % 2 == 1, \
         "invalid number of deps: {}".format(num_deps)
     for dep in deps:
-        assert isinstance(dep, Op), \
+        assert isinstance(dep, org.get_op_cls("op")), \
             "invalid type of dep: {}".format(type(dep))
     for i in range(0, num_deps, 2):
         dep = deps[i]

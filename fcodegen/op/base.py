@@ -2,15 +2,16 @@ import logging
 
 import mxnet as mx
 
-from .utils.type_utils import Zero
-from .utils.sign_utils import OpSign, merge_sign
-from .op_def import OpDef as od
-from .op_reg import OpReg as org
+from ..utils.type_utils import Zero
+from ..utils.sign_utils import OpSign, merge_sign
+from ..op_def import OpDef as od
+from ..op_reg import OpReg as org
 
 
 """ base Op
 """
 @org.register_supported_opts
+@org.register_op()
 class Op(object):
     op_type = None
     op_equiv_func = None

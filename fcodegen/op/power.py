@@ -8,7 +8,6 @@ from ..utils.type_utils import (
 )
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from ..base import Op
 from .op_utils import (
     num_valid_func, sequential_equiv_func,
     create_monomial_op, get_monomial_dict, get_monomial_dict_exp
@@ -33,7 +32,7 @@ def power_valid_func(*deps):
 @org.register_opt("topo_standardize")
 @org.register_op(
     valid_func=power_valid_func, equiv_func=sequential_equiv_func)
-class Power(Op):
+class Power(org.get_op_cls("op")):
     fwd_func = lambda v0, v1: v0**v1
 
     @classmethod

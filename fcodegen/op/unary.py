@@ -6,7 +6,6 @@ from ..utils.sign_utils import (
 from ..utils.type_utils import MinusOne
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from ..base import Op
 from .op_utils import num_valid_func, sequential_equiv_func
 from ..expr_def import ExprDef as ed
 
@@ -23,7 +22,7 @@ from ..expr_def import ExprDef as ed
 @org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class Abs(Op):
+class Abs(org.get_op_cls("op")):
     fwd_func = lambda v: np.abs(v)
 
     @classmethod
@@ -97,7 +96,7 @@ class Abs(Op):
 @org.register_opt("dfs_display")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class Negative(Op):
+class Negative(org.get_op_cls("op")):
     fwd_func = lambda v: -v
 
     @classmethod
@@ -119,7 +118,7 @@ class Negative(Op):
 @org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class Sin(Op):
+class Sin(org.get_op_cls("op")):
     fwd_func = lambda v: np.sin(v)
 
     def dfs_autodiff(self, val_dict, var_seq):
@@ -181,7 +180,7 @@ class Sin(Op):
 @org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class Cos(Op):
+class Cos(org.get_op_cls("op")):
     fwd_func = lambda v: np.cos(v)
 
     def revtopo_infer_sign(self, sign_dict):

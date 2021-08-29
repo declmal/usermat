@@ -7,7 +7,6 @@ from ..utils.sign_utils import (
 )
 from ..utils.type_utils import One, Zero, ContradictError, cast_float
 from ..op_reg import OpReg as org
-from ..base import Op
 from .op_utils import (
     mial_equiv_func, mial_valid_func, merge_monomial_dict,
     create_monomial_op, get_monomial_dict_exp, mial_sort_deps
@@ -88,7 +87,7 @@ def get_monomial_signs(deps, sign_dict):
 @org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=monomial_valid_func, equiv_func=mial_equiv_func)
-class Monomial(Op):
+class Monomial(org.get_op_cls("op")):
     @classmethod
     def fwd_func(cls, *v):
         product = v[0]

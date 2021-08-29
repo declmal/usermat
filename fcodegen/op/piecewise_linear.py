@@ -6,7 +6,6 @@ from ..utils.sign_utils import OpSign, is_sub_sign, merge_sign
 from .op_utils import sequential_equiv_func
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from ..base import Op
 
 """ threshold helper function
 """
@@ -242,7 +241,7 @@ def piecewise_linear_valid_func(*deps):
     assert num_deps >= 7 and (num_deps-3) % 4 == 0, \
         "invalid number of deps: {}".format(num_deps)
     for dep in deps:
-        assert isinstance(dep, Op), \
+        assert isinstance(dep, org.get_op_cls("op")), \
             "invalid type of dep: {}".format(type(dep))
     datas = []
     for i in range(1, num_deps):
@@ -267,7 +266,7 @@ def piecewise_linear_valid_func(*deps):
 @org.register_op(
     valid_func=piecewise_linear_valid_func,
     equiv_func=sequential_equiv_func)
-class PiecewiseLinear(Op):
+class PiecewiseLinear(org.get_op_cls("op")):
     @classmethod
     def fwd_func(cls, *v):
         x = v[0]

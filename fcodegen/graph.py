@@ -10,7 +10,6 @@ from .utils.type_utils import cast_float, Zero
 from .utils.sign_utils import infer_scalar_sign, OpSign, merge_sign
 from .op_def import OpDef as od
 from .op_reg import OpReg as org
-from .base import Op
 from .utils.sym_utils import sym_rename
 
 """ visit passes
@@ -205,7 +204,7 @@ def register_graph_topo(cls):
             return nsign_dict
         return wrapper
 
-    for callback in dir(Op):
+    for callback in dir(org.get_op_cls("op")):
         if callback.startswith("topo_"):
             setattr(cls, callback[5:], graph_topo(callback))
     return cls

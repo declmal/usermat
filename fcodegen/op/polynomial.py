@@ -4,7 +4,6 @@ from ..utils.sign_utils import (
 )
 from ..utils.type_utils import One, ContradictError
 from ..op_reg import OpReg as org
-from ..base import Op
 from .op_utils import (
     mial_equiv_func, mial_valid_func, mial_sort_deps,
     get_polynomial_dict, merge_polynomial_dict, create_polynomial_op
@@ -71,7 +70,7 @@ def get_polynomial_signs(deps, sign_dict):
 @org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=mial_valid_func, equiv_func=mial_equiv_func)
-class Polynomial(Op):
+class Polynomial(org.get_op_cls("op")):
     @classmethod
     def fwd_func(cls, *v):
         summation = v[0]

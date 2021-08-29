@@ -3,5 +3,5 @@ build
 *.a
 *.ipynb
 __pycache__
-codegen/fortran
+fcodegen/fortran
 .ipynb_checkpoints

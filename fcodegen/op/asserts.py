@@ -4,7 +4,6 @@ from ..utils.sign_utils import (
 )
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from .base import Op
 from .op_utils import num_valid_func, sequential_equiv_func
 
 
@@ -13,7 +12,7 @@ from .op_utils import num_valid_func, sequential_equiv_func
 @org.register_opt("dfs_sort_deps")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class AssertNegative(Op):
+class AssertNegative(org.get_op_cls("op")):
     @classmethod
     def fwd_func(cls, v0):
         assert v0 < 0, v0
@@ -70,7 +69,7 @@ class AssertNegative(Op):
 @org.register_opt("dfs_forward")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class AssertPositive(Op):
+class AssertPositive(org.get_op_cls("op")):
     @classmethod
     def fwd_func(cls, v0):
         assert v0 > 0, v0
@@ -126,7 +125,7 @@ class AssertPositive(Op):
 @org.register_opt("dfs_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class AssertNonPositive(Op):
+class AssertNonPositive(org.get_op_cls("op")):
     @classmethod
     def fwd_func(cls, v0):
         assert v0 <= 0, v0
@@ -189,7 +188,7 @@ class AssertNonPositive(Op):
 @org.register_opt("dfs_forward")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class AssertNonNegative(Op):
+class AssertNonNegative(org.get_op_cls("op")):
     @classmethod
     def fwd_func(cls, v0):
         assert v0 >= 0, v0
@@ -252,7 +251,7 @@ class AssertNonNegative(Op):
 @org.register_opt("dfs_forward")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class AssertNonZero(Op):
+class AssertNonZero(org.get_op_cls("op")):
     @classmethod
     def fwd_func(cls, v0):
         assert v0 != 0, v0
@@ -314,7 +313,7 @@ class AssertNonZero(Op):
 @org.register_opt("dfs_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(1), equiv_func=sequential_equiv_func)
-class AssertZero(Op):
+class AssertZero(org.get_op_cls("op")):
     @classmethod
     def fwd_func(cls, v0):
         assert v0 == 0, v0

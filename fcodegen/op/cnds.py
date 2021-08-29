@@ -4,7 +4,6 @@ from ..utils.sign_utils import (
 )
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from .base import Op
 from .op_utils import num_valid_func, sequential_equiv_func
 
 """ util functions
@@ -32,7 +31,7 @@ def cnd_auto_backward(deps, od_func, val_dict, var_seq):
 @org.register_opt("topo_zerify")
 @org.register_op(
     valid_func=num_valid_func(4), equiv_func=sequential_equiv_func)
-class LessThan(Op):
+class LessThan(org.get_op_cls("op")):
     fwd_func = lambda v0, v1, v2, v3: v2 if v0 < v1 else v3
 
     def dfs_autodiff(self, val_dict, var_seq):
@@ -85,7 +84,7 @@ class LessThan(Op):
 @org.register_opt("topo_fuse")
 @org.register_op(
     valid_func=num_valid_func(4), equiv_func=sequential_equiv_func)
-class NoMoreThan(Op):
+class NoMoreThan(org.get_op_cls("op")):
     fwd_func = lambda v0, v1, v2, v3: v2 if v0 <= v1 else v3
 
     @classmethod

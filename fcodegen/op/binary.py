@@ -4,7 +4,6 @@ from ..utils.sign_utils import \
 from ..utils.type_utils import Zero, One
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
-from .base import Op
 from .op_utils import (
     num_valid_func, sequential_equiv_func, swappable_equiv_func,
     get_monomial_dict, get_monomial_dict, merge_monomial_dict,
@@ -21,7 +20,7 @@ from .op_utils import (
 @org.register_opt("topo_standardize")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
-class Multiply(Op):
+class Multiply(org.get_op_cls("op")):
     fwd_func = lambda v0, v1: v0 * v1
 
     def dfs_autodiff(self, val_dict, var_seq):
@@ -99,7 +98,7 @@ class Multiply(Op):
 @org.register_opt("revtopo_infer_sign")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
-class Divide(Op):
+class Divide(org.get_op_cls("op")):
     fwd_func = lambda v0, v1: v0 / v1
 
     @classmethod
@@ -117,7 +116,7 @@ class Divide(Op):
 @org.register_opt("topo_standardize")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
-class Add(Op):
+class Add(org.get_op_cls("op")):
     fwd_func = lambda v0, v1: v0 + v1
 
     def dfs_infer_sign(self, val_dict):
@@ -189,7 +188,7 @@ class Add(Op):
 @org.register_opt("dfs_display")
 @org.register_op(
     valid_func=num_valid_func(2), equiv_func=sequential_equiv_func)
-class Subtract(Op):
+class Subtract(org.get_op_cls("op")):
     fwd_func = lambda v0, v1: v0 - v1
 
     @classmethod

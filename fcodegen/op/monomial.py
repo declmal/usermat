@@ -12,12 +12,15 @@ from .op_utils import (
     mial_equiv_func, mial_valid_func, merge_monomial_dict,
     create_monomial_op, get_monomial_dict_exp, mial_sort_deps
 )
+from ..fcode import Assignment
 
 """ validate function
 """
 def monomial_valid_func(*deps):
     mial_valid_func(*deps)
     num_deps = len(deps)
+    assert num_deps > 1 and num_deps % 2 == 1, \
+        "invalid number of deps: {}".format(num_deps)
     scalar = deps[0]
     scalar_data = scalar.data
     assert scalar_data != Zero
@@ -150,7 +153,8 @@ class Monomial(Op):
         monomial_valid_func(*ndeps)
         self.deps = ndeps
 
-    def dfs_ast(self, val_dict):
+    def dfs_ast(self, val_dict, variables, assignments):
+        raise NotImplementedError
         lhs = self.name
         assignment = Assignment(lhs, *rhs)
         variables.append(lhs)

@@ -35,7 +35,7 @@ class TestAst(unittest.TestCase):
         code_ref = "      real :: x, y, z"
         self.assertEqual(code, code_ref)
 
-    def test_assignment(self):
+    def test_sin(self):
         v0 = od.var("x")
         v1 = od.sin(v0)
         codegen_func = org.get_opt(v1, "dfs_ast")

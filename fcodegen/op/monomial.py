@@ -156,10 +156,6 @@ class Monomial(org.get_op_cls("op")):
     def dfs_ast(self, val_dict, variables, assignments):
         var_name = self.name
         lhs = ed.stringlist(var_name)
-        dep_names = []
-        for dep in self.deps:
-            dep_name = dep.name
-            dep_names.append(dep_name)
         strings = []
         for i in range(1, len(self.deps), 2):
             var, scalar = self.deps[i:i+2]
@@ -188,9 +184,9 @@ class Monomial(org.get_op_cls("op")):
             scalar_data_str = str(cast_float(scalar_data))
             strings.insert(0, scalar_data_str)
         rhs = ed.stringlist(*strings)
-        assignment = ed.assignment(lhs, rhs)
+        expr = ed.assignment(lhs, rhs)
         variables.append(var_name)
-        assignments.append(assignment)
+        assignments.append(expr)
 
     def revtopo_infer_sign(self, sign_dict):
         for i in range(1, len(self.deps), 2):

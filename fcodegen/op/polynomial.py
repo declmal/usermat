@@ -2,12 +2,13 @@ from ..utils.sign_utils import (
     infer_multiply_sign, infer_add_sign, infer_scalar_sign,
     merge_sign, separate_signs, OpSign, revinfer_multiply_sign
 )
-from ..utils.type_utils import One, ContradictError
+from ..utils.type_utils import Zero, One, ContradictError, cast_float
 from ..op_reg import OpReg as org
 from .op_utils import (
     mial_equiv_func, mial_valid_func, mial_sort_deps,
     get_polynomial_dict, merge_polynomial_dict, create_polynomial_op
 )
+from ..expr_def import ExprDef as ed
 
 """ revinfer function
 """
@@ -129,6 +130,42 @@ class Polynomial(org.get_op_cls("op")):
         ndeps = mial_sort_deps(*deps)
         mial_valid_func(*ndeps)
         self.deps = ndeps
+
+    def dfs_ast(self, val_dict, variables, assignments):
+        var_name = self.name
+        lhs = ed.stringlist(var_name)
+        strings = []
+        for i in range(1, len(self.deps), 2):
+            var, scalar = self.deps[i:i+2]
+            var_name = var.name
+            scalar_data = scalar.data
+            if scalar_data < Zero:
+                scalar_data = -scalar_data
+                bop = " - "
+            else:
+                bop = " + "
+            strings.append(bop)
+            strings.append(var_name)
+            if scalar_data == One:
+                continue
+            strings.append(" * ")
+            scalar_data_str = str(cast_float(scalar_data))
+            strings.append(scalar_data_str)
+        scalar = self.deps[0]
+        bop = strings[0]
+        scalar_data = scalar.data
+        if scalar_data == Zero:
+            strings.pop(0)
+            if bop == " - ":
+                strings.insert(0, "-")
+        else:
+            scalar_data_str = str(cast_float(scalar_data))
+            strings.insert(0, scalar_data_str)
+        rhs = ed.stringlist(*strings)
+        expr = ed.assignment(lhs, rhs)
+        variables.append(var_name)
+        assignments.append(expr)
+
 
     def revtopo_infer_sign(self, sign_dict):
         cop_id = self.id

@@ -64,61 +64,61 @@ class TestAst(unittest.TestCase):
             od.monomial(s1, v0, s0, v1, s1, v2, s2, v3, s3),
             od.monomial(s2, v0, s0, v1, s1, v2, s2, v3, s3),
             od.monomial(s3, v0, s0, v1, s1, v2, s2, v3, s3),
-            od.monomial(s0, v2, s2, v1, s1, v0, s0, v3, s3),
-            od.monomial(s1, v2, s2, v1, s1, v0, s0, v3, s3),
-            od.monomial(s2, v2, s2, v1, s1, v0, s0, v3, s3),
-            od.monomial(s3, v2, s2, v1, s1, v0, s0, v3, s3),
-            od.monomial(s0, v1, s1, v0, s0, v2, s2, v3, s3),
-            od.monomial(s1, v1, s1, v0, s0, v2, s2, v3, s3),
-            od.monomial(s2, v1, s1, v0, s0, v2, s2, v3, s3),
-            od.monomial(s3, v1, s1, v0, s0, v2, s2, v3, s3),
-            od.monomial(s0, v3, s3, v1, s1, v2, s2, v0, s0),
-            od.monomial(s1, v3, s3, v1, s1, v2, s2, v0, s0),
-            od.monomial(s2, v3, s3, v1, s1, v2, s2, v0, s0),
-            od.monomial(s3, v3, s3, v1, s1, v2, s2, v0, s0),
+            od.monomial(s0, v0, s1, v1, s0, v2, s2, v3, s3),
+            od.monomial(s1, v0, s1, v1, s0, v2, s2, v3, s3),
+            od.monomial(s2, v0, s1, v1, s0, v2, s2, v3, s3),
+            od.monomial(s3, v0, s1, v1, s0, v2, s2, v3, s3),
+            od.monomial(s0, v0, s2, v1, s1, v2, s0, v3, s3),
+            od.monomial(s1, v0, s2, v1, s1, v2, s0, v3, s3),
+            od.monomial(s2, v0, s2, v1, s1, v2, s0, v3, s3),
+            od.monomial(s3, v0, s2, v1, s1, v2, s0, v3, s3),
+            od.monomial(s0, v0, s3, v1, s1, v2, s2, v3, s0),
+            od.monomial(s1, v0, s3, v1, s1, v2, s2, v3, s0),
+            od.monomial(s2, v0, s3, v1, s1, v2, s2, v3, s0),
+            od.monomial(s3, v0, s3, v1, s1, v2, s2, v3, s0),
         ]
         code_list = []
         for op in op_list:
             ast_func = org.get_opt(op, "dfs_ast")
             assignments = []
-            ast_func(v1, [], [], assignments)
-            assignments = assignments[0]
-            code = assignment.codegen()
+            ast_func(op, [], [], assignments)
+            expr = assignments[0]
+            code = expr.codegen()
             code_list.append(code)
         name_list = [op.name for op in op_list]
         code_ref_list = []
         code_ref_list = [
-            "      {} = -1.0 / x * y * z ** {} / u ** {}".format(
-                name_list[0], half_name, half_name),
-            "      {} = 1.0 / x * y * z ** {} / u ** {}".format(
-                name_list[1], half_name, half_name),
-            "      {} = 0.5 / x * y * z ** {} / u ** {}".format(
-                name_list[2], half_name, half_name),
-            "      {} = -0.5 / x * y * z ** {} / u ** {}".format(
-                name_list[3], half_name, half_name),
-            "      {} = - z ** {} * y / x / u ** {}".format(
+            "      {} = -1.0 / x * y * z ** 0.5 / u ** 0.5".format(
+                name_list[0]),
+            "      {} = 1.0 / x * y * z ** 0.5 / u ** 0.5".format(
+                name_list[1]),
+            "      {} = 0.5 / x * y * z ** 0.5 / u ** 0.5".format(
+                name_list[2]),
+            "      {} = -0.5 / x * y * z ** 0.5 / u ** 0.5".format(
+                name_list[3]),
+            "      {} = -x / y * z ** 0.5 / u ** 0.5".format(
                 name_list[4], half_name, half_name),
-            "      {} = z ** {} * y / x / u ** {}".format(
+            "      {} = x / y * z ** 0.5 / u ** 0.5".format(
                 name_list[5], half_name, half_name),
-            "      {} = 0.5 * z ** {} * y / x / u ** {}".format(
+            "      {} = 0.5 * x / y * z ** 0.5 / u ** 0.5".format(
                 name_list[6], half_name, half_name),
-            "      {} = -0.5 * z ** {} * y / x / u ** {}".format(
+            "      {} = -0.5 * x / y * z ** 0.5 / u ** 0.5".format(
                 name_list[7], half_name, half_name),
-            "      {} = - y / x * z ** {} / u ** {}".format(
+            "      {} = -x ** 0.5 * y / z / u ** 0.5".format(
                 name_list[8], half_name, half_name),
-            "      {} = y / x * z ** {} / u ** {}".format(
+            "      {} = x ** 0.5 * y / z / u ** 0.5".format(
                 name_list[9], half_name, half_name),
-            "      {} = 0.5 * y / x * z ** {} / u ** {}".format(
+            "      {} = 0.5 * x ** 0.5 * y / z / u ** 0.5".format(
                 name_list[10], half_name, half_name),
-            "      {} = -0.5 * y / x * z ** {} / u ** {}".format(
+            "      {} = -0.5 * x ** 0.5 * y / z / u ** 0.5".format(
                 name_list[11], half_name, half_name),
-            "      {} = -1.0 / u ** {} * y * z ** {} / x".format(
+            "      {} = -1.0 / x ** 0.5 * y * z ** 0.5 / u".format(
                 name_list[12], half_name, half_name),
-            "      {} = 1.0 / u ** {} * y * z ** {} / x".format(
+            "      {} = 1.0 / x ** 0.5 * y * z ** 0.5 / u".format(
                 name_list[13], half_name, half_name),
-            "      {} = 0.5 / u ** {} * y * z ** {} / x".format(
+            "      {} = 0.5 / x ** 0.5 * y * z ** 0.5 / u".format(
                 name_list[14], half_name, half_name),
-            "      {} = -0.5 / u ** {} * y * z ** {} / x".format(
+            "      {} = -0.5 / x ** 0.5 * y * z ** 0.5 / u".format(
                 name_list[15], half_name, half_name),
         ]
         for i in range(len(code_ref_list)):

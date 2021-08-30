@@ -59,7 +59,7 @@ class Declaration(CommaList):
 
 
 @ed.register_expr
-class Binary(StringList):
+class Assignment(StringList):
     def __init__(self, lhs, rhs):
         assert isinstance(lhs, ed.get_expr_cls("stringlist")), \
             "invalid type of lhs: {}".format(lhs)
@@ -68,49 +68,10 @@ class Binary(StringList):
         self.strings = []
         for string in lhs.strings:
             self.strings.append(string)
-        op = self.get_binary_op()
+        op = " = "
         self.strings.append(op)
         for string in rhs.strings:
             self.strings.append(string)
-
-    def get_binary_op(self):
-        raise NotImplementedError
-
-
-@ed.register_expr
-class Assignment(Binary):
-    def get_binary_op(self):
-        return " = "
-
-
-@ed.register_expr
-class Add(Binary):
-    def get_binary_op(self):
-        return " + "
-
-
-@ed.register_expr
-class Subtract(Binary):
-    def get_binary_op(self):
-        return " - "
-
-
-@ed.register_expr
-class Multiply(Binary):
-    def get_binary_op(self):
-        return " * "
-
-
-@ed.register_expr
-class Divide(Binary):
-    def get_binary_op(self):
-        return " / "
-
-
-@ed.register_expr
-class Power(Binary):
-    def get_binary_op(self):
-        return " ** "
 
 
 @ed.register_expr

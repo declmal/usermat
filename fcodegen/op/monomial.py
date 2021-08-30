@@ -5,7 +5,8 @@ from ..utils.sign_utils import (
     revinfer_multiply_sign, revinfer_power_sign,
     merge_sign, separate_signs, OpSign
 )
-from ..utils.type_utils import One, Zero, ContradictError, cast_float
+from ..utils.type_utils import (
+    One, Zero, MinusOne, ContradictError, cast_float)
 from ..op_reg import OpReg as org
 from .op_utils import (
     mial_equiv_func, mial_valid_func, merge_monomial_dict,
@@ -159,17 +160,34 @@ class Monomial(org.get_op_cls("op")):
         for dep in self.deps:
             dep_name = dep.name
             dep_names.append(dep_name)
-        rhs = []
-        for i in range(len(self.deps)):
-            dep = self.deps[i]
-            if isinstance(dep, org.get_op_cls("scalar")):
-                data = dep.data
-                if i > 0 and data < Zero:
-                    data = -data
-                else:
-                    data_str = str(cast_float(data))
-                data_str = str(cast_float(data))
-        raise NotImplementedError
+        strings = []
+        for i in range(1, len(self.deps), 2):
+            var, scalar = self.deps[i:i+2]
+            var_name = var.name
+            scalar_data = scalar.data
+            if scalar_data < Zero:
+                scalar_data = -scalar_data
+                bop = " / "
+            else:
+                bop = " * "
+            strings.append(bop)
+            strings.append(var_name)
+            if scalar_data == One:
+                continue
+            strings.append(" ** ")
+            scalar_data_str = str(cast_float(scalar_data))
+            strings.append(scalar_data_str)
+        scalar = self.deps[0]
+        scalar_data = scalar.data
+        bop = strings[0]
+        if bop == " * " and scalar_data in [One, MinusOne]:
+            strings.pop(0)
+            if scalar_data == MinusOne:
+                strings.insert(0, "-")
+        else:
+            scalar_data_str = str(cast_float(scalar_data))
+            strings.insert(0, scalar_data_str)
+        rhs = ed.stringlist(*strings)
         assignment = ed.assignment(lhs, rhs)
         variables.append(var_name)
         assignments.append(assignment)

@@ -59,40 +59,6 @@ class Declaration(CommaList):
         self.strings = [data_type, " :: "] + self.strings
 
 
-class Binary(StringList):
-    def __init__(self, lhs, rhs):
-        assert isinstance(lhs, ed.get_expr_cls("stringlist")), \
-            "invalid type of lhs: {}".format(lhs)
-        assert isinstance(rhs, ed.get_expr_cls("stringlist")), \
-            "invalid type of rhs: {}".format(rhs)
-        self.strings = []
-        for string in lhs.strings:
-            self.strings.append(string)
-        op = " = "
-        self.strings.append(op)
-        for string in rhs.strings:
-            self.strings.append(string)
-
-
-
-@ed.register_expr
-class Assignment(StringList):
-    def __init__(self, lhs, rhs):
-        assert isinstance(lhs, list), \
-            "invalid type: {} of lhs: {}".format(type(lhs), lhs)
-        validate_strings(*lhs)
-        assert isinstance(rhs, list), \
-            "invalid type: {} of rhs: {}".format(type(rhs), rhs)
-        validate_strings(*rhs)
-        self.strings = []
-        for string in lhs:
-            self.strings.append(string)
-        op = " = "
-        self.strings.append(op)
-        for string in rhs:
-            self.strings.append(string)
-
-
 @ed.register_expr
 class Condition(Expr):
     pass

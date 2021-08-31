@@ -12,5 +12,6 @@ from .op import monomial
 from .op import polynomial
 from .op import piecewise_linear
 from .expr import exprs
+from .expr import binary
 
 log_init(level=logging.DEBUG)

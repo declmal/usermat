@@ -131,7 +131,7 @@ class Polynomial(org.get_op_cls("op")):
         mial_valid_func(*ndeps)
         self.deps = ndeps
 
-    def dfs_ast(self, val_dict, variables, assignments):
+    def dfs_ast(self, val_dict, variables, exprs):
         var_name = self.name
         lhs = ed.stringlist(var_name)
         strings = []
@@ -164,7 +164,7 @@ class Polynomial(org.get_op_cls("op")):
         rhs = ed.stringlist(*strings)
         expr = ed.assignment(lhs, rhs)
         variables.append(var_name)
-        assignments.append(expr)
+        exprs.append(expr)
 
 
     def revtopo_infer_sign(self, sign_dict):

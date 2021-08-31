@@ -87,7 +87,7 @@ class Op(object):
     def revtopo_infer_sign(self, sign_dict):
         pass
 
-    def dfs_ast(self, val_dict, variables, assignments):
+    def dfs_ast(self, val_dict, variables, exprs):
         raise NotImplementedError
 
     def dfs_forward(self, val_dict):

@@ -75,6 +75,11 @@ class Assignment(StringList):
 
 
 @ed.register_expr
+class Condition(Expr):
+    pass
+
+
+@ed.register_expr
 class Subroutine(Expr):
     def __init__(self, func_name, arg_tuple, printable_list):
         self.func_name = func_name

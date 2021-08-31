@@ -6,6 +6,7 @@ from .test_utils import register_test
 from ..utils.type_utils import MinusOne, One, Half, Zero
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
+from ..utils.math_utils import get_piecewise_linear_info
 
 
 @register_test
@@ -41,9 +42,9 @@ class TestAst(unittest.TestCase):
         v0 = od.var("x")
         v1 = od.sin(v0)
         ast_func = org.get_opt(v1, "dfs_ast")
-        assignments = []
-        ast_func(v1, [], [], assignments)
-        assignment = assignments[0]
+        exprs = []
+        ast_func(v1, [], [], exprs)
+        assignment = exprs[0]
         code = assignment.codegen()
         name = v1.name
         code_ref = "      {} = sin(x)".format(name)
@@ -79,9 +80,9 @@ class TestAst(unittest.TestCase):
         code_list = []
         for op in op_list:
             ast_func = org.get_opt(op, "dfs_ast")
-            assignments = []
-            ast_func(op, [], [], assignments)
-            expr = assignments[0]
+            exprs = []
+            ast_func(op, [], [], exprs)
+            expr = exprs[0]
             code = expr.codegen()
             code_list.append(code)
         name_list = [op.name for op in op_list]
@@ -151,9 +152,9 @@ class TestAst(unittest.TestCase):
         code_list = []
         for op in op_list:
             ast_func = org.get_opt(op, "dfs_ast")
-            assignments = []
-            ast_func(op, [], [], assignments)
-            expr = assignments[0]
+            exprs = []
+            ast_func(op, [], [], exprs)
+            expr = exprs[0]
             code = expr.codegen()
             code_list.append(code)
         name_list = [op.name for op in op_list]
@@ -183,6 +184,90 @@ class TestAst(unittest.TestCase):
             "      {} = -x * 0.5 + y + z * 0.5 - u".format(
                 name_list[11]),
         ]
+        for i in range(len(code_ref_list)):
+            code = code_list[i]
+            code_ref = code_ref_list[i]
+            self.assertEqual(code, code_ref)
+
+    def test_piecelinear(self):
+        v0 = od.var("x")
+        # piecewise linear operator 1
+        end_tuples = [(1,(1,1)), (-1,(1,1))]
+        point_tuples = []
+        points = [(1,1)]
+        scalar_datas = get_piecewise_linear_info(
+            end_tuples, point_tuples, points)
+        scalars = [od.scalar(data) for data in scalar_datas]
+        v1 = od.piecewiselinear(v0, *scalars)
+        # piecewise linear operator 2
+        end_tuples = [(1,(1,1)), (-1,(1,2))]
+        point_tuples = []
+        points = [(1,1)]
+        scalar_datas = get_piecewise_linear_info(
+            end_tuples, point_tuples, points)
+        scalars = [od.scalar(data) for data in scalar_datas]
+        v2 = od.piecewiselinear(v0, *scalars)
+        # piecewise linear operator 3
+        end_tuples = [(1,(1,1)), (-1,(1,2))]
+        point_tuples = []
+        points = [(1,2)]
+        scalar_datas = get_piecewise_linear_info(
+            end_tuples, point_tuples, points)
+        scalars = [od.scalar(data) for data in scalar_datas]
+        v3 = od.piecewiselinear(v0, *scalars)
+        # piecewise linear operator 4
+        end_tuples = [(1,(1,1)), (-1,(1,2))]
+        point_tuples = []
+        points = [(1,1.5)]
+        scalar_datas = get_piecewise_linear_info(
+            end_tuples, point_tuples, points)
+        scalars = [od.scalar(data) for data in scalar_datas]
+        v4 = od.piecewiselinear(v0, *scalars)
+        # codegen
+        op_list = [v1, v2, v3, v4]
+        code_list = []
+        for op in op_list:
+            ast_func = org.get_opt(op, "dfs_ast")
+            exprs = []
+            ast_func(op, [], [], exprs)
+            expr = exprs[0]
+            code = expr.codegen()
+            code_list.append(code)
+        name_list = [op.name for op in op_list]
+        # code reference
+        code_ref_list = [
+            """
+      if (x .LE. 1.0) then
+        {} = x
+      else
+        {} = -x + 2.0
+      endif
+            """.format(name_list[0], name_list[0]),
+            """
+      if (x .LE. 1.0) then
+        {} = x
+      else
+        {} = -x + 3.0
+      endif
+            """.format(name_list[1], name_list[1]),
+            """
+      if (x .LT. 1.0) then
+        {} = x
+      else
+        {} = -x + 3.0
+      endif
+            """.format(name_list[2], name_list[2]),
+            """
+      if (x .LT. 1.0) then
+        {} = x
+      elseif (x .EQ. 1.0) then
+        {} = 1.5
+      else
+        {} = -x + 3.0
+      endif
+            """.format(name_list[3], name_list[3], name_list[3]),
+        ]
+        # validate
         for i in range(len(code_ref_list)):
             code = code_list[i]
             code_ref = code_ref_list[i]

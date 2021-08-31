@@ -310,6 +310,14 @@ class PiecewiseLinear(org.get_op_cls("op")):
             sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
+    def dfs_ast(self, val_dict, variables, exprs):
+        var_name = self.name
+        for i in range(1, len(self.deps)-2, 4):
+            k, b, spt, c = [dep.data for dep in self.deps[i:i+4]]
+        raise NotImplementedError
+        variables.append(var_name)
+        exprs.append(expr)
+
     def revtopo_infer_sign(self, sign_dict):
         cop_id = self.id
         csign = sign_dict[cop_id]

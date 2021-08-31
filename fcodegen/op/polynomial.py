@@ -133,8 +133,8 @@ class Polynomial(org.get_op_cls("op")):
 
     def dfs_ast(self, val_dict, variables, exprs):
         var_name = self.name
-        lhs = ed.stringlist(var_name)
-        strings = []
+        lhs = [var_name]
+        rhs = []
         for i in range(1, len(self.deps), 2):
             var, scalar = self.deps[i:i+2]
             var_name = var.name
@@ -144,28 +144,26 @@ class Polynomial(org.get_op_cls("op")):
                 bop = " - "
             else:
                 bop = " + "
-            strings.append(bop)
-            strings.append(var_name)
+            rhs.append(bop)
+            rhs.append(var_name)
             if scalar_data == One:
                 continue
-            strings.append(" * ")
+            rhs.append(" * ")
             scalar_data_str = str(cast_float(scalar_data))
-            strings.append(scalar_data_str)
+            rhs.append(scalar_data_str)
         scalar = self.deps[0]
-        bop = strings[0]
+        bop = rhs[0]
         scalar_data = scalar.data
         if scalar_data == Zero:
-            strings.pop(0)
+            rhs.pop(0)
             if bop == " - ":
-                strings.insert(0, "-")
+                rhs.insert(0, "-")
         else:
             scalar_data_str = str(cast_float(scalar_data))
-            strings.insert(0, scalar_data_str)
-        rhs = ed.stringlist(*strings)
+            rhs.insert(0, scalar_data_str)
         expr = ed.assignment(lhs, rhs)
         variables.append(var_name)
         exprs.append(expr)
-
 
     def revtopo_infer_sign(self, sign_dict):
         cop_id = self.id

@@ -149,13 +149,13 @@ class Sin(org.get_op_cls("op")):
 
     def dfs_ast(self, val_dict, variables, exprs):
         var_name = self.name
-        lhs = ed.stringlist(var_name)
+        lhs = [var_name]
         dep = self.deps[0]
         dep_name = dep.name
-        rhs = ed.stringlist(self.op_type, "(", dep_name, ")")
-        assignment = ed.assignment(lhs, rhs)
+        rhs = [self.op_type, "(", dep_name, ")"]
+        expr = ed.assignment(lhs, rhs)
         variables.append(var_name)
-        exprs.append(assignment)
+        exprs.append(expr)
 
     def revtopo_infer_sign(self, sign_dict):
         cop_id = self.id

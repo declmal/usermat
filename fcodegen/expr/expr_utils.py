@@ -33,11 +33,16 @@ def codegen_line(string, code_lines):
     code_lines.append(cur_line)
     return code_lines
 
-def validate_unique(*strings):
-    string_set = set()
+def validate_strings(*strings):
     for string in strings:
         assert isinstance(string, str), \
-            "invalid type of string instance: {}".format(type(string))
+            "invalid type: {} of string instance: {}".format(
+                type(string), string)
+
+def validate_unique_strings(*strings):
+    validate_strings(*strings)
+    string_set = set()
+    for string in strings:
         assert string not in string_set, \
             "duplicate string: {} in strings: {}".format(string, strings)
         string_set.add(string)

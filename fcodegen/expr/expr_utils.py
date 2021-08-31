@@ -1,5 +1,5 @@
-start_col = 7
-maximum_col = 73
+default_start_col = 7
+default_maximum_col = 73
 default_prefix = " " * 6
 supported_data_types = ["real*8", "real"]
 
@@ -8,7 +8,9 @@ class MaxColumnExceedError(Exception):
     pass
 
 
-def codegen_line(string, code_lines):
+def codegen_line(
+    string, code_lines, start_col=default_start_col,
+    maximum_col=default_maximum_col):
     assert isinstance(string, str), \
         "invalid type of string: {}".format(string)
     if not code_lines:

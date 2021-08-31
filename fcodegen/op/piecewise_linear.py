@@ -312,6 +312,7 @@ class PiecewiseLinear(org.get_op_cls("op")):
 
     def dfs_ast(self, val_dict, variables, exprs):
         var_name = self.name
+        dep_name = self.deps[0].name
         for i in range(1, len(self.deps)-2, 4):
             k, b, spt, c = [dep.data for dep in self.deps[i:i+4]]
         raise NotImplementedError

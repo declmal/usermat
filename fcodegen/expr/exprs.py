@@ -44,10 +44,9 @@ class Assignment(ed.get_expr_cls("codeblock")):
 @ed.register_expr
 class CommaList(CodeBlock):
     def __init__(self, *strings):
+        validate_strings(*strings)
         self.strings = []
         for string in strings:
-            assert isinstance(string, str), \
-                "invalid type of string instance: {}".format(type(string))
             if self.strings:
                 self.strings.append(", ")
             self.strings.append(string)
@@ -62,21 +61,37 @@ class Tuple(CommaList):
 
 
 @ed.register_expr
-class Declaration(CommaList):
+class Declaration(CodeBlock):
     def __init__(
         self, *variables, data_type="real*8", start_col=default_start_col):
         assert isinstance(data_type, str) and \
             data_type in supported_data_types, \
             "invalid data type: {}".format(data_type)
         validate_unique_strings(*variables)
-        super().__init__(*variables)
-        self.strings = [data_type, " :: "] + self.strings
+        strings = []
+        for string in variables:
+            if strings:
+                strings.append(", ")
+            strings.append(string)
+        self.strings = [data_type, " :: "] + strings
         self.start_col = default_start_col
 
 
 @ed.register_expr
-class Condition(Expr):
-    pass
+class EndIfStmt(CodeBlock):
+    def __init__(self, start_col=default_start_col):
+        self.strings = ["endif"]
+        self.start_col = start_col
+
+
+@ed.register_expr
+class IfStmt(CodeBlock):
+    def __init__(
+        self, *logicals, start_col=default_start_col, with_else=False):
+        validate_strings(*logicals)
+        stmt = "elseif " if with_else else "if "
+        self.strings = [stmt, "("] + list(logicals)+ [")", " then"]
+        self.start_col = start_col
 
 
 @ed.register_expr
@@ -92,3 +107,6 @@ class Subroutine(Expr):
             self.strings.append(printable)
         self.strings.append(String("return"))
         self.strings.append(String("end"))
+
+    def codegen(self):
+        pass

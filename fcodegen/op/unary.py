@@ -149,11 +149,11 @@ class Sin(org.get_op_cls("op")):
 
     def dfs_ast(self, val_dict, variables, exprs):
         var_name = self.name
-        lhs = [var_name]
+        lhs = var_name
         dep = self.deps[0]
         dep_name = dep.name
         rhs = [self.op_type, "(", dep_name, ")"]
-        expr = ed.assignment(lhs, rhs)
+        expr = ed.assignment(lhs, *rhs)
         variables.append(var_name)
         exprs.append(expr)
 

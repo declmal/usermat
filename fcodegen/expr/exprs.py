@@ -11,7 +11,7 @@ class Expr(object):
 
 
 @ed.register_expr
-class StringList(Expr):
+class CodeBlock(Expr):
     def __init__(self, *strings):
         self.strings = []
         for string in strings:
@@ -30,7 +30,16 @@ class StringList(Expr):
 
 
 @ed.register_expr
-class CommaList(StringList):
+class Assignment(ed.get_expr_cls("codeblock")):
+    def __init__(self, lhs, *rhs):
+        assert isinstance(lhs, str), \
+            "invalid type: {} of lhs: {}".format(type(lhs), lhs)
+        validate_strings(*rhs)
+        self.strings = [lhs, " = "] + list(rhs)
+
+
+@ed.register_expr
+class CommaList(CodeBlock):
     def __init__(self, *strings):
         self.strings = []
         for string in strings:

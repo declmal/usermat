@@ -133,7 +133,7 @@ class Polynomial(org.get_op_cls("op")):
 
     def dfs_ast(self, val_dict, variables, exprs):
         var_name = self.name
-        lhs = [var_name]
+        lhs = var_name
         rhs = []
         for i in range(1, len(self.deps), 2):
             var, scalar = self.deps[i:i+2]
@@ -161,7 +161,7 @@ class Polynomial(org.get_op_cls("op")):
         else:
             scalar_data_str = str(cast_float(scalar_data))
             rhs.insert(0, scalar_data_str)
-        expr = ed.assignment(lhs, rhs)
+        expr = ed.assignment(lhs, *rhs)
         variables.append(var_name)
         exprs.append(expr)
 

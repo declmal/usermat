@@ -189,7 +189,7 @@ class TestAst(unittest.TestCase):
             code_ref = code_ref_list[i]
             self.assertEqual(code, code_ref)
 
-    def test_piecelinear(self):
+    def test_piecewiselinear(self):
         v0 = od.var("x")
         # piecewise linear operator 1
         end_tuples = [(1,(1,1)), (-1,(1,1))]
@@ -228,10 +228,10 @@ class TestAst(unittest.TestCase):
         code_list = []
         for op in op_list:
             ast_func = org.get_opt(op, "dfs_ast")
-            exprs = []
-            ast_func(op, [], [], exprs)
-            expr = exprs[0]
-            code = expr.codegen()
+            codeblocks = []
+            ast_func(op, [], [], codeblocks)
+            code = "\n".join(
+                [codeblock.codegen() for codeblock in codeblocks])
             code_list.append(code)
         name_list = [op.name for op in op_list]
         # code reference
@@ -241,22 +241,19 @@ class TestAst(unittest.TestCase):
         {} = x
       else
         {} = -x + 2.0
-      endif
-            """.format(name_list[0], name_list[0]),
+      endif""".format(name_list[0], name_list[0]),
             """
       if (x .LE. 1.0) then
         {} = x
       else
         {} = -x + 3.0
-      endif
-            """.format(name_list[1], name_list[1]),
+      endif""".format(name_list[1], name_list[1]),
             """
       if (x .LT. 1.0) then
         {} = x
       else
         {} = -x + 3.0
-      endif
-            """.format(name_list[2], name_list[2]),
+      endif""".format(name_list[2], name_list[2]),
             """
       if (x .LT. 1.0) then
         {} = x
@@ -264,11 +261,15 @@ class TestAst(unittest.TestCase):
         {} = 1.5
       else
         {} = -x + 3.0
-      endif
-            """.format(name_list[3], name_list[3], name_list[3]),
+      endif""".format(name_list[3], name_list[3], name_list[3]),
         ]
+        # ncode_ref_list = []
+        # for code_ref in code_ref_list:
+            # ncode_ref = code_ref.strip()
+            # ncode_ref_list.append(ncode_ref)
+        # code_ref_list = ncode_ref_list
         # validate
         for i in range(len(code_ref_list)):
             code = code_list[i]
-            code_ref = code_ref_list[i]
+            code_ref = code_ref_list[i][1:]
             self.assertEqual(code, code_ref)

@@ -2,7 +2,7 @@ from ..utils.math_utils import (
     validate_scalar_data, validate_pl_scalar_datas,
     get_piecewise_linear_diff_info)
 from ..utils.type_utils import (
-    Zero, Half, PositiveInf, NegativeInf,
+    Zero, Half, One, MinusOne, PositiveInf, NegativeInf,
     get_infsimal, FloatTypes, cast_float)
 from ..utils.sign_utils import OpSign, is_sub_sign, merge_sign
 from .op_utils import sequential_equiv_func
@@ -255,6 +255,44 @@ def piecewise_linear_valid_func(*deps):
         datas.append(data)
     validate_pl_scalar_datas(*datas)
 
+""" ast functions
+"""
+def arith_linear(k, b, dep_name):
+    assert isinstance(k, FloatTypes), \
+        "invalid type: {} of k: {}".format(type(k), k)
+    assert isinstance(b, FloatTypes), \
+        "invalid type: {} of b: {}".format(type(b), b)
+    assert isinstance(dep_name, str), \
+        "invalid type: {} of dep_name: {}".format(type(dep_name), dep_name)
+    if k == Zero:
+        lhs = []
+    elif k == One:
+        lhs = [dep_name]
+    elif k == MinusOne:
+        lhs = ["-", dep_name]
+    else:
+        k_str = str(cast_float(k))
+        lhs = [k, " * ", dep_name]
+    if b == Zero:
+        if lhs:
+            ret = lhs
+        else:
+            ret = ["0.0"]
+    elif b < Zero:
+        nb = -b
+        b_str = str(cast_float(nb))
+        if lhs:
+            ret = lhs + [" - ", b_str]
+        else:
+            ret = ["-", b_str]
+    else:
+        b_str = str(cast_float(b))
+        if lhs:
+            ret = lhs + [" + ", b_str]
+        else:
+            ret = [b_str]
+    return ret
+
 
 """ ops
 """
@@ -324,7 +362,7 @@ class PiecewiseLinear(org.get_op_cls("op")):
             if cref == c:
                 bop = " .LE. "
             else:
-                bop = ". LT. "
+                bop = " .LT. "
             spt_str = str(cast_float(spt))
             logicals = [dep_name, bop, spt_str]
             if first:
@@ -335,12 +373,15 @@ class PiecewiseLinear(org.get_op_cls("op")):
             ifstmt = ed.ifstmt(*logicals, with_else=with_else)
             codeblocks.append(ifstmt)
             start_col_assign = ifstmt.inc_start_col()
-            # TODO assignment k*x + b
+            arithmetics = arith_linear(k, b, dep_name)
+            assignment = ed.assignment(
+                var_name, *arithmetics, start_col=start_col_assign)
+            codeblocks.append(assignment)
             # second branch
             cref = k1*spt + b1
-            if cref == c:
+            if bop == " .LE. " or cref == c:
                 continue
-            bop = " . EQ. "
+            bop = " .EQ. "
             logicals = [dep_name, bop, spt_str]
             ifstmt = ed.ifstmt(*logicals, with_else=True)
             codeblocks.append(ifstmt)
@@ -353,10 +394,12 @@ class PiecewiseLinear(org.get_op_cls("op")):
         codeblocks.append(elsestmt)
         k, b = [dep.data for dep in self.deps[-2:]]
         start_col_assign = elsestmt.inc_start_col()
-        # TODO assignment k*x + b
+        arithmetics = arith_linear(k, b, dep_name)
+        assignment = ed.assignment(
+            var_name, *arithmetics, start_col=start_col_assign)
+        codeblocks.append(assignment)
         endifstmt = ed.endifstmt()
         codeblocks.append(endifstmt)
-        raise NotImplementedError
         variables.append(var_name)
 
     def revtopo_infer_sign(self, sign_dict):

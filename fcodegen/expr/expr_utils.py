@@ -1,6 +1,5 @@
 default_start_col = 7
 default_maximum_col = 73
-default_prefix = " " * 6
 default_inc_col = 2
 supported_data_types = ["real*8", "real"]
 
@@ -15,6 +14,7 @@ def codegen_line(
     assert isinstance(string, str), \
         "invalid type of string: {}".format(string)
     if not code_lines:
+        default_prefix = " " * (start_col-1)
         code_lines.append(default_prefix)
     cur_line = code_lines[-1]
     cur_len = len(cur_line)

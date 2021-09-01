@@ -1,6 +1,6 @@
 from .expr_utils import (
     codegen_line, supported_data_types, validate_strings,
-    validate_unique_strings, default_start_col
+    validate_unique_strings, default_start_col, default_inc_col
 )
 from ..expr_def import ExprDef as ed
 
@@ -29,6 +29,9 @@ class CodeBlock(Expr):
                 string, code_lines=code_lines, start_col=self.start_col)
         code = "".join(code_lines)
         return code
+
+    def inc_start_col(self):
+        return self.start_col + default_inc_col
 
 
 @ed.register_expr
@@ -78,19 +81,26 @@ class Declaration(CodeBlock):
 
 
 @ed.register_expr
-class EndIfStmt(CodeBlock):
-    def __init__(self, start_col=default_start_col):
-        self.strings = ["endif"]
-        self.start_col = start_col
-
-
-@ed.register_expr
 class IfStmt(CodeBlock):
     def __init__(
         self, *logicals, start_col=default_start_col, with_else=False):
         validate_strings(*logicals)
         stmt = "elseif " if with_else else "if "
         self.strings = [stmt, "("] + list(logicals)+ [")", " then"]
+        self.start_col = start_col
+
+
+@ed.register_expr
+class ElseStmt(CodeBlock):
+    def __init__(self, start_col=default_start_col):
+        self.strings = ["else"]
+        self.start_col = start_col
+
+
+@ed.register_expr
+class EndIfStmt(CodeBlock):
+    def __init__(self, start_col=default_start_col):
+        self.strings = ["endif"]
         self.start_col = start_col
 
 

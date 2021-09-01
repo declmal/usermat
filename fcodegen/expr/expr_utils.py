@@ -1,6 +1,7 @@
 default_start_col = 7
 default_maximum_col = 73
 default_prefix = " " * 6
+default_inc_col = 2
 supported_data_types = ["real*8", "real"]
 
 

@@ -1,11 +1,14 @@
 from ..utils.math_utils import (
-    validate_scalar_data, validate_pl_scalar_datas, get_piecewise_linear_diff_info)
+    validate_scalar_data, validate_pl_scalar_datas,
+    get_piecewise_linear_diff_info)
 from ..utils.type_utils import (
-    Zero, Half, PositiveInf, NegativeInf, get_infsimal, FloatTypes)
+    Zero, Half, PositiveInf, NegativeInf,
+    get_infsimal, FloatTypes, cast_float)
 from ..utils.sign_utils import OpSign, is_sub_sign, merge_sign
 from .op_utils import sequential_equiv_func
 from ..op_def import OpDef as od
 from ..op_reg import OpReg as org
+from ..expr_def import ExprDef as ed
 
 """ threshold helper function
 """
@@ -310,14 +313,51 @@ class PiecewiseLinear(org.get_op_cls("op")):
             sign = merge_sign(sign, csign)
         val_dict[cop_id] = sign
 
-    def dfs_ast(self, val_dict, variables, exprs):
+    def dfs_ast(self, val_dict, variables, codeblocks):
         var_name = self.name
         dep_name = self.deps[0].name
+        first = True
         for i in range(1, len(self.deps)-2, 4):
-            k, b, spt, c = [dep.data for dep in self.deps[i:i+4]]
+            k, b, spt, c, k1, b1 = [dep.data for dep in self.deps[i:i+6]]
+            # first branch
+            cref = k*spt + b
+            if cref == c:
+                bop = " .LE. "
+            else:
+                bop = ". LT. "
+            spt_str = str(cast_float(spt))
+            logicals = [dep_name, bop, spt_str]
+            if first:
+                with_else = False
+                first = False
+            else:
+                with_else = True
+            ifstmt = ed.ifstmt(*logicals, with_else=with_else)
+            codeblocks.append(ifstmt)
+            start_col_assign = ifstmt.inc_start_col()
+            # TODO assignment k*x + b
+            # second branch
+            cref = k1*spt + b1
+            if cref == c:
+                continue
+            bop = " . EQ. "
+            logicals = [dep_name, bop, spt_str]
+            ifstmt = ed.ifstmt(*logicals, with_else=True)
+            codeblocks.append(ifstmt)
+            c_str = str(cast_float(c))
+            start_col_assign = ifstmt.inc_start_col()
+            assignment = ed.assignment(
+                var_name, c_str, start_col=start_col_assign)
+            codeblocks.append(assignment)
+        elsestmt = ed.elsestmt()
+        codeblocks.append(elsestmt)
+        k, b = [dep.data for dep in self.deps[-2:]]
+        start_col_assign = elsestmt.inc_start_col()
+        # TODO assignment k*x + b
+        endifstmt = ed.endifstmt()
+        codeblocks.append(endifstmt)
         raise NotImplementedError
         variables.append(var_name)
-        exprs.append(expr)
 
     def revtopo_infer_sign(self, sign_dict):
         cop_id = self.id

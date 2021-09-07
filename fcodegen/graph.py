@@ -477,6 +477,7 @@ class Graph(object):
 
     def compile(self):
         assert self.status == 2, "graph has not been optimized"
+        # TODO
 
 
     def __eq__(self, other):

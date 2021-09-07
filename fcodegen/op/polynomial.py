@@ -162,7 +162,7 @@ class Polynomial(org.get_op_cls("op")):
             scalar_data_str = str(cast_float(scalar_data))
             rhs.insert(0, scalar_data_str)
         assignment = ed.assignment(lhs, *rhs)
-        variables.append(var_name)
+        variables.append(lhs)
         codeblocks.append(assignment)
 
     def revtopo_infer_sign(self, sign_dict):

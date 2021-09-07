@@ -1,4 +1,5 @@
 from os import path
+import os
 import json
 import logging
 import subprocess
@@ -214,7 +215,8 @@ def register_graph_topo(cls):
 @register_graph_topo
 class Graph(object):
     def __init__(
-        self, inps, outs, asserts=None, out_appends=None):
+        self, inps, outs, asserts=None, out_appends=None,
+        form_name="mygraph"):
         # validate and set inps
         self.inps = inps
         self.validate_inps()
@@ -234,6 +236,7 @@ class Graph(object):
         # graph status
         self.status = 0
         self.code = None
+        self.form_name = form_name
 
     def validate_inps(self):
         inp_ids = set()
@@ -476,24 +479,38 @@ class Graph(object):
         self.status = 2
         logger.info("graph has been optimized")
 
-    def codegen(self):
+    def codegen(self, dump=True, dump_dir=path.expanduser("~/.fcodegen")):
         assert self.status == 2, "graph has not been optimized"
         # get arguments
         arguments = []
         for inp in self.inps:
             inp_name = inp.name
             arguments.append(inp_name)
+        inp_argument_set = set(arguments)
+        for out in self.outs:
+            out_name = out.name
+            if out_name in inp_argument_set:
+                continue
+            arguments.append(out_name)
         # get codeblocks
         nouts = self.asserts + self.outs
         variables = []
         codeblocks = []
-        dfs_visit(nouts, variables, variables, codeblocks)
+        dfs_visit(
+            nouts, "dfs_ast", variables=variables, codeblocks=codeblocks)
         declaration = ed.declaration(*variables)
         codeblocks.insert(0, declaration)
         # create formula
         formula = ed.formula(self.form_name, arguments, codeblocks)
         # codegen
         code = formula.codegen()
+        # dump
+        if dump:
+            os.makedirs(dump_dir, exist_ok=True)
+            fname = "{}.{}".format(self.form_name, "f")
+            fpath = path.join(dump_dir, fname)
+            with open(fpath, "w") as f:
+                f.writelines(code)
         return code
 
     def __eq__(self, other):

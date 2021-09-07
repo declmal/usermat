@@ -128,11 +128,11 @@ class Formula(ed.get_expr_cls("codeblock")):
                 "invalid type: {} of codeblock: {}, expected: {}".format(
                     type(codeblock), codeblock, expr_type)
         strings = ["subroutine ", form_name, "("]
-        strings.append(")")
         for i, argument in enumerate(arguments):
             strings.append(argument)
             if i < len(arguments) - 1:
                 strings.append(", ")
+        strings.append(")")
         headline = ed.codeblock(*strings)
         self.codeblocks = [headline]
         for codeblock in codeblocks:

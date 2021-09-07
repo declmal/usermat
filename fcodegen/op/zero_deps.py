@@ -28,6 +28,7 @@ class Null(org.get_op_cls("op")):
 
 
 @org.register_opt("dfs_sort_deps")
+@org.register_opt("dfs_ast")
 @org.register_opt("revtopo_infer_sign")
 @org.register_op(
     valid_func=scalar_valid_func, equiv_func=lambda op_type, data: data)
@@ -117,7 +118,7 @@ class Var(org.get_op_cls("op")):
         cdiff[var_seq[cop_id]] = od.scalar(One)
         val_dict[cop_id] = cdiff
 
-    def dfs_ast(self, val_dict, variables, assignments):
+    def dfs_ast(self, val_dict, variables, codeblocks):
         var_name = self.name
         variables.append(var_name)
 

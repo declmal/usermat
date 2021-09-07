@@ -88,7 +88,7 @@ class Op(object):
         pass
 
     def dfs_ast(self, val_dict, variables, codeblocks):
-        raise NotImplementedError
+        pass
 
     def dfs_forward(self, val_dict):
         cop_id = self.id

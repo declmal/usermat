@@ -5,13 +5,8 @@ from .expr_utils import (
 from ..expr_def import ExprDef as ed
 
 
-class Expr(object):
-    def codegen(self):
-        raise NotImplementedError
-
-
 @ed.register_expr
-class CodeBlock(Expr):
+class CodeBlock:
     def __init__(self, *strings, start_col=default_start_col):
         self.strings = []
         for string in strings:
@@ -45,7 +40,7 @@ class Assignment(ed.get_expr_cls("codeblock")):
 
 
 @ed.register_expr
-class CommaList(CodeBlock):
+class CommaList(ed.get_expr_cls("codeblock")):
     def __init__(self, *strings):
         validate_strings(*strings)
         self.strings = []
@@ -64,9 +59,10 @@ class Tuple(CommaList):
 
 
 @ed.register_expr
-class Declaration(CodeBlock):
+class Declaration(ed.get_expr_cls("codeblock")):
     def __init__(
-        self, *variables, data_type="real*8", start_col=default_start_col):
+        self, *variables, data_type="real*8",
+        start_col=default_start_col):
         assert isinstance(data_type, str) and \
             data_type in supported_data_types, \
             "invalid data type: {}".format(data_type)
@@ -81,7 +77,7 @@ class Declaration(CodeBlock):
 
 
 @ed.register_expr
-class IfStmt(CodeBlock):
+class IfStmt(ed.get_expr_cls("codeblock")):
     def __init__(
         self, *logicals, start_col=default_start_col, with_else=False):
         validate_strings(*logicals)
@@ -91,32 +87,65 @@ class IfStmt(CodeBlock):
 
 
 @ed.register_expr
-class ElseStmt(CodeBlock):
+class ElseStmt(ed.get_expr_cls("codeblock")):
     def __init__(self, start_col=default_start_col):
         self.strings = ["else"]
         self.start_col = start_col
 
 
 @ed.register_expr
-class EndIfStmt(CodeBlock):
+class EndIfStmt(ed.get_expr_cls("codeblock")):
     def __init__(self, start_col=default_start_col):
         self.strings = ["endif"]
         self.start_col = start_col
 
 
 @ed.register_expr
-class Subroutine(Expr):
-    def __init__(self, func_name, arg_tuple, printable_list):
-        self.func_name = func_name
-        self.strings = [
-            String("subroutine "),
-            String(func_name),
-            arg_tuple
-        ]
-        for printable in printable_list:
-            self.strings.append(printable)
-        self.strings.append(String("return"))
-        self.strings.append(String("end"))
+class ReturnStmt(ed.get_expr_cls("codeblock")):
+    def __init__(self, start_col=default_start_col):
+        self.strings = ["return"]
+        self.start_col = start_col
+
+
+@ed.register_expr
+class EndStmt(ed.get_expr_cls("codeblock")):
+    def __init__(self, start_col=default_start_col):
+        self.strings = ["end"]
+        self.start_col = start_col
+
+
+@ed.register_expr
+class Formula(ed.get_expr_cls("codeblock")):
+    def __init__(self, form_name, arguments, codeblocks):
+        strings = [form_name] + arguments
+        validate_unique_strings(*strings)
+        for i, codeblock in enumerate(codeblocks):
+            if i == 0:
+                expr_type = ed.get_expr_cls("declaration")
+            else:
+                expr_type = ed.get_expr_cls("assignment")
+            assert isinstance(codeblock, expr_type), \
+                "invalid type: {} of codeblock: {}, expected: {}".format(
+                    type(codeblock), codeblock, expr_type)
+        strings = ["subroutine ", form_name, "("]
+        strings.append(")")
+        for i, argument in enumerate(arguments):
+            strings.append(argument)
+            if i < len(arguments) - 1:
+                strings.append(", ")
+        headline = ed.codeblock(*strings)
+        self.codeblocks = [headline]
+        for codeblock in codeblocks:
+            self.codeblocks.append(codeblock)
+        returnstmt = ed.returnstmt()
+        self.codeblocks.append(returnstmt)
+        endstmt = ed.endstmt()
+        self.codeblocks.append(endstmt)
 
     def codegen(self):
-        pass
+        codes = []
+        for codeblock in self.codeblocks:
+            code = codeblock.codegen()
+            codes.append(code)
+        ret = "\n".join(codes)
+        return ret

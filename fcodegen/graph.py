@@ -11,6 +11,7 @@ from .utils.sign_utils import infer_scalar_sign, OpSign, merge_sign
 from .op_def import OpDef as od
 from .op_reg import OpReg as org
 from .utils.sym_utils import sym_rename
+from .expr_def import ExprDef as ed
 
 """ visit passes
 """
@@ -475,10 +476,25 @@ class Graph(object):
         self.status = 2
         logger.info("graph has been optimized")
 
-    def compile(self):
+    def codegen(self):
         assert self.status == 2, "graph has not been optimized"
-        # TODO
-
+        # get arguments
+        arguments = []
+        for inp in self.inps:
+            inp_name = inp.name
+            arguments.append(inp_name)
+        # get codeblocks
+        nouts = self.asserts + self.outs
+        variables = []
+        codeblocks = []
+        dfs_visit(nouts, variables, variables, codeblocks)
+        declaration = ed.declaration(*variables)
+        codeblocks.insert(0, declaration)
+        # create formula
+        formula = ed.formula(self.form_name, arguments, codeblocks)
+        # codegen
+        code = formula.codegen()
+        return code
 
     def __eq__(self, other):
         self.sort_deps()

@@ -3,6 +3,7 @@ import logging
 import numpy as np
 
 from ..op_def import OpDef as od
+from ..op_reg import OpReg as org
 
 def register_test(cls):
     def info_func(self, s: str) -> None:
@@ -40,3 +41,16 @@ def random_array(shape, low=0.0, high=1.0, to_list=True):
     if to_list:
         data = data.tolist()
     return data
+
+def validate_od_func(func):
+    def wrapper(*args):
+        for arg in args:
+            assert isinstance(arg, org.get_op_cls("op")), \
+                "invalid type of argument: {}, func: {}".format(
+                    type(arg), func.__name__)
+        ret = func(*args)
+        assert isinstance(ret, org.get_op_cls("op")), \
+            "invalid type of return: {}, func: {}".format(
+                type(ret), func.__name__)
+        return ret
+    return wrapper

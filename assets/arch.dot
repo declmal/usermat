@@ -1,0 +1,69 @@
+digraph mygraph {
+  compound=true;
+  label="User-defined Subroutines in LSDYNA Explicit Analysis";
+  node[fontname="Avenir", fontsize=14];
+  edge[fontname="Avenir", style=bold];
+
+  subgraph a {
+    compound=true;
+    label="User-defined Structural Materials in LSDYNA Explicit Analysis";
+
+    aa[label="*MAT_USER_DEFINED_MATERIAL_MODELS"];
+    ab[label="dyn21.f"];
+    ac[label="urmathn\nsolid elements"];
+    ad[label="urmats\nshell elements"];
+    ae[label="urmatb\nbeam elements"];
+    af[label="urmatd\ndiscrete elements"];
+    ag[label="urmatt\ntruss beam elements"];
+    ah[label="umat<XX>"];
+
+    aa -> ab;
+    ab -> ac -> ah;
+    ab -> ad -> ah;
+    ab -> ae -> ah;
+    ab -> af -> ah;
+    ab -> ag -> ah;
+
+    subgraph cluster_a1 {
+      label="material model";
+      rank=same ah;
+      labelloc=b;
+    }
+  }
+
+  subgraph b {
+    compound=true;
+    label="User-defined Structural Elements in LSDYNA Explicit Analysis";
+
+    ba[label="*SECTION_SOLID"];
+    bb[label="*SECTION_SHELL"];
+    bc[label="ELEFORM=101...105"];
+    bd[label="dyn21b.f"];
+    be[label="usrsld\nsolid elements"];
+    bf[label="usrshl\nshell elements"];
+    bg[label="usld_b<XXX>\n"]
+    bh[label="ushl_b<XXX>\n"]
+    bi[label="usld_e<XXX>\n"]
+    bj[label="ushl_e<XXX>\n"]
+
+    ba -> bc;
+    bb -> bc;
+    bc -> bd;
+    bd -> be -> bg;
+    bd -> bf -> bh;
+    be -> bi;
+    bf -> bj;
+
+    subgraph cluster_b1 {
+      label="numerical integration";
+      rank=same bg bh;
+      labelloc=b;
+    }
+
+    subgraph cluster_b2 {
+      label="additional force";
+      rank=same bi bj;
+      labelloc=b;
+    }
+  }
+}

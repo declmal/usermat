@@ -10,9 +10,7 @@ from ..utils.type_utils import One, Zero, MinusOne
 from ..utils.math_utils import get_piecewise_linear_info
 from ..graph import Graph
 
-one = od.scalar(One)
-zero = od.scalar(Zero)
-minus_one = od.scalar(MinusOne)
+default_nsegs = 2
 
 def estimate_peak_bond_stress(fcp):
     tau_max_data = 1.163 * fcp ** 0.75
@@ -26,7 +24,7 @@ def estimate_clear_spacing(db, ratio=0.5):
     sR_data = ratio * db
     return sR_data
 
-def polygen(func, x0, x1, nsegs=4):
+def polygen(func, x0, x1, nsegs=default_nsegs):
     assert x0 < x1, "x0: {}, x1: {}".format(x0, x1)
     inc = (x1-x0) / nsegs
     xs = [x0+inc*i for i in range(1, nsegs)]
@@ -61,7 +59,7 @@ def friction_stress_ref(tau_max, s_peak, sR, s2):
     if s2 < -1.5 * s_peak:
         tau_f = -0.25 * tau_max
     elif s2 < -0.15 * s_peak:
-        tau_f = -tau_max * (0.25-0.15*((abs(s2)-s_peak)/(1.35*s_peak))**4)
+        tau_f = -tau_max * (0.25-0.15*((abs(s2)-1.5*s_peak)/(1.35*s_peak))**4)
     elif s2 < 0:
         tau_f = -2/3 * tau_max * abs(s2) / s_peak
     elif s2 < 0.1 * s_peak:
@@ -73,16 +71,18 @@ def friction_stress_ref(tau_max, s_peak, sR, s2):
     return tau_f
 
 @validate_od_func
-def bearing_stress(tau_max, s_peak, sR, s2, nsegs1=4, nsegs2=4):
+def bearing_stress(
+    tau_max, s_peak, sR, s2, nsegs1=default_nsegs, nsegs2=default_nsegs):
     """
     """
     assert sR.data > 1.6 * s_peak.data
+    # scalars
     points = [
         (-sR.data/s_peak.data, 0),
         (-1.6, -0.6),
         (-1.5, -0.6),
         *polygen(
-            lambda x: 0.6 - 0.36 * ((-x-1.5)/1.35)**4,
+            lambda x: -(0.6 - 0.36 * ((-x-1.5)/1.35)**4),
             -1.5, -0.15, nsegs=nsegs1),
         (-0.15, -1.6*0.15),
         (0, 0),
@@ -101,19 +101,22 @@ def bearing_stress(tau_max, s_peak, sR, s2, nsegs1=4, nsegs2=4):
     scalar_datas = get_piecewise_linear_info(
         end_tuples, point_tuples, points)
     scalars = [od.scalar(scalar_data) for scalar_data in scalar_datas]
-    mono = od.monomial(one, s2, one, s_peak, minus_one)
-    piecewise = od.piecewiselinear(mono, *scalars)
-    tau_b = od.monomial(one, tau_max, one, piecewise, one)
+    # ret
+    div = od.divide(s2, s_peak)
+    piecewise = od.piecewiselinear(div, *scalars)
+    tau_b = od.multiply(tau_max, piecewise)
     return tau_b
 
 @validate_od_func
-def friction_stress(tau_max, s_peak, sR, s2, nsegs1=4, nsegs2=4):
+def friction_stress(
+    tau_max, s_peak, sR, s2, nsegs1=default_nsegs, nsegs2=default_nsegs):
     """ The
     """
+    # scalars
     points = [
         (-1.5, -0.25),
         *polygen(
-            lambda x: 0.25 - 0.15 * ((-x-1.5)/1.35)**4,
+            lambda x: -(0.25 - 0.15 * ((-x-1.5)/1.35)**4),
             -1.5, -0.15, nsegs=nsegs1),
         (-0.15, -0.1),
         (0, 0),
@@ -130,9 +133,10 @@ def friction_stress(tau_max, s_peak, sR, s2, nsegs1=4, nsegs2=4):
     scalar_datas = get_piecewise_linear_info(
         end_tuples, point_tuples, points)
     scalars = [od.scalar(scalar_data) for scalar_data in scalar_datas]
-    mono = od.monomial(one, s2, one, s_peak, minus_one)
-    piecewise = od.piecewiselinear(mono, *scalars)
-    tau_f = od.monomial(one, tau_max, one, piecewise, one)
+    # ret
+    div = od.divide(s2, s_peak)
+    piecewise = od.piecewiselinear(div, *scalars)
+    tau_f = od.multiply(tau_max, piecewise)
     return tau_f
 
 @validate_od_func
@@ -258,11 +262,11 @@ class TestBSIM(unittest.TestCase):
                 tau_max_data, s_peak_data, sR_data, s2_data)
             tau_f_lst_ref.append(tau_f_ref)
         plt.subplot(2, 1, 1)
-        plt.plot(s2_lst, tau_b_lst)
-        # plt.plot(s2_lst, tau_b_lst_ref)
+        plt.plot(s2_lst, tau_b_lst, 'r')
+        plt.plot(s2_lst, tau_b_lst_ref, 'b')
         plt.subplot(2 ,1, 2)
-        plt.plot(s2_lst, tau_f_lst)
-        # plt.plot(s2_lst, tau_f_lst_ref)
+        plt.plot(s2_lst, tau_f_lst, 'r')
+        plt.plot(s2_lst, tau_f_lst_ref, 'b')
         fig = plt.gcf()
         fig_path = path.expanduser("~/Desktop/TestBSIM.stress.png")
         fig.savefig(fig_path)

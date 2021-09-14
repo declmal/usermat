@@ -1,6 +1,8 @@
 import unittest
+from os import path
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from .test_utils import register_test, validate_od_func
 from ..op_def import OpDef as od
@@ -30,6 +32,45 @@ def polygen(func, x0, x1, nsegs=4):
     xs = [x0+inc*i for i in range(1, nsegs)]
     pointlist = [(x, func(x)) for x in xs]
     return pointlist
+
+def bond_stress_ref(tau_max, s_peak, sR, s2):
+    assert sR > 1.6 * s_peak
+    if s2 < -sR:
+        tau_b = 0
+    elif s2 < -1.6 * s_peak:
+        tau_b = -0.6 * tau_max * (1-(abs(s2)-1.6*s_peak)/(sR-1.6*s_peak))
+    elif s2 < -1.5 * s_peak:
+        tau_b = -0.6 * tau_max
+    elif s2 < -0.15 * s_peak:
+        tau_b = -tau_max * (0.6-0.36*((abs(s2)-1.5*s_peak)/(1.35*s_peak))**4)
+    elif s2 < 0:
+        tau_b = -1.6 * tau_max * abs(s2) / s_peak
+    elif s2 < 0.1 * s_peak:
+        tau_b = 3 * tau_max * s2 / s_peak
+    elif s2 < s_peak:
+        tau_b = tau_max * (0.75-0.45*((s2-s_peak)/(0.9*s_peak))**4)
+    elif s2 < 1.1 * s_peak:
+        tau_b = 0.75 * tau_max
+    elif s2 < sR:
+        tau_b = 0.75 * tau_max * (1-(s2-1.1*s_peak)/(sR-1.1*s_peak))
+    else:
+        tau_b = 0
+    return tau_b
+
+def friction_stress_ref(tau_max, s_peak, sR, s2):
+    if s2 < -1.5 * s_peak:
+        tau_f = -0.25 * tau_max
+    elif s2 < -0.15 * s_peak:
+        tau_f = -tau_max * (0.25-0.15*((abs(s2)-s_peak)/(1.35*s_peak))**4)
+    elif s2 < 0:
+        tau_f = -2/3 * tau_max * abs(s2) / s_peak
+    elif s2 < 0.1 * s_peak:
+        tau_f = tau_max * s2 / s_peak
+    elif s2 < s_peak:
+        tau_f = tau_max * (0.25-0.15*((s2-s_peak)/(0.9*s_peak))**4)
+    else:
+        tau_f = 0.25 * tau_max
+    return tau_f
 
 @validate_od_func
 def bearing_stress(tau_max, s_peak, sR, s2, nsegs1=4, nsegs2=4):
@@ -197,9 +238,31 @@ class TestBSIM(unittest.TestCase):
         s_peak = od.scalar(s_peak_data)
         sR = od.scalar(sR_data)
         s2 = od.var("var")
-
         tau_b = bearing_stress(tau_max, s_peak, sR, s2)
         tau_f = friction_stress(tau_max, s_peak, sR, s2)
-        g1 = Graph([s2], [tau_b, tau_f])
-        ret = g1.forward(0.2)
 
+        g1 = Graph([s2], [tau_b, tau_f])
+        s2_lst = np.linspace(-2*sR_data, 2*sR_data, 1000)
+        tau_b_lst = []
+        tau_f_lst = []
+        tau_b_lst_ref = []
+        tau_f_lst_ref = []
+        for s2_data in s2_lst:
+            tau_b_data, tau_f_data = g1.forward(s2_data)
+            tau_b_lst.append(tau_b_data)
+            tau_f_lst.append(tau_f_data)
+            tau_b_ref = bond_stress_ref(
+                tau_max_data, s_peak_data, sR_data, s2_data)
+            tau_b_lst_ref.append(tau_b_ref)
+            tau_f_ref = friction_stress_ref(
+                tau_max_data, s_peak_data, sR_data, s2_data)
+            tau_f_lst_ref.append(tau_f_ref)
+        plt.subplot(2, 1, 1)
+        plt.plot(s2_lst, tau_b_lst)
+        # plt.plot(s2_lst, tau_b_lst_ref)
+        plt.subplot(2 ,1, 2)
+        plt.plot(s2_lst, tau_f_lst)
+        # plt.plot(s2_lst, tau_f_lst_ref)
+        fig = plt.gcf()
+        fig_path = path.expanduser("~/Desktop/TestBSIM.stress.png")
+        fig.savefig(fig_path)

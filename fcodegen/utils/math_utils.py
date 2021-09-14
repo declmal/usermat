@@ -76,6 +76,19 @@ def get_piecewise_linear_info(end_tuples, point_tuples, points):
     ret.append(b)
     return ret
 
+def get_piecewise_linear_info_consec(points, kl, kr):
+    validate_scalar_data(kl)
+    validate_scalar_data(kr)
+    for point in points:
+        validate_point(point)
+    end_tuples = [(kl, points[0]), (kr, points[-1])]
+    point_tuples = [
+        (points[i-1], points[i]) for i in range(1, len(points))
+    ]
+    scalar_datas = get_piecewise_linear_info(
+        end_tuples, point_tuples, points)
+    return scalar_datas
+
 def get_piecewise_linear_diff_info(*datas):
     validate_pl_scalar_datas(*datas)
     ndatas = []

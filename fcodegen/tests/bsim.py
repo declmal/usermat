@@ -171,7 +171,9 @@ def cyclic_bear_reduction_ref(savg_max, sR):
     return rho_bc
 
 def cyclic_friction_reduction_ref(sp_max, sn_max, scum, sR):
-    raise NotImplementedError
+    rho_fc = 1 - min((sp_max+sn_max)/sR, 1) * \
+        (1-np.exp(-0.45*(scum/sR)**0.75))
+    return rho_fc
 
 def cyclic_bear_reduction(savg_max_op, sR, nsegs=default_nsegs):
     """
@@ -180,7 +182,8 @@ def cyclic_bear_reduction(savg_max_op, sR, nsegs=default_nsegs):
     points = [
         (0, 1),
         (cutoff, 1),
-        *polygen(lambda x: 1.2*np.exp(-x), cutoff, nsegs+1, nsegs=nsegs)
+        *polygen(lambda x: 1.2*np.exp(-x), cutoff, 7, nsegs=nsegs),
+        (7, 0),
     ]
     scalars = get_piecewise_linear_info_consec(points, 0, 0)
     scalar_ops = [od.scalar(scalar) for scalar in scalars]
@@ -189,8 +192,27 @@ def cyclic_bear_reduction(savg_max_op, sR, nsegs=default_nsegs):
     rho_bc_op = od.piecewiselinear(_mul, *scalar_ops)
     return rho_bc_op
 
-def cyclic_friction_reduction(sp_max_op, sn_max_op, scum_op, sR, nsegs=6):
-    raise NotImplementedError
+def cyclic_friction_reduction(
+    sp_max_op, sn_max_op, scum_op, sR, nsegs=default_nsegs):
+    """
+    """
+    points = [
+        (0, 0),
+        *polygen(lambda x: 1-np.exp(-x), 0, 7, nsegs=nsegs),
+        (7, 1),
+    ]
+    scalars = get_piecewise_linear_info_consec(points, 0, 0)
+    scalar_ops = [od.scalar(scalar) for scalar in scalars]
+    _power = od.power(scum_op, od.scalar(0.75))
+    _mul = od.multiply(od.scalar(0.45/sR**0.75), _power)
+    _piecewise = od.piecewiselinear(_mul, *scalar_ops)
+    _add = od.add(sp_max_op, sn_max_op)
+    _div = od.divide(_add, od.scalar(sR))
+    one = od.scalar(1)
+    _min = od.min(_div, one)
+    _mul2 = od.multiply(_min, _piecewise)
+    rho_fc_op = od.subtract(one, _mul2)
+    return rho_fc_op
 
 def bond_stress(
     tau_b, tau_f, rho_n, rho_bs, rho_fs, rho_bc, rho_fc):
@@ -320,12 +342,30 @@ class TestBSIM(unittest.TestCase):
         db = 18
         sR = estimate_clear_spacing(db)
         savg_max_op = od.var("savg_max")
-        rho_bc_op = cyclic_bear_reduction(savg_max_op, sR, nsegs=6)
+        rho_bc_op = cyclic_bear_reduction(savg_max_op, sR, nsegs=9)
         g = Graph([savg_max_op], [rho_bc_op])
 
         savg_max_lst, rho_bc_lst = gen_data(g.forward, 0, 3*sR)
         savg_max_lst_ref, rho_bc_lst_ref = gen_data(
             lambda x: cyclic_bear_reduction_ref(x, sR), 0, 3*sR)
         plot_fig(
-            savg_max_lst, rho_bc_lst, savg_max_lst_ref, rho_bc_lst,
+            savg_max_lst, rho_bc_lst, savg_max_lst_ref, rho_bc_lst_ref,
             fname="cyclic_bear_reduction.png")
+
+    def test_cyclic_friction_reduction(self):
+        db = 18
+        sR = estimate_clear_spacing(db)
+        sp_max_op = od.var("sp_max")
+        sn_max_op = od.var("sn_max")
+        scum_op = od.var("scum")
+        rho_fc_op = cyclic_friction_reduction(
+            sp_max_op, sn_max_op, scum_op, sR, nsegs=9)
+        g = Graph([sp_max_op, sn_max_op, scum_op], [rho_fc_op])
+
+        scum_lst, rho_fc_lst = gen_data(
+            lambda x: g.forward(sR, 0, x), 0, 32*sR)
+        scum_lst_ref, rho_fc_lst_ref = gen_data(
+            lambda x: cyclic_friction_reduction_ref(sR, 0, x, sR), 0, 32*sR)
+        plot_fig(
+            scum_lst, rho_fc_lst, scum_lst_ref, rho_fc_lst_ref,
+            fname="cyclic_friction_reduction.png")

@@ -183,6 +183,7 @@ class Add(org.get_op_cls("op")):
 
 
 # standardized op
+@org.register_opt("dfs_forward")
 @org.register_opt("revtopo_infer_sign")
 @org.register_opt("dfs_infer_sign")
 @org.register_opt("dfs_display")
@@ -198,3 +199,17 @@ class Subtract(org.get_op_cls("op")):
         minus_y = od.multiply(minus_one, y)
         op = od.add(x, minus_y)
         return op
+
+
+@org.register_opt("dfs_forward")
+@org.register_op(
+    valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
+class Min(org.get_op_cls("op")):
+    fwd_func = lambda v0, v1: min(v0, v1)
+
+
+@org.register_opt("dfs_forward")
+@org.register_op(
+    valid_func=num_valid_func(2), equiv_func=swappable_equiv_func)
+class Max(org.get_op_cls("op")):
+    fwd_func = lambda v0, v1: max(v0, v1)

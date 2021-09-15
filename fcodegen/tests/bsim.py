@@ -166,6 +166,32 @@ def hardening_reduction(eps_s_op, eps_sh, eps_u):
     rho_fs_op = od.piecewiselinear(eps_s_op, *scalar_ops)
     return rho_fs_op
 
+def cyclic_bear_reduction_ref(savg_max, sR):
+    rho_bc = min(1.2*np.exp(-2.7*(savg_max/sR)**0.8), 1)
+    return rho_bc
+
+def cyclic_friction_reduction_ref(sp_max, sn_max, scum, sR):
+    raise NotImplementedError
+
+def cyclic_bear_reduction(savg_max_op, sR, nsegs=default_nsegs):
+    """
+    """
+    cutoff = -np.log(1/1.2)
+    points = [
+        (0, 1),
+        (cutoff, 1),
+        *polygen(lambda x: 1.2*np.exp(-x), cutoff, nsegs+1, nsegs=nsegs)
+    ]
+    scalars = get_piecewise_linear_info_consec(points, 0, 0)
+    scalar_ops = [od.scalar(scalar) for scalar in scalars]
+    _power = od.power(savg_max_op, od.scalar(0.8))
+    _mul = od.multiply(od.scalar(2.7/sR**0.8), _power)
+    rho_bc_op = od.piecewiselinear(_mul, *scalar_ops)
+    return rho_bc_op
+
+def cyclic_friction_reduction(sp_max_op, sn_max_op, scum_op, sR, nsegs=6):
+    raise NotImplementedError
+
 def bond_stress(
     tau_b, tau_f, rho_n, rho_bs, rho_fs, rho_bc, rho_fc):
     """
@@ -289,3 +315,17 @@ class TestBSIM(unittest.TestCase):
 
         eps_s_lst, rho_fs_lst = gen_data(g.forward, 0, 2*eps_u)
         plot_fig(eps_s_lst, rho_fs_lst, fname="hardening_reduction.png")
+
+    def test_cyclic_bear_reduction(self):
+        db = 18
+        sR = estimate_clear_spacing(db)
+        savg_max_op = od.var("savg_max")
+        rho_bc_op = cyclic_bear_reduction(savg_max_op, sR, nsegs=6)
+        g = Graph([savg_max_op], [rho_bc_op])
+
+        savg_max_lst, rho_bc_lst = gen_data(g.forward, 0, 3*sR)
+        savg_max_lst_ref, rho_bc_lst_ref = gen_data(
+            lambda x: cyclic_bear_reduction_ref(x, sR), 0, 3*sR)
+        plot_fig(
+            savg_max_lst, rho_bc_lst, savg_max_lst_ref, rho_bc_lst,
+            fname="cyclic_bear_reduction.png")

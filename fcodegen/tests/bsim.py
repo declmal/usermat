@@ -35,6 +35,10 @@ def estimate_yielding_strain(fy, E):
     eps_y = fy / E
     return eps_y
 
+def estimate_rib_height(db):
+    hR = 0.2 * db
+    return hR
+
 def bond_stress_ref(s2, tau_max, s_peak, sR):
     assert sR > 1.6 * s_peak
     if s2 < -sR:
@@ -253,6 +257,16 @@ class TestBSIM(unittest.TestCase):
         plot_fig(
             s2_lst, tau_f_lst, s2_lst_ref, tau_f_lst_ref,
             fname="friction_stress.png")
+
+    def test_spliting_reduction(self):
+        db = 18
+        hR = estimate_rib_height(db)
+        s1_op = od.var("s1")
+        rho_n_op = spliting_reduction(s1_op, hR)
+        g = Graph([s1_op], [rho_n_op])
+
+        s1_lst, rho_n_lst = gen_data(g.forward, 0, 2*hR)
+        plot_fig(s1_lst, rho_n_lst, fname="spliting_reduction.png")
 
     def test_yielding_reduction(self):
         fy = 400

@@ -10,7 +10,7 @@ from ..utils.type_utils import One, Zero, MinusOne
 from ..utils.math_utils import get_piecewise_linear_info_consec
 from ..graph import Graph
 
-default_nsegs = 2
+default_nsegs = 4
 
 def estimate_peak_bond_stress(fcp):
     tau_max_data = 1.163 * fcp ** 0.75
@@ -55,7 +55,7 @@ def bond_stress_ref(s2, tau_max, s_peak, sR):
         tau_b = 0
     return tau_b
 
-def friction_stress_ref(s2, tau_max, s_peak, sR):
+def friction_stress_ref(s2, tau_max, s_peak):
     if s2 < -1.5 * s_peak:
         tau_f = -0.25 * tau_max
     elif s2 < -0.15 * s_peak:
@@ -70,15 +70,14 @@ def friction_stress_ref(s2, tau_max, s_peak, sR):
         tau_f = 0.25 * tau_max
     return tau_f
 
-@validate_od_func
 def bearing_stress(
     s2, tau_max, s_peak, sR, nsegs1=default_nsegs, nsegs2=default_nsegs):
     """
     """
-    assert sR.data > 1.6 * s_peak.data
+    assert sR > 1.6 * s_peak
     # scalars
     points = [
-        (-sR.data/s_peak.data, 0),
+        (-sR/s_peak, 0),
         (-1.6, -0.6),
         (-1.5, -0.6),
         *polygen(
@@ -92,19 +91,19 @@ def bearing_stress(
             0.1, 1, nsegs=nsegs2),
         (1, 0.75),
         (1.1, 0.75),
-        (sR.data/s_peak.data, 0),
+        (sR/s_peak, 0),
     ]
+    for i in range(len(points)):
+        points[i] = (points[i][0], points[i][1]*tau_max)
     scalar_datas = get_piecewise_linear_info_consec(points, 0, 0)
     scalars = [od.scalar(scalar_data) for scalar_data in scalar_datas]
     # ret
-    ratio = od.divide(s2, s_peak)
-    piecewise = od.piecewiselinear(ratio, *scalars)
-    tau_b = od.multiply(tau_max, piecewise)
+    ratio = od.divide(s2, od.scalar(s_peak))
+    tau_b = od.piecewiselinear(ratio, *scalars)
     return tau_b
 
-@validate_od_func
 def friction_stress(
-    s2, tau_max, s_peak, sR, nsegs1=default_nsegs, nsegs2=default_nsegs):
+    s2, tau_max, s_peak, nsegs1=default_nsegs, nsegs2=default_nsegs):
     """ The
     """
     # scalars
@@ -121,18 +120,25 @@ def friction_stress(
             0.1, 1, nsegs=nsegs2),
         (1, 0.25),
     ]
+    for i in range(len(points)):
+        points[i] = (points[i][0], points[i][1]*tau_max)
     scalar_datas = get_piecewise_linear_info_consec(points, 0, 0)
     scalars = [od.scalar(scalar_data) for scalar_data in scalar_datas]
     # ret
-    ratio = od.divide(s2, s_peak)
-    piecewise = od.piecewiselinear(ratio, *scalars)
-    tau_f = od.multiply(tau_max, piecewise)
+    ratio = od.divide(s2, od.scalar(s_peak))
+    tau_f = od.piecewiselinear(ratio, *scalars)
     return tau_f
 
 @validate_od_func
 def spliting_reduction(s1, hR):
+    """
+    """
+    points = [(0.5, 1), (1, 0)]
+    scalar_datas = get_piecewise_linear_info_consec(points, 0, 0)
+    scalars = [od.scalar(scalar_data) for scalar_data in scalar_datas]
     ratio = od.divide(s1, hR)
     rho_n = od.piecewiselinear(ratio, *scalars)
+    return rho_n
 
 @validate_od_func
 def bond_stress(
@@ -230,31 +236,26 @@ class TestBSIM(unittest.TestCase):
     def test_stress(self):
         fcp = 40
         db = 18
-        tau_max_data = estimate_peak_bond_stress(fcp)
-        s_peak_data = estimate_peak_bond_stress_slip(db)
-        sR_data = estimate_clear_spacing(db)
-        tau_max = od.scalar(tau_max_data)
-        s_peak = od.scalar(s_peak_data)
-        sR = od.scalar(sR_data)
-        s2 = od.var("var")
-        tau_b = bearing_stress(s2, tau_max, s_peak, sR)
-        tau_f = friction_stress(s2, tau_max, s_peak, sR)
+        tau_max = estimate_peak_bond_stress(fcp)
+        s_peak = estimate_peak_bond_stress_slip(db)
+        sR = estimate_clear_spacing(db)
+        s2_op = od.var("var")
+        tau_b_op = bearing_stress(s2_op, tau_max, s_peak, sR)
+        tau_f_op = friction_stress(s2_op, tau_max, s_peak)
 
-        g1 = Graph([s2], [tau_b, tau_f])
-        s2_lst = np.linspace(-2*sR_data, 2*sR_data, 1000)
+        g1 = Graph([s2_op], [tau_b_op, tau_f_op])
+        s2_lst = np.linspace(-2*sR, 2*sR, 1000)
         tau_b_lst = []
         tau_f_lst = []
         tau_b_lst_ref = []
         tau_f_lst_ref = []
-        for s2_data in s2_lst:
-            tau_b_data, tau_f_data = g1.forward(s2_data)
-            tau_b_lst.append(tau_b_data)
-            tau_f_lst.append(tau_f_data)
-            tau_b_ref = bond_stress_ref(
-                s2_data, tau_max_data, s_peak_data, sR_data)
+        for s2 in s2_lst:
+            tau_b, tau_f = g1.forward(s2)
+            tau_b_lst.append(tau_b)
+            tau_f_lst.append(tau_f)
+            tau_b_ref = bond_stress_ref(s2, tau_max, s_peak, sR)
             tau_b_lst_ref.append(tau_b_ref)
-            tau_f_ref = friction_stress_ref(
-                s2_data, tau_max_data, s_peak_data, sR_data)
+            tau_f_ref = friction_stress_ref(s2, tau_max, s_peak)
             tau_f_lst_ref.append(tau_f_ref)
         plt.subplot(2, 1, 1)
         plt.plot(s2_lst, tau_b_lst, 'r')

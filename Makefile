@@ -11,6 +11,7 @@ all: lsdyna
 	mv dyn21.o build
 	mv umat41.o huild
 	mv dyn21b.o build
+	mv umat41c.o build
 	mv couple2other_user.o build
 	mv dynrfn_user.o build
 	mv lsdyna build

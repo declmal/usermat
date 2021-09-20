@@ -6,3 +6,4 @@ __pycache__
 fcodegen/fortran
 .ipynb_checkpoints
 *.png
+lsdyna

@@ -1,3 +1,31 @@
+      subroutine inclination_angle(s, pp, pn, alpha0, li, lt, alpha)
+      real*8 s, pp, pn, alpha0, li, lt, alpha, sps, spp, spn
+      spp = s + pp
+      spn = s - pn
+      if (spp.le.-li) then
+        alpha = 0.0
+      elseif (spp.le.-li+lt) then
+        alpha = alpha0 * (spp-li) / lt
+      elseif (spp.le.-lt) then
+        alpha = -alpha0
+      elseif (spp.le.0) then
+        alpha = alpha0 * (s+pp) / lt
+      elseif (spn.le.0) then
+        alpha = 0.0
+      elseif (spn.le.lt) then
+        alpha = alpha0 * spn / lt
+      elseif (spn.le.li-lt) then
+        alpha = alpha0 * alpha0
+      elseif (spn.le.li) then
+        alpha = alpha0 * (li-spn) / lt
+      else
+        alpha = 0.0
+      endif
+
+      return
+      end
+
+
       subroutine umat41c(idpart,cm,lft,llt,fc,dx,dxdt,aux,ek,
      & ifail,dt1siz,crv,nhxbwp,cma)
 c

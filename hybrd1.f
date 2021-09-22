@@ -1,7 +1,7 @@
       subroutine hybrd_ext1(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
-      integer n,info,lwa
+      integer n,info,lwa,lext
       double precision tol
-      double precision x(n),fvec(n),wa(lwa)
+      double precision x(n),fvec(n),wa(lwa),ext(lext)
       external fcn
 
 c*********************************************************************72

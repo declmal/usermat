@@ -1,10 +1,10 @@
       subroutine hybrd_ext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,diag,
      *                 mode,factor,nprint,info,nfev,fjac,ldfjac,r,lr,
      *                 qtf,wa1,wa2,wa3,wa4,ext,lext)
-      integer n,maxfev,ml,mu,mode,nprint,info,nfev,ldfjac,lr
+      integer n,maxfev,ml,mu,mode,nprint,info,nfev,ldfjac,lr,lext
       double precision xtol,epsfcn,factor
       double precision x(n),fvec(n),diag(n),fjac(ldfjac,n),r(lr),
-     *                 qtf(n),wa1(n),wa2(n),wa3(n),wa4(n)
+     *                 qtf(n),wa1(n),wa2(n),wa3(n),wa4(n),ext(lext)
       external fcn
 
 c*********************************************************************72

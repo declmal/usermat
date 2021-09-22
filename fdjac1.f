@@ -1,8 +1,9 @@
       subroutine fdjac_ext(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,
      *                  wa1,wa2,ext,lext)
-      integer n,ldfjac,iflag,ml,mu
+      integer n,ldfjac,iflag,ml,mu,lext
       double precision epsfcn
-      double precision x(n),fvec(n),fjac(ldfjac,n),wa1(n),wa2(n)
+      double precision x(n),fvec(n),fjac(ldfjac,n),wa1(n),wa2(n),
+     *                 ext(lext)
 
 c*********************************************************************72
 c

@@ -6,7 +6,7 @@ if [ $? -ne 0 ]; then
   exit
 fi
 #
-gfortran minpack_test.o -L$HOME/libf77 -lminpack
+gfortran minpack_test.o -L./ -lminpack
 if [ $? -ne 0 ]; then
   echo "Load error."
   exit

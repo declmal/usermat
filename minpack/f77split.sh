@@ -15,6 +15,6 @@ fi
 rm f77split.o
 #
 chmod u+x a.out
-mv a.out ~/binc/f77split
+mv a.out f77split
 #
 echo "Normal end of execution."

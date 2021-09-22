@@ -2,7 +2,7 @@
 #
 mkdir temp
 cd temp
-~/binc/f77split ../minpack.f
+../f77split ../minpack.f
 #
 for FILE in `ls -1 *.f`;
 do
@@ -17,7 +17,7 @@ rm *.f
 ar qc libminpack.a *.o
 rm *.o
 #
-mv libminpack.a ~/libf77
+mv libminpack.a ../
 cd ..
 rmdir temp
 #

@@ -7,3 +7,6 @@ fcodegen/fortran
 .ipynb_checkpoints
 *.png
 lsdyna
+minpack/f77split
+minpack/lib
+minpack/minpack_test

@@ -1,6 +1,6 @@
-      subroutine hybrd(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,diag,
+      subroutine hybrd_ext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,diag,
      *                 mode,factor,nprint,info,nfev,fjac,ldfjac,r,lr,
-     *                 qtf,wa1,wa2,wa3,wa4)
+     *                 qtf,wa1,wa2,wa3,wa4,ext,lext)
       integer n,maxfev,ml,mu,mode,nprint,info,nfev,ldfjac,lr
       double precision xtol,epsfcn,factor
       double precision x(n),fvec(n),diag(n),fjac(ldfjac,n),r(lr),
@@ -11,7 +11,7 @@ c*********************************************************************72
 c
 cc HYBRD seeks a zero of N nonlinear equations in N variables.
 c
-c     the purpose of hybrd is to find a zero of a system of
+c     the purpose of hybrd_ext is to find a zero of a system of
 c     n nonlinear functions in n variables by a modification
 c     of the powell hybrid method. the user must provide a
 c     subroutine which calculates the functions. the jacobian is
@@ -19,9 +19,9 @@ c     then calculated by a forward-difference approximation.
 c
 c     the subroutine statement is
 c
-c       subroutine hybrd(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,
+c       subroutine hybrd_ext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,
 c                        diag,mode,factor,nprint,info,nfev,fjac,
-c                        ldfjac,r,lr,qtf,wa1,wa2,wa3,wa4)
+c                        ldfjac,r,lr,qtf,wa1,wa2,wa3,wa4,ext,lext)
 c
 c     where
 c
@@ -30,9 +30,9 @@ c         calculates the functions. fcn must be declared
 c         in an external statement in the user calling
 c         program, and should be written as follows.
 c
-c         subroutine fcn(n,x,fvec,iflag)
-c         integer n,iflag
-c         double precision x(n),fvec(n)
+c         subroutine fcn(n,x,fvec,iflag,ext,lext)
+c         integer n,iflag,lext
+c         double precision x(n),fvec(n),ext(lext)
 c         ----------
 c         calculate the functions at x and
 c         return this vector in fvec.
@@ -41,7 +41,7 @@ c         return
 c         end
 c
 c         the value of iflag should not be changed by fcn unless
-c         the user wants to terminate execution of hybrd.
+c         the user wants to terminate execution of hybrd_ext.
 c         in this case set iflag to a negative integer.
 c
 c       n is a positive integer input variable set to the number
@@ -150,6 +150,10 @@ c         the vector (q transpose)*fvec.
 c
 c       wa1, wa2, wa3, and wa4 are work arrays of length n.
 c
+c       ext is an array of extra parameters of fcn of length lext.
+c
+c       lext is a positive integer input variable.
+c
 c     subprograms called
 c
 c       user-supplied ...... fcn
@@ -196,7 +200,7 @@ c     evaluate the function at the starting point
 c     and calculate its norm.
 c
       iflag = 1
-      call fcn(n,x,fvec,iflag)
+      call fcn(n,x,fvec,iflag,ext,lext)
       nfev = 1
       if (iflag .lt. 0) go to 300
       fnorm = enorm(n,fvec)
@@ -307,7 +311,8 @@ c           if requested, call fcn to enable printing of iterates.
 c
             if (nprint .le. 0) go to 190
             iflag = 0
-            if (mod(iter-1,nprint) .eq. 0) call fcn(n,x,fvec,iflag)
+            if (mod(iter-1,nprint) .eq. 0) call
+     * fcn(n,x,fvec,iflag,ext,lext)
             if (iflag .lt. 0) go to 300
   190       continue
 c
@@ -331,7 +336,7 @@ c
 c           evaluate the function at x + p and calculate its norm.
 c
             iflag = 1
-            call fcn(n,wa2,wa4,iflag)
+            call fcn(n,wa2,wa4,iflag,ext,lext)
             nfev = nfev + 1
             if (iflag .lt. 0) go to 300
             fnorm1 = enorm(n,wa4)
@@ -452,9 +457,9 @@ c     termination, either normal or user imposed.
 c
       if (iflag .lt. 0) info = iflag
       iflag = 0
-      if (nprint .gt. 0) call fcn(n,x,fvec,iflag)
+      if (nprint .gt. 0) call fcn(n,x,fvec,iflag,ext,lext)
       return
 c
-c     last card of subroutine hybrd.
+c     last card of subroutine hybrd_ext.
 c
       end

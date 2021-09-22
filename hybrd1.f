@@ -1,4 +1,4 @@
-      subroutine hybrd1(fcn,n,x,fvec,tol,info,wa,lwa)
+      subroutine hybrd_ext1(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
       integer n,info,lwa
       double precision tol
       double precision x(n),fvec(n),wa(lwa)
@@ -8,17 +8,17 @@ c*********************************************************************72
 c
 cc HYBRD1 seeks a zero of N nonlinear equations in N variables.
 c
-c     the purpose of hybrd1 is to find a zero of a system of
+c     the purpose of hybrd_ext1 is to find a zero of a system of
 c     n nonlinear functions in n variables by a modification
 c     of the powell hybrid method. this is done by using the
-c     more general nonlinear equation solver hybrd. the user
+c     more general nonlinear equation solver hybrd_ext. the user
 c     must provide a subroutine which calculates the functions.
 c     the jacobian is then calculated by a forward-difference
 c     approximation.
 c
 c     the subroutine statement is
 c
-c       subroutine hybrd1(fcn,n,x,fvec,tol,info,wa,lwa)
+c       subroutine hybrd_ext1(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
 c
 c     where
 c
@@ -27,9 +27,9 @@ c         calculates the functions. fcn must be declared
 c         in an external statement in the user calling
 c         program, and should be written as follows.
 c
-c         subroutine fcn(n,x,fvec,iflag)
-c         integer n,iflag
-c         double precision x(n),fvec(n)
+c         subroutine fcn(n,x,fvec,iflag,ext,lext)
+c         integer n,iflag,lext
+c         double precision x(n),fvec(n),ext(lext)
 c         ----------
 c         calculate the functions at x and
 c         return this vector in fvec.
@@ -38,7 +38,7 @@ c         return
 c         end
 c
 c         the value of iflag should not be changed by fcn unless
-c         the user wants to terminate execution of hybrd1.
+c         the user wants to terminate execution of hybrd_ext1.
 c         in this case set iflag to a negative integer.
 c
 c       n is a positive integer input variable set to the number
@@ -78,11 +78,15 @@ c
 c       lwa is a positive integer input variable not less than
 c         (n*(3*n+13))/2.
 c
+c       ext is an array of extra parameters of fcn of length lext.
+c
+c       lext is a positive integer input variable.
+c
 c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... hybrd
+c       minpack-supplied ... hybrd_ext
 c
 c     argonne national laboratory. minpack project. march 1980.
 c     burton s. garbow, kenneth e. hillstrom, jorge j. more
@@ -98,7 +102,7 @@ c
       if (n .le. 0 .or. tol .lt. zero .or. lwa .lt. (n*(3*n + 13))/2)
      *   go to 20
 c
-c     call hybrd.
+c     call hybrd_ext.
 c
       maxfev = 200*(n + 1)
       xtol = tol
@@ -112,13 +116,14 @@ c
       nprint = 0
       lr = (n*(n + 1))/2
       index = 6*n + lr
-      call hybrd(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,wa(1),mode,
+      call hybrd_ext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,wa(1),mode,
      *           factor,nprint,info,nfev,wa(index+1),n,wa(6*n+1),lr,
-     *           wa(n+1),wa(2*n+1),wa(3*n+1),wa(4*n+1),wa(5*n+1))
+     *           wa(n+1),wa(2*n+1),wa(3*n+1),wa(4*n+1),wa(5*n+1),
+     *           ext,lext)
       if (info .eq. 5) info = 4
    20 continue
       return
 c
-c     last card of subroutine hybrd1.
+c     last card of subroutine hybrd_ext1.
 c
       end

@@ -109,7 +109,7 @@ c
             h = eps*dabs(temp)
             if (h .eq. zero) h = eps
             x(j) = temp + h
-            call fcn(n,x,wa1,iflag)
+            call fcn(n,x,wa1,iflag,ext,lext)
             if (iflag .lt. 0) go to 30
             x(j) = temp
             do 10 i = 1, n
@@ -129,7 +129,7 @@ c
                if (h .eq. zero) h = eps
                x(j) = wa2(j) + h
    60          continue
-            call fcn(n,x,wa1,iflag)
+            call fcn(n,x,wa1,iflag,ext,lext)
             if (iflag .lt. 0) go to 100
             do 80 j = k, n, msum
                x(j) = wa2(j)

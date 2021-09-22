@@ -25,6 +25,13 @@ couple2other_user.o: couple2other_user.f
 	ifort -c -safe_cray_ptr -assume byterecl,buffered_io,protect_parens -warn nousage -zero -ftz -fp-model precise -mP2OPT_hpo_dist_factor=21 -diag-disable 10212,10010 -xSSE3 -align array16byte -nopad -openmp -i8 -r8  -DINTEL -DAdd_ -O2 -I. couple2other_user.f
 dynrfn_user.o: dynrfn_user.f 
 	ifort -c -safe_cray_ptr -assume byterecl,buffered_io,protect_parens -warn nousage -zero -ftz -fp-model precise -mP2OPT_hpo_dist_factor=21 -diag-disable 10212,10010 -xSSE3 -align array16byte -nopad -openmp -i8 -r8  -DINTEL -DAdd_ -O2 -I. dynrfn_user.f
+test: hybrd1.f hybrd.f fdjac1.f
+	mkdir -p build
+	gcc -c -Wall f77split.c -o build/f77split
+	chmod u+x build/f77split
+	gfortran -c minpack.f 
+	ar qc libminpack.a *.o
+	rm *.o
 clean:
 	rm -f init_dyn21.o
 	rm -f dyn21.o
@@ -34,3 +41,4 @@ clean:
 	rm -f couple2other_user.o
 	rm -f dynrfn_user.o
 	rm -f lsdyna
+	rm -rf build

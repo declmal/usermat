@@ -418,18 +418,24 @@ c
 
       x(1) = 3.0D+00
       x(2) = 0.0D+00
+      ext(1) = 1.0D+00
+      ext(2) = 1.0D+00
+      ext(3) = 1.0D+00
       call r8vec_print ( n, x, '  Initial X:' )
+      call r8vec_print ( lext, ext, '  Initial ext:' )
       iflag = 1
       call f02ext ( n, x, fvec, iflag, ext, lext )
       call r8vec_print ( n, fvec, '  F(X):' )
 
       tol = 0.00001D+00
 
-      call hybrd1ext ( f02, n, x, fvec, tol, info, wa, lwa, ext, lext )
+      call hybrd1ext ( f02ext, n, x, fvec, tol, info, wa, lwa,
+     * ext, lext )
 
       write ( *, '(a)' ) ' '
       write ( *, '(a,i6)' ) '  Returned value of INFO = ', info
       call r8vec_print ( n, x, '  X:' )
+      call r8vec_print ( lext, ext, '  ext:' )
       call r8vec_print ( n, fvec, '  F(X):' )
 
       return

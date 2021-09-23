@@ -51,30 +51,30 @@ c
       return
       end
 
-      subroutine yield_surface_a(sigma, tau, sr, c0, mua0, k2, fcpr, k1,
+      subroutine yield_surface_a(fcpr, sr, c0, mua0, k1, k2, sigma, tau,
      & pp, pn, fa)
-      real*8 sigma, tau
-      real*8 sr, c0, mua0, k2, fcpr, k1
-      real*8 pp, pn
-      real*8 fa
-      real*8 rhop, c, mua
+      double precision fcpr, sr, c0, mua0, k1, k2
+      double precision sigma, tau, pp, pn
+      double precision fa
+      double precision rhop, c, mua
       rhop = (pp+pn) / sr
-      c = c0 * max(0,1-rhop)
+      c = c0 * max(0.0D+00,1.0D+00-rhop)
       mua = mua0 * exp(-k2*rhop)
       fa = abs(sigma/fcpr)**k1 - (c/fcpr)**k1 + mua*tau/fcpr
       return
       end
 
-      subroutine plastic_flow_a1(sigma, tau, fcpr, k3, k4, hr, k5, pp,
+      subroutine plastic_flow_a1(sigma, tau, fcpr, k3, k4, k5, hr, pp,
      & pn, r, ma1)
       real*8 sigma, tau
-      real*8 fcpr, k3, k4, hr, k5
+      real*8 fcpr, k3, k4, k5, hr
       real*8 pp, pn, r
       real*8 ma1
       real*8 rhosigma
-      rhosigma = max(0,-sigma) / fcpr
-      ma1 = k3 * max(0,1-rhosigma)*exp(-k4*(pp+pn)/hr)
-     & - k5*rhosigma*max(0,r)/hr
+
+      rhosigma = max(0.0,-sigma) / fcpr
+      ma1 = k3 * max(0.0,1.0-rhosigma)*exp(-k4*(pp+pn)/hr)
+     & - k5*rhosigma*max(0.0,r)/hr
       return
       end
 
@@ -111,24 +111,98 @@ c
       mbn1 = -tan(alpha)
       return
       end
-
-      subroutine stress_return_b()
-      real*8 sigma, tau
-      real*8 li, lt, alpha0, dnn, dtt
-      real*8 pp, pn, s
-      real*8 sigmae, taue
-      real*8 alpha, fb, sigmap, taup
-      call inclination_angle(li, lt, alpha0, pp, pn, s, alpha)
-      if (sigmae/dnn.gt.taue/dtt*tan(alpha)) then
-        sigma = 0.0
-        tau = 0.0
-        s = s + taue/dtt
-      else
-        sigmap = sigma
-        taup = tau
-        do while (fb.gt.0.0)
-        end do
-      endif
+c
+c     stress return to surface a inner
+c
+      subroutine return_a_inner(n, x, fvec, iflag, ext, lext)
+      implicit none
+      integer n, iflag, lext
+      double precision x(n), fvec(n), ext(lext)
+c     material constants, state variables, flow variables
+      double precision fcpr, hr, dnn, k4, k5
+      double precision sigmat1e
+      double precision sigmat, taut, ppt, pnt, rt
+      double precision sigmat1, taut1, ppt1, pnt1, rt1
+      double precision dlambda, theta
+c     function-scale parameters
+      double precision ma1t, ma1t1, depsp
+c     variable acquisition
+      fcpr = ext(1)
+      hr = ext(3)
+      dnn = ext(10)
+      k4 = ext(15)
+      k5 = ext(16)
+      sigmat1e = ext(17)
+      sigmat = ext(19)
+      taut = ext(20)
+      ppt = ext(21)
+      pnt = ext(22)
+      rt = ext(23)
+      sigmat1 = ext(25)
+      taut1 = ext(26)
+      ppt1 = ext(27)
+      pnt1 = ext(28)
+      rt1 = ext(29)
+      dlambda = ext(31)
+      theta = ext(32)
+c     residual
+      call plastic_flow_a1(sigmat, taut, fcpr, hr, k3, k4, k5, ppt,
+     & pnt, rt, ma1t)
+      call plastic_flow_a1(sigmat1, taut1, fcpr, hr, k3, k4, k5,
+     & ppt1, pnt1, rt1, ma1t1)
+      depsp = dlambda * ((1.0D+00-theta)*ma1t+theta*ma1t1)
+      fvec(1) = sigmat1e - dnn*depsp - sigmat1
+      fvec(2) = rt + depsp - rt1
+      return
+      end
+c
+c     stress return to surface a
+c
+      subroutine return_a_outer(n, x, fvec, iflag, ext, lext)
+      implicit none
+      integer n, iflag, lext
+      double precision x(n), fvec, ext(lext)
+c     material constants, state variables, flow variables
+      double precision fcpr, sr, c0, mua0, dtt, k1, k2
+      double precision taut1e
+      double precision sigmat, ppt, pnt, rt
+      double precision sigmat1, taut1, ppt1, pnt1, rt1
+      double precision dlambda
+c     function-scale parameters
+      double precision mt1, fa
+      double precision _x(2), _fvec(2), _wa(19)
+c     variable acquisition
+      fcpr = ext(1)
+      sr = ext(2)
+      c0 = ext(7)
+      mua0 = ext(8)
+      dtt = ext(11)
+      k1 = ext(12)
+      k2 = ext(13)
+      sigmat = ext(19)
+      ppt = ext(21)
+      pnt = ext(22)
+      rt = ext(23)
+      dlambda = ext(31)
+c     outer-loop flow
+      mt1 = sign(taut1e)
+      taut1 = taut1e - dlambda*dtt*mt1
+      ppt1 = ppt + dlambda*max(0.0D+00,mt1)
+      pnt1 = pnt + dlambda*max(0.0D+00,-mt1)
+c     inner-loop flow
+      ext(26) = taut1
+      ext(27) = ppt1
+      ext(28) = pnt1
+      _x(1) = sigmat
+      _x(2) = rt
+      call hybrd1ext(return_a_inner, 2, _x, _fvec, 0.00001D+00, _info,
+     & _wa, 19, ext, 32)
+      sigmat1 = _x(1)
+      rt1 = _x(2)
+c     residual
+      call yield_surface_a(fcpr, sr, c0, mua0, k1, k2, sigmat1, taut1,
+     & ppt1, pnt1, fa)
+      fvec(1) = fa
       return
       end
 
@@ -182,6 +256,9 @@ c
       real*8 dn, dt
       real*8 dnn, dtt
       real*8 sigmae, taue
+
+      double precision fcpr, mub, sr, hr, li, lt, alpha0, c0, mua0, mub,
+     & k1, k2, k3, k4, k5
 c
       ! et=cm(3)
       ! en=cm(4)

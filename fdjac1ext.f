@@ -1,4 +1,4 @@
-      subroutine fdjac1_ext(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,
+      subroutine fdjac1ext(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,
      *                  wa1,wa2,ext,lext)
       integer n,ldfjac,iflag,ml,mu,lext
       double precision epsfcn
@@ -17,7 +17,7 @@ c     approximating the nonzero terms.
 c
 c     the subroutine statement is
 c
-c       subroutine fdjac1_ext(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,
+c       subroutine fdjac1ext(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,
 c                         wa1,wa2,ext,lext)
 c
 c     where
@@ -38,7 +38,7 @@ c         return
 c         end
 c
 c         the value of iflag should not be changed by fcn unless
-c         the user wants to terminate execution of fdjac1_ext.
+c         the user wants to terminate execution of fdjac1ext.
 c         in this case set iflag to a negative integer.
 c
 c       n is a positive integer input variable set to the number
@@ -56,7 +56,7 @@ c       ldfjac is a positive integer input variable not less than n
 c         which specifies the leading dimension of the array fjac.
 c
 c       iflag is an integer variable which can be used to terminate
-c         the execution of fdjac1_ext. see description of fcn.
+c         the execution of fdjac1ext. see description of fcn.
 c
 c       ml is a nonnegative integer input variable which specifies
 c         the number of subdiagonals within the band of the
@@ -147,6 +147,6 @@ c
   110 continue
       return
 c
-c     last card of subroutine fdjac1_ext.
+c     last card of subroutine fdjac1ext.
 c
       end

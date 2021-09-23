@@ -12,6 +12,9 @@ do
     exit
   fi
 done
+gfortran -c ../hybrd.f
+gfortran -c ../hybrd1.f
+gfortran -c ../fdjac1.f
 rm *.f
 #
 ar qc libminpack.a *.o

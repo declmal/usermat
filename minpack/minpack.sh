@@ -3,6 +3,9 @@
 mkdir temp
 cd temp
 ../f77split ../minpack.f
+cp ../hybrdext.f hybrdext.f
+cp ../hybrd1ext.f hybrd1ext.f
+cp ../fdjac1ext.f fdjac1ext.f
 #
 for FILE in `ls -1 *.f`;
 do
@@ -12,9 +15,6 @@ do
     exit
   fi
 done
-gfortran -c ../hybrdext.f
-gfortran -c ../hybrd1ext.f
-gfortran -c ../fdjac1ext.f
 rm *.f
 #
 ar qc libminpack.a *.o

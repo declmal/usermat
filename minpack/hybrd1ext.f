@@ -1,4 +1,4 @@
-      subroutine hybrdext1(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
+      subroutine hybrd1ext(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
       integer n,info,lwa,lext
       double precision tol
       double precision x(n),fvec(n),wa(lwa),ext(lext)

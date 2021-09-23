@@ -1,45 +1,6 @@
-      subroutine inclination_angle(li, lt, alpha0, pp, pn, s, alpha)
-      real*8 li, lt, alpha0
-      real*8 pp, pn, s
-      real*8 alpha
-      real*8 spp, spn
-      spp = s + pp
-      spn = s - pn
-      if (spp.le.-li) then
-        alpha = 0.0
-      elseif (spp.le.-li+lt) then
-        alpha = alpha0 * (spp-li) / lt
-      elseif (spp.le.-lt) then
-        alpha = -alpha0
-      elseif (spp.le.0.0) then
-        alpha = alpha0 * spp / lt
-      elseif (spn.le.0.0) then
-        alpha = 0.0
-      elseif (spn.le.lt) then
-        alpha = alpha0 * spn / lt
-      elseif (spn.le.li-lt) then
-        alpha = alpha0
-      elseif (spn.le.li) then
-        alpha = alpha0 * (li-spn) / lt
-      else
-        alpha = 0.0
-      endif
-      return
-      end
-
-      subroutine yield_surface_a(fcpr, sr, c0, mua0, k1, k2, sigma, tau,
-     & pp, pn, fa)
-      double precision fcpr, sr, c0, mua0, k1, k2
-      double precision sigma, tau, pp, pn
-      double precision fa
-      double precision rhop, c, mua
-      rhop = (pp+pn) / sr
-      c = c0 * max(0.0D+00,1.0D+00-rhop)
-      mua = mua0 * exp(-k2*rhop)
-      fa = abs(sigma/fcpr)**k1 - (c/fcpr)**k1 + mua*tau/fcpr
-      return
-      end
-
+c
+c     definition of plastic flow a1
+c
       subroutine plastic_flow_a1(sigma, tau, fcpr, k3, k4, k5, hr, pp,
      & pn, r, ma1)
       real*8 sigma, tau
@@ -47,48 +8,13 @@
       real*8 pp, pn, r
       real*8 ma1
       real*8 rhosigma
-
       rhosigma = max(0.0,-sigma) / fcpr
       ma1 = k3 * max(0.0,1.0-rhosigma)*exp(-k4*(pp+pn)/hr)
      & - k5*rhosigma*max(0.0,r)/hr
       return
       end
-
-      subroutine yield_surface_b(sigma, tau, li, lt, alpha0, mub, pp,
-     & pn, s, fb)
-      real*8 sigma, tau
-      real*8 li, lt, alpha0, mub
-      real*8 pp, pn, s
-      real*8 fb
-      real*8 alpha, sina, cosa
-      call inclination_angle(li, lt, alpha0, pp, pn, s, alpha)
-      sina = sin(alpha)
-      cosa = cos(alpha)
-      fb = abs(tau*cosa+sigma*sina) + mub*(sigma*cosa-tau*sina)
-      return
-      end
-
-      subroutine plastic_flow_bp1(li, lt, alpha0, pp, pn, s, mbp1)
-      real*8 li, lt, alpha0
-      real*8 pp, pn, s
-      real*8 mbp1
-      real*8 alpha
-      call inclination_angle(li, lt, alpha0, pp, pn, s, alpha)
-      mbp1 = tan(alpha)
-      return
-      end
-
-      subroutine plastic_flow_bn1(li, lt, alpha0, pp, pn, s, mbn1)
-      real*8 li, lt, alpha0
-      real*8 pp, pn, s
-      real*8 mbn1
-      real*8 alpha
-      call inclination_angle(li, lt, alpha0, pp, pn, s, alpha)
-      mbn1 = -tan(alpha)
-      return
-      end
 c
-c     stress return to surface a inner
+c     stress return to yield surface a (inner)
 c
       subroutine return_a_inner(n, x, fvec, iflag, ext, lext)
       implicit none
@@ -133,7 +59,22 @@ c     residual
       return
       end
 c
-c     stress return to surface a
+c     definition of yield surface a
+c
+      subroutine yield_surface_a(fcpr, sr, c0, mua0, k1, k2, sigma, tau,
+     & pp, pn, fa)
+      double precision fcpr, sr, c0, mua0, k1, k2
+      double precision sigma, tau, pp, pn
+      double precision fa
+      double precision rhop, c, mua
+      rhop = (pp+pn) / sr
+      c = c0 * max(0.0D+00,1.0D+00-rhop)
+      mua = mua0 * exp(-k2*rhop)
+      fa = abs(sigma/fcpr)**k1 - (c/fcpr)**k1 + mua*tau/fcpr
+      return
+      end
+c
+c     stress return to yield surface a
 c
       subroutine return_a_outer(n, x, fvec, iflag, ext, lext)
       implicit none
@@ -181,6 +122,155 @@ c     residual
       call yield_surface_a(fcpr, sr, c0, mua0, k1, k2, sigmat1, taut1,
      & ppt1, pnt1, fa)
       fvec(1) = fa
+      return
+      end
+c
+c     inclination angle
+c
+      subroutine inclination_angle(li, lt, alpha0, pp, pn, s, alpha)
+      double precision li, lt, alpha0
+      double precision pp, pn, s
+      double precision alpha
+      double precision spp, spn
+      spp = s + pp
+      spn = s - pn
+      if (spp.le.-li) then
+        alpha = 0.0
+      elseif (spp.le.-li+lt) then
+        alpha = alpha0 * (spp-li) / lt
+      elseif (spp.le.-lt) then
+        alpha = -alpha0
+      elseif (spp.le.0.0) then
+        alpha = alpha0 * spp / lt
+      elseif (spn.le.0.0) then
+        alpha = 0.0
+      elseif (spn.le.lt) then
+        alpha = alpha0 * spn / lt
+      elseif (spn.le.li-lt) then
+        alpha = alpha0
+      elseif (spn.le.li) then
+        alpha = alpha0 * (li-spn) / lt
+      else
+        alpha = 0.0
+      endif
+      return
+      end
+c
+c     definition of plastic flow b1
+c
+      subroutine plastic_flow_b1(li, lt, alpha0, pp, pn, s, mb1)
+      double precision li, lt, alpha0
+      double precision pp, pn, s
+      double precision mbn1
+      double precision alpha
+      call inclination_angle(li, lt, alpha0, pp, pn, s, alpha)
+      mb1 = -tan(alpha)
+      return
+      end
+c
+c     definition of yield surface b
+c
+      subroutine yield_surface_b(li, lt, alpha0, mub, sigma, tau, pp,
+     & pn, s, fb)
+      double precision li, lt, alpha0, mub
+      double precision sigma, tau, pp, pn, s
+      double precision fb
+      double precision alpha, sina, cosa
+      call inclination_angle(li, lt, alpha0, pp, pn, s, alpha)
+      sina = sin(alpha)
+      cosa = cos(alpha)
+      fb = abs(tau*cosa+sigma*sina) + mub*(sigma*cosa-tau*sina)
+      return
+      end
+c
+c     stress return to yield surface b (loop1)
+c
+      subroutine return_b_loop1(n, x, fvec, iflag, ext, lext)
+      implicit none
+      integer n, iflag, lext
+      double precision x(n), fvec(n), ext(lext)
+c     material constants, state variables, flow variables
+      double precision li, lt, alpha0, mub, dnn, dtt
+      double precision sigmat1e, taut1e
+      double precision ppt, pnt, st
+      double precision sigmat1, taut1, st1
+      double precision dlambda, theta
+c     function-scale parameters
+      double precision mt1, mb1t, mb1t1, fb
+c     variable acquisition
+      li = ext(4)
+      lt = ext(5)
+      alpha0 = ext(6)
+      mub = ext(9)
+      dnn = ext(10)
+      dtt = ext(11)
+      sigmat1e = ext(17)
+      taut1e = ext(18)
+      ppt = ext(21)
+      pnt = ext(22)
+      st = ext(24)
+      theta = ext(32)
+      mt1 = ext(33)
+      dlambda = x(1)
+c     residual
+      taut1 = taut1e - dlambda*dtt*mt1
+      st1 = st + dlambda*mt1
+      call plastic_flow_b1(li, lt, alpha0, ppt, pnt, st, mb1t)
+      call plastic_flow_b1(li, lt, alpha0, ppt, pnt, st1, mb1t1)
+      sigmat1 = sigmat1e - dlambda*dnn*((1.0D+00-theta)*mb1t+
+     &theta*mb1t1)*mt1
+      call yield_surface_b(
+     & li, lt, alpha0, mub, sigmat1, taut1, ppt, pnt, st1, fb)
+      fvec(1) = fb
+      return
+      end
+c
+c     stress return to yield surface b
+c
+      subroutine return_b(
+     & ext, lext, sigmat1, taut1, ppt1, pnt1, rt1, st1)
+      implicit none
+      integer lext
+      double precision ext(lext)
+      external return_b_loop1
+c     residual
+      double precision li, lt, alpha0, c0, dnn, dtt
+      double precision sigmat1e, taut1e
+      double precision ppt, pnt, rt, st
+      double precision sigmat1, taut1, ppt1, pnt1, rt1, st1
+      double precision dlambda, theta, mt1
+c     function-scale parameters
+      double precision alphat, mb1t, mb1t1
+      double precision xi(1), fveci(1), infoi, wai(8)
+c     variable acquisition
+      li = ext(4)
+      lt = ext(5)
+      alpha0 = ext(6)
+      dnn = ext(10)
+      dtt = ext(11)
+      sigmat1e = ext(17)
+      taut1e = ext(18)
+      ppt = ext(21)
+      pnt = ext(22)
+      st = ext(24)
+      theta = ext(32)
+c     get lambda
+      call inclination_angle(li, lt, alpha0, ppt, pnt, st, alphat)
+      mt1 = sign(1.0D+00, taut1e*cos(alphat)+sigmat1e*sin(alphat))
+      ext(33) = mt1
+      call hybrdext1(return_b_loop1, 2, xi, fveci, 0.00001D+00, infoi,
+     & wai, 8, ext, 33)
+      dlambda = xi(1)
+c     get stress state
+      taut1 = taut1e - dlambda*dtt*mt1
+      ppt1 = ppt
+      pnt1 = pnt
+      rt1 = rt
+      st1 = st + dlambda*mt1
+      call plastic_flow_b1(li, lt, alpha0, ppt, pnt, st, mb1t)
+      call plastic_flow_b1(li, lt, alpha0, ppt, pnt, st1, mb1t1)
+      sigmat1 = sigmat1e - dlambda*dnn*((1.0D+00-theta)*mb1t+
+     &theta*mb1t1)*mt1
       return
       end
 

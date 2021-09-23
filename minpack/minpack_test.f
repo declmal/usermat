@@ -418,8 +418,8 @@ c
 
       x(1) = 3.0D+00
       x(2) = 0.0D+00
-      ext(1) = 1.0D+00
-      ext(2) = 1.0D+00
+      ext(1) = 2.0D+00
+      ext(2) = 3.0D+00
       ext(3) = 1.0D+00
       call r8vec_print ( n, x, '  Initial X:' )
       call r8vec_print ( lext, ext, '  Initial ext:' )

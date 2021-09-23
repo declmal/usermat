@@ -1,4 +1,4 @@
-      subroutine hybrd_ext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,diag,
+      subroutine hybrdext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,diag,
      *                 mode,factor,nprint,info,nfev,fjac,ldfjac,r,lr,
      *                 qtf,wa1,wa2,wa3,wa4,ext,lext)
       integer n,maxfev,ml,mu,mode,nprint,info,nfev,ldfjac,lr,lext
@@ -11,7 +11,7 @@ c*********************************************************************72
 c
 cc HYBRD seeks a zero of N nonlinear equations in N variables.
 c
-c     the purpose of hybrd_ext is to find a zero of a system of
+c     the purpose of hybrdext is to find a zero of a system of
 c     n nonlinear functions in n variables by a modification
 c     of the powell hybrid method. the user must provide a
 c     subroutine which calculates the functions. the jacobian is
@@ -19,7 +19,7 @@ c     then calculated by a forward-difference approximation.
 c
 c     the subroutine statement is
 c
-c       subroutine hybrd_ext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,
+c       subroutine hybrdext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,
 c                        diag,mode,factor,nprint,info,nfev,fjac,
 c                        ldfjac,r,lr,qtf,wa1,wa2,wa3,wa4,ext,lext)
 c
@@ -41,7 +41,7 @@ c         return
 c         end
 c
 c         the value of iflag should not be changed by fcn unless
-c         the user wants to terminate execution of hybrd_ext.
+c         the user wants to terminate execution of hybrdext.
 c         in this case set iflag to a negative integer.
 c
 c       n is a positive integer input variable set to the number
@@ -460,6 +460,6 @@ c
       if (nprint .gt. 0) call fcn(n,x,fvec,iflag,ext,lext)
       return
 c
-c     last card of subroutine hybrd_ext.
+c     last card of subroutine hybrdext.
 c
       end

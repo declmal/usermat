@@ -30,6 +30,7 @@ c
 
       call test01 ( )
       call test02 ( )
+      call test02ext ( )
       call test03 ( )
       call test04 ( )
       call test05 ( )
@@ -357,6 +358,114 @@ c
      &  + x(2) * x(2) + 8.0D+00
 
       fvec(2) = x(1) * x(2) * x(2) + x(1) - 10.0D+00 * x(2)
+     &  + 8.0D+00
+
+      return
+      end
+      subroutine test02ext ( )
+
+c*********************************************************************72
+c
+cc TEST02 ext tests HYBRD1 ext.
+c
+c  Discussion:
+c
+c    This is an example of what your main program would look
+c    like if you wanted to use MINPACK to solve N nonlinear equations
+c    in N unknowns.  In this version, we avoid computing the jacobian
+c    matrix, and request that MINPACK approximate it for us.
+c
+c    The set of nonlinear equations is:
+c
+c      a * x1 * x1 - 10 * b * x1 + x2 * x2 + 8 = 0
+c      x1 * x2 * x2 + c * x1 - 10 * x2 + 8 = 0
+c
+c  Licensing:
+c
+c    This code is distributed under the GNU LGPL license.
+c
+c  Modified:
+c
+c    07 April 2010
+c
+c  Author:
+c
+c    John Burkardt
+c
+      implicit none
+
+      integer n
+      parameter ( n = 2 )
+      integer lwa
+      parameter ( lwa = ( n * ( 3 * n + 13 ) ) / 2 )
+      integer lext
+      parameter ( lext = 3 )
+
+      external f02
+      double precision fvec(n)
+      integer i
+      integer iflag
+      integer info
+      double precision tol
+      double precision wa(lwa)
+      double precision x(n)
+      double precision ext(lext)
+
+      write ( *, '(a)' ) ' '
+      write ( *, '(a)' ) 'TEST02 ext'
+      write ( *, '(a)' )
+     &  '  HYBRD1 ext solves a nonlinear system of equations.'
+
+      x(1) = 3.0D+00
+      x(2) = 0.0D+00
+      call r8vec_print ( n, x, '  Initial X:' )
+      iflag = 1
+      call f02ext ( n, x, fvec, iflag, ext, lext )
+      call r8vec_print ( n, fvec, '  F(X):' )
+
+      tol = 0.00001D+00
+
+      call hybrd1ext ( f02, n, x, fvec, tol, info, wa, lwa, ext, lext )
+
+      write ( *, '(a)' ) ' '
+      write ( *, '(a,i6)' ) '  Returned value of INFO = ', info
+      call r8vec_print ( n, x, '  X:' )
+      call r8vec_print ( n, fvec, '  F(X):' )
+
+      return
+      end
+      subroutine f02ext ( n, x, fvec, iflag, ext, lext )
+
+c*********************************************************************72
+c
+cc F02 ext is a function routine.
+c
+c  Licensing:
+c
+c    This code is distributed under the GNU LGPL license.
+c
+c  Modified:
+c
+c    07 April 2010
+c
+c  Author:
+c
+c    John Burkardt
+c
+      implicit none
+
+      integer n
+
+      double precision fvec(n)
+      integer iflag
+      double precision x(n)
+      integer lext
+      double precision ext(lext)
+
+      fvec(1) = ext(1) * x(1) * x(1) - 10.0D+00 * ext(2) * x(1)
+     &  + x(2) * x(2) + 8.0D+00
+
+      fvec(2) = x(1) * x(2) * x(2) + ext(3) * x(1) - 10.0D+00 * x(2)
      &  + 8.0D+00
 
       return

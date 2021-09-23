@@ -401,7 +401,7 @@ c
       integer lext
       parameter ( lext = 3 )
 
-      external f02
+      external f02ext
       double precision fvec(n)
       integer i
       integer iflag

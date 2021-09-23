@@ -227,7 +227,7 @@ c        calculate the jacobian matrix.
 c
          iflag = 2
          call fdjac1(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,wa1,
-     *               wa2)
+     *               wa2,ext,lext)
          nfev = nfev + msum
          if (iflag .lt. 0) go to 300
 c

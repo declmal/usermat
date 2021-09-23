@@ -158,7 +158,7 @@ c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... dogleg,dpmpar,enorm,fdjac1,
+c       minpack-supplied ... dogleg,dpmpar,enorm,fdjac1ext,
 c                            qform,qrfac,r1mpyq,r1updt
 c
 c       fortran-supplied ... dabs,dmax1,dmin1,min0,mod
@@ -226,7 +226,7 @@ c
 c        calculate the jacobian matrix.
 c
          iflag = 2
-         call fdjac1(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,wa1,
+         call fdjac1ext(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,wa1,
      *               wa2,ext,lext)
          nfev = nfev + msum
          if (iflag .lt. 0) go to 300

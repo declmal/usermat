@@ -1,4 +1,4 @@
-      subroutine hybrd1ext(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
+      subroutine hybrdext1(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
       integer n,info,lwa,lext
       double precision tol
       double precision x(n),fvec(n),wa(lwa),ext(lext)
@@ -8,7 +8,7 @@ c*********************************************************************72
 c
 cc HYBRD1 seeks a zero of N nonlinear equations in N variables.
 c
-c     the purpose of hybrd1ext is to find a zero of a system of
+c     the purpose of hybrdext1 is to find a zero of a system of
 c     n nonlinear functions in n variables by a modification
 c     of the powell hybrid method. this is done by using the
 c     more general nonlinear equation solver hybrdext. the user
@@ -18,7 +18,7 @@ c     approximation.
 c
 c     the subroutine statement is
 c
-c       subroutine hybrd1ext(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
+c       subroutine hybrdext1(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
 c
 c     where
 c
@@ -124,6 +124,6 @@ c
    20 continue
       return
 c
-c     last card of subroutine hybrd1ext.
+c     last card of subroutine hybrdext1.
 c
       end

@@ -76,7 +76,7 @@ c         that the i-th gradient is probably incorrect.
 c
 c     subprograms called
 c
-c       minpack supplied ... dpmpar
+c       minpack supplied ... dpmparmp
 c
 c       fortran supplied ... dabs,dlog10,dsqrt
 c
@@ -86,12 +86,12 @@ c
 c     **********
       integer i,j
       double precision eps,epsf,epslog,epsmch,factor,one,temp,zero
-      double precision dpmpar
+      double precision dpmparmp
       data factor,one,zero /1.0d2,1.0d0,0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
       eps = dsqrt(epsmch)
 c
@@ -193,7 +193,7 @@ c       wa1 and wa2 are work arrays of length n.
 c
 c     subprograms called
 c
-c       minpack-supplied ... dpmpar,enorm
+c       minpack-supplied ... dpmparmp,enormmp
 c
 c       fortran-supplied ... dabs,dmax1,dmin1,dsqrt
 c
@@ -204,12 +204,12 @@ c     **********
       integer i,j,jj,jp1,k,l
       double precision alpha,bnorm,epsmch,gnorm,one,qnorm,sgnorm,sum,
      *                 temp,zero
-      double precision dpmpar,enorm
+      double precision dpmparmp,enormmp
       data one,zero /1.0d0,0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
 c     first, calculate the gauss-newton direction.
 c
@@ -245,7 +245,7 @@ c
          wa1(j) = zero
          wa2(j) = diag(j)*x(j)
    60    continue
-      qnorm = enorm(n,wa2)
+      qnorm = enormmp(n,wa2)
       if (qnorm .le. delta) go to 140
 c
 c     the gauss-newton direction is not acceptable.
@@ -264,7 +264,7 @@ c
 c     calculate the norm of the scaled gradient and test for
 c     the special case in which the scaled gradient is zero.
 c
-      gnorm = enorm(n,wa1)
+      gnorm = enormmp(n,wa1)
       sgnorm = zero
       alpha = delta/qnorm
       if (gnorm .eq. zero) go to 120
@@ -284,7 +284,7 @@ c
   100       continue
          wa2(j) = sum
   110    continue
-      temp = enorm(n,wa2)
+      temp = enormmp(n,wa2)
       sgnorm = (gnorm/temp)/temp
 c
 c     test whether the scaled gradient direction is acceptable.
@@ -296,7 +296,7 @@ c     the scaled gradient direction is not acceptable.
 c     finally, calculate the point along the dogleg
 c     at which the quadratic is minimized.
 c
-      bnorm = enorm(n,qtb)
+      bnorm = enormmp(n,qtb)
       temp = (bnorm/gnorm)*(bnorm/qnorm)*(sgnorm/delta)
       temp = temp - (delta/qnorm)*(sgnorm/delta)**2
      *       + dsqrt((temp-(delta/qnorm))**2
@@ -317,7 +317,7 @@ c
 c     last card of subroutine dogleg.
 c
       end
-      double precision function dpmpar(i)
+      double precision function dpmparmp(i)
       integer i
 
 c*********************************************************************72
@@ -332,7 +332,7 @@ c     from the corresponding Bell Laboratories Port Library function.
 c
 c     The function statement is
 c
-c       double precision function dpmpar(i)
+c       double precision function dpmparmp(i)
 c
 c     where
 c
@@ -341,11 +341,11 @@ c         selects the desired machine parameter. If the machine has
 c         t base b digits and its smallest and largest exponents are
 c         emin and emax, respectively, then these parameters are
 c
-c         dpmpar(1) = b**(1 - t), the machine precision,
+c         dpmparmp(1) = b**(1 - t), the machine precision,
 c
-c         dpmpar(2) = b**(emin - 1), the smallest magnitude,
+c         dpmparmp(2) = b**(emin - 1), the smallest magnitude,
 c
-c         dpmpar(3) = b**emax*(1 - b**(-t)), the largest magnitude.
+c         dpmparmp(3) = b**emax*(1 - b**(-t)), the largest magnitude.
 c
 c     Argonne National Laboratory. MINPACK Project. November 1996.
 c     Burton S. Garbow, Kenneth E. Hillstrom, Jorge J. More'
@@ -489,13 +489,13 @@ c
       data dmach(2) /2.22507385852d-308/
       data dmach(3) /1.79769313485d+308/
 c
-      dpmpar = dmach(i)
+      dpmparmp = dmach(i)
       return
 c
-c     Last card of function dpmpar.
+c     Last card of function dpmparmp.
 c
       end
-      double precision function enorm(n,x)
+      double precision function enormmp(n,x)
       integer n
       double precision x(n)
 
@@ -520,7 +520,7 @@ c     given here are suitable for every known computer.
 c
 c     the function statement is
 c
-c       double precision function enorm(n,x)
+c       double precision function enormmp(n,x)
 c
 c     where
 c
@@ -586,22 +586,22 @@ c
 c     calculation of norm.
 c
       if (s1 .eq. zero) go to 100
-         enorm = x1max*dsqrt(s1+(s2/x1max)/x1max)
+         enormmp = x1max*dsqrt(s1+(s2/x1max)/x1max)
          go to 130
   100 continue
          if (s2 .eq. zero) go to 110
             if (s2 .ge. x3max)
-     *         enorm = dsqrt(s2*(one+(x3max/s2)*(x3max*s3)))
+     *         enormmp = dsqrt(s2*(one+(x3max/s2)*(x3max*s3)))
             if (s2 .lt. x3max)
-     *         enorm = dsqrt(x3max*((s2/x3max)+(x3max*s3)))
+     *         enormmp = dsqrt(x3max*((s2/x3max)+(x3max*s3)))
             go to 120
   110    continue
-            enorm = x3max*dsqrt(s3)
+            enormmp = x3max*dsqrt(s3)
   120    continue
   130 continue
       return
 c
-c     last card of function enorm.
+c     last card of function enormmp.
 c
       end
       subroutine fdjac1(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,
@@ -687,7 +687,7 @@ c         not referenced.
 c
 c     subprograms called
 c
-c       minpack-supplied ... dpmpar
+c       minpack-supplied ... dpmparmp
 c
 c       fortran-supplied ... dabs,dmax1,dsqrt
 c
@@ -697,12 +697,12 @@ c
 c     **********
       integer i,j,k,msum
       double precision eps,epsmch,h,temp,zero
-      double precision dpmpar
+      double precision dpmparmp
       data zero /0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
       eps = dsqrt(dmax1(epsfcn,epsmch))
       msum = ml + mu + 1
@@ -828,7 +828,7 @@ c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... dpmpar
+c       minpack-supplied ... dpmparmp
 c
 c       fortran-supplied ... dabs,dmax1,dsqrt
 c
@@ -838,12 +838,12 @@ c
 c     **********
       integer i,j
       double precision eps,epsmch,h,temp,zero
-      double precision dpmpar
+      double precision dpmparmp
       data zero /0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
       eps = dsqrt(dmax1(epsfcn,epsmch))
       do 20 j = 1, n
@@ -1020,8 +1020,8 @@ c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... dogleg,dpmpar,enorm,fdjac1,
-c                            qform,qrfac,r1mpyq,r1updt
+c       minpack-supplied ... dogleg,dpmparmp,enormmp,fdjac1,
+c                            qform,qrfacmp,r1mpyq,r1updt
 c
 c       fortran-supplied ... dabs,dmax1,dmin1,min0,mod
 c
@@ -1035,13 +1035,13 @@ c     **********
       double precision actred,delta,epsmch,fnorm,fnorm1,one,pnorm,
      *                 prered,p1,p5,p001,p0001,ratio,sum,temp,xnorm,
      *                 zero
-      double precision dpmpar,enorm
+      double precision dpmparmp,enormmp
       data one,p1,p5,p001,p0001,zero
      *     /1.0d0,1.0d-1,5.0d-1,1.0d-3,1.0d-4,0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
       info = 0
       iflag = 0
@@ -1065,7 +1065,7 @@ c
       call fcn(n,x,fvec,iflag)
       nfev = 1
       if (iflag .lt. 0) go to 300
-      fnorm = enorm(n,fvec)
+      fnorm = enormmp(n,fvec)
 c
 c     determine the number of calls to fcn needed to compute
 c     the jacobian matrix.
@@ -1095,7 +1095,7 @@ c
 c
 c        compute the qr factorization of the jacobian.
 c
-         call qrfac(n,n,fjac,ldfjac,.false.,iwa,1,wa1,wa2,wa3)
+         call qrfacmp(n,n,fjac,ldfjac,.false.,iwa,1,wa1,wa2,wa3)
 c
 c        on the first iteration and if mode is 1, scale according
 c        to the norms of the columns of the initial jacobian.
@@ -1114,7 +1114,7 @@ c
          do 60 j = 1, n
             wa3(j) = diag(j)*x(j)
    60       continue
-         xnorm = enorm(n,wa3)
+         xnorm = enormmp(n,wa3)
          delta = factor*xnorm
          if (delta .eq. zero) delta = factor
    70    continue
@@ -1188,7 +1188,7 @@ c
                wa2(j) = x(j) + wa1(j)
                wa3(j) = diag(j)*wa1(j)
   200          continue
-            pnorm = enorm(n,wa3)
+            pnorm = enormmp(n,wa3)
 c
 c           on the first iteration, adjust the initial step bound.
 c
@@ -1200,7 +1200,7 @@ c
             call fcn(n,wa2,wa4,iflag)
             nfev = nfev + 1
             if (iflag .lt. 0) go to 300
-            fnorm1 = enorm(n,wa4)
+            fnorm1 = enormmp(n,wa4)
 c
 c           compute the scaled actual reduction.
 c
@@ -1218,7 +1218,7 @@ c
   210             continue
                wa3(i) = qtf(i) + sum
   220          continue
-            temp = enorm(n,wa3)
+            temp = enormmp(n,wa3)
             prered = zero
             if (temp .lt. fnorm) prered = one - (temp/fnorm)**2
 c
@@ -1254,7 +1254,7 @@ c
                wa2(j) = diag(j)*x(j)
                fvec(j) = wa4(j)
   250          continue
-            xnorm = enorm(n,wa2)
+            xnorm = enormmp(n,wa2)
             fnorm = fnorm1
             iter = iter + 1
   260       continue
@@ -1590,8 +1590,8 @@ c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... dogleg,dpmpar,enorm,
-c                            qform,qrfac,r1mpyq,r1updt
+c       minpack-supplied ... dogleg,dpmparmp,enormmp,
+c                            qform,qrfacmp,r1mpyq,r1updt
 c
 c       fortran-supplied ... dabs,dmax1,dmin1,mod
 c
@@ -1605,13 +1605,13 @@ c     **********
       double precision actred,delta,epsmch,fnorm,fnorm1,one,pnorm,
      *                 prered,p1,p5,p001,p0001,ratio,sum,temp,xnorm,
      *                 zero
-      double precision dpmpar,enorm
+      double precision dpmparmp,enormmp
       data one,p1,p5,p001,p0001,zero
      *     /1.0d0,1.0d-1,5.0d-1,1.0d-3,1.0d-4,0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
       info = 0
       iflag = 0
@@ -1636,7 +1636,7 @@ c
       call fcn(n,x,fvec,fjac,ldfjac,iflag)
       nfev = 1
       if (iflag .lt. 0) go to 300
-      fnorm = enorm(n,fvec)
+      fnorm = enormmp(n,fvec)
 c
 c     initialize iteration counter and monitors.
 c
@@ -1660,7 +1660,7 @@ c
 c
 c        compute the qr factorization of the jacobian.
 c
-         call qrfac(n,n,fjac,ldfjac,.false.,iwa,1,wa1,wa2,wa3)
+         call qrfacmp(n,n,fjac,ldfjac,.false.,iwa,1,wa1,wa2,wa3)
 c
 c        on the first iteration and if mode is 1, scale according
 c        to the norms of the columns of the initial jacobian.
@@ -1679,7 +1679,7 @@ c
          do 60 j = 1, n
             wa3(j) = diag(j)*x(j)
    60       continue
-         xnorm = enorm(n,wa3)
+         xnorm = enormmp(n,wa3)
          delta = factor*xnorm
          if (delta .eq. zero) delta = factor
    70    continue
@@ -1754,7 +1754,7 @@ c
                wa2(j) = x(j) + wa1(j)
                wa3(j) = diag(j)*wa1(j)
   200          continue
-            pnorm = enorm(n,wa3)
+            pnorm = enormmp(n,wa3)
 c
 c           on the first iteration, adjust the initial step bound.
 c
@@ -1766,7 +1766,7 @@ c
             call fcn(n,wa2,wa4,fjac,ldfjac,iflag)
             nfev = nfev + 1
             if (iflag .lt. 0) go to 300
-            fnorm1 = enorm(n,wa4)
+            fnorm1 = enormmp(n,wa4)
 c
 c           compute the scaled actual reduction.
 c
@@ -1784,7 +1784,7 @@ c
   210             continue
                wa3(i) = qtf(i) + sum
   220          continue
-            temp = enorm(n,wa3)
+            temp = enormmp(n,wa3)
             prered = zero
             if (temp .lt. fnorm) prered = one - (temp/fnorm)**2
 c
@@ -1820,7 +1820,7 @@ c
                wa2(j) = diag(j)*x(j)
                fvec(j) = wa4(j)
   250          continue
-            xnorm = enorm(n,wa2)
+            xnorm = enormmp(n,wa2)
             fnorm = fnorm1
             iter = iter + 1
   260       continue
@@ -2017,7 +2017,7 @@ c
 c     last card of subroutine hybrj1.
 c
       end
-      subroutine lmder(fcn,m,n,x,fvec,fjac,ldfjac,ftol,xtol,gtol,
+      subroutine lmdermp(fcn,m,n,x,fvec,fjac,ldfjac,ftol,xtol,gtol,
      *                 maxfev,diag,mode,factor,nprint,info,nfev,njev,
      *                 ipvt,qtf,wa1,wa2,wa3,wa4)
       integer m,n,ldfjac,maxfev,mode,nprint,info,nfev,njev
@@ -2030,14 +2030,14 @@ c*********************************************************************72
 c
 cc LMDER minimizes M functions in N variables by the Levenberg-Marquardt method.
 c
-c     the purpose of lmder is to minimize the sum of the squares of
+c     the purpose of lmdermp is to minimize the sum of the squares of
 c     m nonlinear functions in n variables by a modification of
 c     the levenberg-marquardt algorithm. the user must provide a
 c     subroutine which calculates the functions and the jacobian.
 c
 c     the subroutine statement is
 c
-c       subroutine lmder(fcn,m,n,x,fvec,fjac,ldfjac,ftol,xtol,gtol,
+c       subroutine lmdermp(fcn,m,n,x,fvec,fjac,ldfjac,ftol,xtol,gtol,
 c                        maxfev,diag,mode,factor,nprint,info,nfev,
 c                        njev,ipvt,qtf,wa1,wa2,wa3,wa4)
 c
@@ -2061,7 +2061,7 @@ c         return
 c         end
 c
 c         the value of iflag should not be changed by fcn unless
-c         the user wants to terminate execution of lmder.
+c         the user wants to terminate execution of lmdermp.
 c         in this case set iflag to a negative integer.
 c
 c       m is a positive integer input variable set to the number
@@ -2195,7 +2195,7 @@ c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... dpmpar,enorm,lmpar,qrfac
+c       minpack-supplied ... dpmparmp,enormmp,lmparmp,qrfacmp
 c
 c       fortran-supplied ... dabs,dmax1,dmin1,dsqrt,mod
 c
@@ -2207,13 +2207,13 @@ c     **********
       double precision actred,delta,dirder,epsmch,fnorm,fnorm1,gnorm,
      *                 one,par,pnorm,prered,p1,p5,p25,p75,p0001,ratio,
      *                 sum,temp,temp1,temp2,xnorm,zero
-      double precision dpmpar,enorm
+      double precision dpmparmp,enormmp
       data one,p1,p5,p25,p75,p0001,zero
      *     /1.0d0,1.0d-1,5.0d-1,2.5d-1,7.5d-1,1.0d-4,0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
       info = 0
       iflag = 0
@@ -2238,7 +2238,7 @@ c
       call fcn(m,n,x,fvec,fjac,ldfjac,iflag)
       nfev = 1
       if (iflag .lt. 0) go to 300
-      fnorm = enorm(m,fvec)
+      fnorm = enormmp(m,fvec)
 c
 c     initialize levenberg-marquardt parameter and iteration counter.
 c
@@ -2267,7 +2267,7 @@ c
 c
 c        compute the qr factorization of the jacobian.
 c
-         call qrfac(m,n,fjac,ldfjac,.true.,ipvt,n,wa1,wa2,wa3)
+         call qrfacmp(m,n,fjac,ldfjac,.true.,ipvt,n,wa1,wa2,wa3)
 c
 c        on the first iteration and if mode is 1, scale according
 c        to the norms of the columns of the initial jacobian.
@@ -2286,7 +2286,7 @@ c
          do 70 j = 1, n
             wa3(j) = diag(j)*x(j)
    70       continue
-         xnorm = enorm(n,wa3)
+         xnorm = enormmp(n,wa3)
          delta = factor*xnorm
          if (delta .eq. zero) delta = factor
    80    continue
@@ -2347,7 +2347,7 @@ c
 c
 c           determine the levenberg-marquardt parameter.
 c
-            call lmpar(n,fjac,ldfjac,ipvt,diag,qtf,delta,par,wa1,wa2,
+            call lmparmp(n,fjac,ldfjac,ipvt,diag,qtf,delta,par,wa1,wa2,
      *                 wa3,wa4)
 c
 c           store the direction p and x + p. calculate the norm of p.
@@ -2357,7 +2357,7 @@ c
                wa2(j) = x(j) + wa1(j)
                wa3(j) = diag(j)*wa1(j)
   210          continue
-            pnorm = enorm(n,wa3)
+            pnorm = enormmp(n,wa3)
 c
 c           on the first iteration, adjust the initial step bound.
 c
@@ -2369,7 +2369,7 @@ c
             call fcn(m,n,wa2,wa4,fjac,ldfjac,iflag)
             nfev = nfev + 1
             if (iflag .lt. 0) go to 300
-            fnorm1 = enorm(m,wa4)
+            fnorm1 = enormmp(m,wa4)
 c
 c           compute the scaled actual reduction.
 c
@@ -2387,7 +2387,7 @@ c
                   wa3(i) = wa3(i) + fjac(i,j)*temp
   220             continue
   230          continue
-            temp1 = enorm(n,wa3)/fnorm
+            temp1 = enormmp(n,wa3)/fnorm
             temp2 = (dsqrt(par)*pnorm)/fnorm
             prered = temp1**2 + temp2**2/p5
             dirder = -(temp1**2 + temp2**2)
@@ -2428,7 +2428,7 @@ c
             do 280 i = 1, m
                fvec(i) = wa4(i)
   280          continue
-            xnorm = enorm(n,wa2)
+            xnorm = enormmp(n,wa2)
             fnorm = fnorm1
             iter = iter + 1
   290       continue
@@ -2467,10 +2467,10 @@ c
       if (nprint .gt. 0) call fcn(m,n,x,fvec,fjac,ldfjac,iflag)
       return
 c
-c     last card of subroutine lmder.
+c     last card of subroutine lmdermp.
 c
       end
-      subroutine lmder1(fcn,m,n,x,fvec,fjac,ldfjac,tol,info,ipvt,wa,
+      subroutine lmdermp1(fcn,m,n,x,fvec,fjac,ldfjac,tol,info,ipvt,wa,
      *                  lwa)
       integer m,n,ldfjac,info,lwa
       integer ipvt(n)
@@ -2482,15 +2482,15 @@ c*********************************************************************72
 c
 cc LMDER1 minimizes M functions in N variables by the Levenberg-Marquardt method.
 c
-c     the purpose of lmder1 is to minimize the sum of the squares of
+c     the purpose of lmdermp1 is to minimize the sum of the squares of
 c     m nonlinear functions in n variables by a modification of the
 c     levenberg-marquardt algorithm. this is done by using the more
-c     general least-squares solver lmder. the user must provide a
+c     general least-squares solver lmdermp. the user must provide a
 c     subroutine which calculates the functions and the jacobian.
 c
 c     the subroutine statement is
 c
-c       subroutine lmder1(fcn,m,n,x,fvec,fjac,ldfjac,tol,info,
+c       subroutine lmdermp1(fcn,m,n,x,fvec,fjac,ldfjac,tol,info,
 c                         ipvt,wa,lwa)
 c
 c     where
@@ -2513,7 +2513,7 @@ c         return
 c         end
 c
 c         the value of iflag should not be changed by fcn unless
-c         the user wants to terminate execution of lmder1.
+c         the user wants to terminate execution of lmdermp1.
 c         in this case set iflag to a negative integer.
 c
 c       m is a positive integer input variable set to the number
@@ -2593,7 +2593,7 @@ c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... lmder
+c       minpack-supplied ... lmdermp
 c
 c     argonne national laboratory. minpack project. march 1980.
 c     burton s. garbow, kenneth e. hillstrom, jorge j. more
@@ -2609,7 +2609,7 @@ c
       if (n .le. 0 .or. m .lt. n .or. ldfjac .lt. m .or. tol .lt. zero
      *    .or. lwa .lt. 5*n + m) go to 10
 c
-c     call lmder.
+c     call lmdermp.
 c
       maxfev = 100*(n + 1)
       ftol = tol
@@ -2617,14 +2617,14 @@ c
       gtol = zero
       mode = 1
       nprint = 0
-      call lmder(fcn,m,n,x,fvec,fjac,ldfjac,ftol,xtol,gtol,maxfev,
+      call lmdermp(fcn,m,n,x,fvec,fjac,ldfjac,ftol,xtol,gtol,maxfev,
      *           wa(1),mode,factor,nprint,info,nfev,njev,ipvt,wa(n+1),
      *           wa(2*n+1),wa(3*n+1),wa(4*n+1),wa(5*n+1))
       if (info .eq. 8) info = 4
    10 continue
       return
 c
-c     last card of subroutine lmder1.
+c     last card of subroutine lmdermp1.
 c
       end
       subroutine lmdif(fcn,m,n,x,fvec,ftol,xtol,gtol,maxfev,epsfcn,
@@ -2809,7 +2809,7 @@ c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... dpmpar,enorm,fdjac2,lmpar,qrfac
+c       minpack-supplied ... dpmparmp,enormmp,fdjac2,lmparmp,qrfacmp
 c
 c       fortran-supplied ... dabs,dmax1,dmin1,dsqrt,mod
 c
@@ -2821,13 +2821,13 @@ c     **********
       double precision actred,delta,dirder,epsmch,fnorm,fnorm1,gnorm,
      *                 one,par,pnorm,prered,p1,p5,p25,p75,p0001,ratio,
      *                 sum,temp,temp1,temp2,xnorm,zero
-      double precision dpmpar,enorm
+      double precision dpmparmp,enormmp
       data one,p1,p5,p25,p75,p0001,zero
      *     /1.0d0,1.0d-1,5.0d-1,2.5d-1,7.5d-1,1.0d-4,0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
       info = 0
       iflag = 0
@@ -2851,7 +2851,7 @@ c
       call fcn(m,n,x,fvec,iflag)
       nfev = 1
       if (iflag .lt. 0) go to 300
-      fnorm = enorm(m,fvec)
+      fnorm = enormmp(m,fvec)
 c
 c     initialize levenberg-marquardt parameter and iteration counter.
 c
@@ -2879,7 +2879,7 @@ c
 c
 c        compute the qr factorization of the jacobian.
 c
-         call qrfac(m,n,fjac,ldfjac,.true.,ipvt,n,wa1,wa2,wa3)
+         call qrfacmp(m,n,fjac,ldfjac,.true.,ipvt,n,wa1,wa2,wa3)
 c
 c        on the first iteration and if mode is 1, scale according
 c        to the norms of the columns of the initial jacobian.
@@ -2898,7 +2898,7 @@ c
          do 70 j = 1, n
             wa3(j) = diag(j)*x(j)
    70       continue
-         xnorm = enorm(n,wa3)
+         xnorm = enormmp(n,wa3)
          delta = factor*xnorm
          if (delta .eq. zero) delta = factor
    80    continue
@@ -2959,7 +2959,7 @@ c
 c
 c           determine the levenberg-marquardt parameter.
 c
-            call lmpar(n,fjac,ldfjac,ipvt,diag,qtf,delta,par,wa1,wa2,
+            call lmparmp(n,fjac,ldfjac,ipvt,diag,qtf,delta,par,wa1,wa2,
      *                 wa3,wa4)
 c
 c           store the direction p and x + p. calculate the norm of p.
@@ -2969,7 +2969,7 @@ c
                wa2(j) = x(j) + wa1(j)
                wa3(j) = diag(j)*wa1(j)
   210          continue
-            pnorm = enorm(n,wa3)
+            pnorm = enormmp(n,wa3)
 c
 c           on the first iteration, adjust the initial step bound.
 c
@@ -2981,7 +2981,7 @@ c
             call fcn(m,n,wa2,wa4,iflag)
             nfev = nfev + 1
             if (iflag .lt. 0) go to 300
-            fnorm1 = enorm(m,wa4)
+            fnorm1 = enormmp(m,wa4)
 c
 c           compute the scaled actual reduction.
 c
@@ -2999,7 +2999,7 @@ c
                   wa3(i) = wa3(i) + fjac(i,j)*temp
   220             continue
   230          continue
-            temp1 = enorm(n,wa3)/fnorm
+            temp1 = enormmp(n,wa3)/fnorm
             temp2 = (dsqrt(par)*pnorm)/fnorm
             prered = temp1**2 + temp2**2/p5
             dirder = -(temp1**2 + temp2**2)
@@ -3040,7 +3040,7 @@ c
             do 280 i = 1, m
                fvec(i) = wa4(i)
   280          continue
-            xnorm = enorm(n,wa2)
+            xnorm = enormmp(n,wa2)
             fnorm = fnorm1
             iter = iter + 1
   290       continue
@@ -3218,7 +3218,7 @@ c
 c     last card of subroutine lmdif1.
 c
       end
-      subroutine lmpar(n,r,ldr,ipvt,diag,qtb,delta,par,x,sdiag,wa1,
+      subroutine lmparmp(n,r,ldr,ipvt,diag,qtb,delta,par,x,sdiag,wa1,
      *                 wa2)
       integer n,ldr
       integer ipvt(n)
@@ -3251,15 +3251,15 @@ c     if it is provided with the necessary information from the
 c     qr factorization, with column pivoting, of a. that is, if
 c     a*p = q*r, where p is a permutation matrix, q has orthogonal
 c     columns, and r is an upper triangular matrix with diagonal
-c     elements of nonincreasing magnitude, then lmpar expects
+c     elements of nonincreasing magnitude, then lmparmp expects
 c     the full upper triangle of r, the permutation matrix p,
 c     and the first n components of (q transpose)*b. on output
-c     lmpar also provides an upper triangular matrix s such that
+c     lmparmp also provides an upper triangular matrix s such that
 c
 c            t   t                   t
 c           p *(a *a + par*d*d)*p = s *s .
 c
-c     s is employed within lmpar and may be of separate interest.
+c     s is employed within lmparmp and may be of separate interest.
 c
 c     only a few iterations are generally needed for convergence
 c     of the algorithm. if, however, the limit of 10 iterations
@@ -3268,7 +3268,7 @@ c     value obtained so far.
 c
 c     the subroutine statement is
 c
-c       subroutine lmpar(n,r,ldr,ipvt,diag,qtb,delta,par,x,sdiag,
+c       subroutine lmparmp(n,r,ldr,ipvt,diag,qtb,delta,par,x,sdiag,
 c                        wa1,wa2)
 c
 c     where
@@ -3312,7 +3312,7 @@ c       wa1 and wa2 are work arrays of length n.
 c
 c     subprograms called
 c
-c       minpack-supplied ... dpmpar,enorm,qrsolv
+c       minpack-supplied ... dpmparmp,enormmp,qrsolvmp
 c
 c       fortran-supplied ... dabs,dmax1,dmin1,dsqrt
 c
@@ -3323,12 +3323,12 @@ c     **********
       integer i,iter,j,jm1,jp1,k,l,nsing
       double precision dxnorm,dwarf,fp,gnorm,parc,parl,paru,p1,p001,
      *                 sum,temp,zero
-      double precision dpmpar,enorm
+      double precision dpmparmp,enormmp
       data p1,p001,zero /1.0d-1,1.0d-3,0.0d0/
 c
 c     dwarf is the smallest positive magnitude.
 c
-      dwarf = dpmpar(2)
+      dwarf = dpmparmp(2)
 c
 c     compute and store in x the gauss-newton direction. if the
 c     jacobian is rank-deficient, obtain a least squares solution.
@@ -3365,7 +3365,7 @@ c
       do 70 j = 1, n
          wa2(j) = diag(j)*x(j)
    70    continue
-      dxnorm = enorm(n,wa2)
+      dxnorm = enormmp(n,wa2)
       fp = dxnorm - delta
       if (fp .le. p1*delta) go to 220
 c
@@ -3389,7 +3389,7 @@ c
   100    continue
          wa1(j) = (wa1(j) - sum)/r(j,j)
   110    continue
-      temp = enorm(n,wa1)
+      temp = enormmp(n,wa1)
       parl = ((fp/delta)/temp)/temp
   120 continue
 c
@@ -3403,7 +3403,7 @@ c
          l = ipvt(j)
          wa1(j) = sum/diag(l)
   140    continue
-      gnorm = enorm(n,wa1)
+      gnorm = enormmp(n,wa1)
       paru = gnorm/delta
       if (paru .eq. zero) paru = dwarf/dmin1(delta,p1)
 c
@@ -3426,11 +3426,11 @@ c
          do 160 j = 1, n
             wa1(j) = temp*diag(j)
   160       continue
-         call qrsolv(n,r,ldr,ipvt,wa1,qtb,x,sdiag,wa2)
+         call qrsolvmp(n,r,ldr,ipvt,wa1,qtb,x,sdiag,wa2)
          do 170 j = 1, n
             wa2(j) = diag(j)*x(j)
   170       continue
-         dxnorm = enorm(n,wa2)
+         dxnorm = enormmp(n,wa2)
          temp = fp
          fp = dxnorm - delta
 c
@@ -3458,7 +3458,7 @@ c
   190          continue
   200       continue
   210       continue
-         temp = enorm(n,wa1)
+         temp = enormmp(n,wa1)
          parc = ((fp/delta)/temp)/temp
 c
 c        depending on the sign of the function, update parl or paru.
@@ -3480,7 +3480,7 @@ c
       if (iter .eq. 0) par = zero
       return
 c
-c     last card of subroutine lmpar.
+c     last card of subroutine lmparmp.
 c
       end
       subroutine lmstr(fcn,m,n,x,fvec,fjac,ldfjac,ftol,xtol,gtol,
@@ -3660,7 +3660,7 @@ c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... dpmpar,enorm,lmpar,qrfac,rwupdt
+c       minpack-supplied ... dpmparmp,enormmp,lmparmp,qrfacmp,rwupdt
 c
 c       fortran-supplied ... dabs,dmax1,dmin1,dsqrt,mod
 c
@@ -3673,13 +3673,13 @@ c     **********
       double precision actred,delta,dirder,epsmch,fnorm,fnorm1,gnorm,
      *                 one,par,pnorm,prered,p1,p5,p25,p75,p0001,ratio,
      *                 sum,temp,temp1,temp2,xnorm,zero
-      double precision dpmpar,enorm
+      double precision dpmparmp,enormmp
       data one,p1,p5,p25,p75,p0001,zero
      *     /1.0d0,1.0d-1,5.0d-1,2.5d-1,7.5d-1,1.0d-4,0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
       info = 0
       iflag = 0
@@ -3704,7 +3704,7 @@ c
       call fcn(m,n,x,fvec,wa3,iflag)
       nfev = 1
       if (iflag .lt. 0) go to 340
-      fnorm = enorm(m,fvec)
+      fnorm = enormmp(m,fvec)
 c
 c     initialize levenberg-marquardt parameter and iteration counter.
 c
@@ -3744,17 +3744,17 @@ c
    70       continue
          njev = njev + 1
 c
-c        if the jacobian is rank deficient, call qrfac to
+c        if the jacobian is rank deficient, call qrfacmp to
 c        reorder its columns and update the components of qtf.
 c
          sing = .false.
          do 80 j = 1, n
             if (fjac(j,j) .eq. zero) sing = .true.
             ipvt(j) = j
-            wa2(j) = enorm(j,fjac(1,j))
+            wa2(j) = enormmp(j,fjac(1,j))
    80       continue
          if (.not.sing) go to 130
-         call qrfac(n,n,fjac,ldfjac,.true.,ipvt,n,wa1,wa2,wa3)
+         call qrfacmp(n,n,fjac,ldfjac,.true.,ipvt,n,wa1,wa2,wa3)
          do 120 j = 1, n
             if (fjac(j,j) .eq. zero) go to 110
             sum = zero
@@ -3787,7 +3787,7 @@ c
          do 160 j = 1, n
             wa3(j) = diag(j)*x(j)
   160       continue
-         xnorm = enorm(n,wa3)
+         xnorm = enormmp(n,wa3)
          delta = factor*xnorm
          if (delta .eq. zero) delta = factor
   170    continue
@@ -3827,7 +3827,7 @@ c
 c
 c           determine the levenberg-marquardt parameter.
 c
-            call lmpar(n,fjac,ldfjac,ipvt,diag,qtf,delta,par,wa1,wa2,
+            call lmparmp(n,fjac,ldfjac,ipvt,diag,qtf,delta,par,wa1,wa2,
      *                 wa3,wa4)
 c
 c           store the direction p and x + p. calculate the norm of p.
@@ -3837,7 +3837,7 @@ c
                wa2(j) = x(j) + wa1(j)
                wa3(j) = diag(j)*wa1(j)
   250          continue
-            pnorm = enorm(n,wa3)
+            pnorm = enormmp(n,wa3)
 c
 c           on the first iteration, adjust the initial step bound.
 c
@@ -3849,7 +3849,7 @@ c
             call fcn(m,n,wa2,wa4,wa3,iflag)
             nfev = nfev + 1
             if (iflag .lt. 0) go to 340
-            fnorm1 = enorm(m,wa4)
+            fnorm1 = enormmp(m,wa4)
 c
 c           compute the scaled actual reduction.
 c
@@ -3867,7 +3867,7 @@ c
                   wa3(i) = wa3(i) + fjac(i,j)*temp
   260             continue
   270          continue
-            temp1 = enorm(n,wa3)/fnorm
+            temp1 = enormmp(n,wa3)/fnorm
             temp2 = (dsqrt(par)*pnorm)/fnorm
             prered = temp1**2 + temp2**2/p5
             dirder = -(temp1**2 + temp2**2)
@@ -3908,7 +3908,7 @@ c
             do 320 i = 1, m
                fvec(i) = wa4(i)
   320          continue
-            xnorm = enorm(n,wa2)
+            xnorm = enormmp(n,wa2)
             fnorm = fnorm1
             iter = iter + 1
   330       continue
@@ -4202,7 +4202,7 @@ c
 c     last card of subroutine qform.
 c
       end
-      subroutine qrfac(m,n,a,lda,pivot,ipvt,lipvt,rdiag,acnorm,wa)
+      subroutine qrfacmp(m,n,a,lda,pivot,ipvt,lipvt,rdiag,acnorm,wa)
       integer m,n,lda,lipvt
       integer ipvt(lipvt)
       logical pivot
@@ -4214,7 +4214,7 @@ cc QRFAC computes a QR factorization using Householder transformations.
 c
 c     this subroutine uses householder transformations with column
 c     pivoting (optional) to compute a qr factorization of the
-c     m by n matrix a. that is, qrfac determines an orthogonal
+c     m by n matrix a. that is, qrfacmp determines an orthogonal
 c     matrix q, a permutation matrix p, and an upper trapezoidal
 c     matrix r with diagonal elements of nonincreasing magnitude,
 c     such that a*p = q*r. the householder transformation for
@@ -4229,7 +4229,7 @@ c     appeared in the corresponding linpack subroutine.
 c
 c     the subroutine statement is
 c
-c       subroutine qrfac(m,n,a,lda,pivot,ipvt,lipvt,rdiag,acnorm,wa)
+c       subroutine qrfacmp(m,n,a,lda,pivot,ipvt,lipvt,rdiag,acnorm,wa)
 c
 c     where
 c
@@ -4275,7 +4275,7 @@ c         can coincide with rdiag.
 c
 c     subprograms called
 c
-c       minpack-supplied ... dpmpar,enorm
+c       minpack-supplied ... dpmparmp,enormmp
 c
 c       fortran-supplied ... dmax1,dsqrt,min0
 c
@@ -4285,17 +4285,17 @@ c
 c     **********
       integer i,j,jp1,k,kmax,minmn
       double precision ajnorm,epsmch,one,p05,sum,temp,zero
-      double precision dpmpar,enorm
+      double precision dpmparmp,enormmp
       data one,p05,zero /1.0d0,5.0d-2,0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
 c     compute the initial column norms and initialize several arrays.
 c
       do 10 j = 1, n
-         acnorm(j) = enorm(m,a(1,j))
+         acnorm(j) = enormmp(m,a(1,j))
          rdiag(j) = acnorm(j)
          wa(j) = rdiag(j)
          if (pivot) ipvt(j) = j
@@ -4329,7 +4329,7 @@ c
 c        compute the householder transformation to reduce the
 c        j-th column of a to a multiple of the j-th unit vector.
 c
-         ajnorm = enorm(m-j+1,a(j,j))
+         ajnorm = enormmp(m-j+1,a(j,j))
          if (ajnorm .eq. zero) go to 100
          if (a(j,j) .lt. zero) ajnorm = -ajnorm
          do 50 i = j, m
@@ -4355,7 +4355,7 @@ c
             temp = a(j,k)/rdiag(k)
             rdiag(k) = rdiag(k)*dsqrt(dmax1(zero,one-temp**2))
             if (p05*(rdiag(k)/wa(k))**2 .gt. epsmch) go to 80
-            rdiag(k) = enorm(m-j,a(jp1,k))
+            rdiag(k) = enormmp(m-j,a(jp1,k))
             wa(k) = rdiag(k)
    80       continue
    90       continue
@@ -4364,10 +4364,10 @@ c
   110    continue
       return
 c
-c     last card of subroutine qrfac.
+c     last card of subroutine qrfacmp.
 c
       end
-      subroutine qrsolv(n,r,ldr,ipvt,diag,qtb,x,sdiag,wa)
+      subroutine qrsolvmp(n,r,ldr,ipvt,diag,qtb,x,sdiag,wa)
       integer n,ldr
       integer ipvt(n)
       double precision r(ldr,n),diag(n),qtb(n),x(n),sdiag(n),wa(n)
@@ -4389,7 +4389,7 @@ c     if it is provided with the necessary information from the
 c     qr factorization, with column pivoting, of a. that is, if
 c     a*p = q*r, where p is a permutation matrix, q has orthogonal
 c     columns, and r is an upper triangular matrix with diagonal
-c     elements of nonincreasing magnitude, then qrsolv expects
+c     elements of nonincreasing magnitude, then qrsolvmp expects
 c     the full upper triangle of r, the permutation matrix p,
 c     and the first n components of (q transpose)*b. the system
 c     a*x = b, d*x = 0, is then equivalent to
@@ -4398,17 +4398,17 @@ c                  t       t
 c           r*z = q *b ,  p *d*p*z = 0 ,
 c
 c     where x = p*z. if this system does not have full rank,
-c     then a least squares solution is obtained. on output qrsolv
+c     then a least squares solution is obtained. on output qrsolvmp
 c     also provides an upper triangular matrix s such that
 c
 c            t   t               t
 c           p *(a *a + d*d)*p = s *s .
 c
-c     s is computed within qrsolv and may be of separate interest.
+c     s is computed within qrsolvmp and may be of separate interest.
 c
 c     the subroutine statement is
 c
-c       subroutine qrsolv(n,r,ldr,ipvt,diag,qtb,x,sdiag,wa)
+c       subroutine qrsolvmp(n,r,ldr,ipvt,diag,qtb,x,sdiag,wa)
 c
 c     where
 c
@@ -4558,7 +4558,7 @@ c
   160    continue
       return
 c
-c     last card of subroutine qrsolv.
+c     last card of subroutine qrsolvmp.
 c
       end
       subroutine r1mpyq(m,n,a,lda,v,w)
@@ -4718,7 +4718,7 @@ c         sing is set false.
 c
 c     subprograms called
 c
-c       minpack-supplied ... dpmpar
+c       minpack-supplied ... dpmparmp
 c
 c       fortran-supplied ... dabs,dsqrt
 c
@@ -4730,12 +4730,12 @@ c     **********
       integer i,j,jj,l,nmj,nm1
       double precision cos,cotan,giant,one,p5,p25,sin,tan,tau,temp,
      *                 zero
-      double precision dpmpar
+      double precision dpmparmp
       data one,p5,p25,zero /1.0d0,5.0d-1,2.5d-1,0.0d0/
 c
 c     giant is the largest magnitude.
 c
-      giant = dpmpar(3)
+      giant = dpmparmp(3)
 c
 c     initialize the diagonal element pointer.
 c

@@ -1,27 +1,3 @@
-c
-c     cm(3) = sR
-c     cm(4) = fcpr
-c     cm(5) = c0
-c     cm(6) = mua0
-c     cm(7) = k1
-c     cm(8) = k2
-c     cm(9) = hR
-c     cm(10) = k3
-c     cm(11) = k4
-c     cm(12) = k5
-c     cm(13) = lI
-c     cm(14) = lT
-c     cm(15) = alpha0
-c     cm(16) = mub
-c
-c     fc(1) = sigma
-c     fc(2) = tau
-c
-c     aux(1) = pp
-c     aux(2) = pn
-c     aux(3) = r
-c     aux(4) = s
-c
       subroutine inclination_angle(li, lt, alpha0, pp, pn, s, alpha)
       real*8 li, lt, alpha0
       real*8 pp, pn, s
@@ -119,7 +95,7 @@ c
       integer n, iflag, lext
       double precision x(n), fvec(n), ext(lext)
 c     material constants, state variables, flow variables
-      double precision fcpr, hr, dnn, k4, k5
+      double precision fcpr, hr, dnn, k3, k4, k5
       double precision sigmat1e
       double precision sigmat, taut, ppt, pnt, rt
       double precision sigmat1, taut1, ppt1, pnt1, rt1
@@ -130,6 +106,7 @@ c     variable acquisition
       fcpr = ext(1)
       hr = ext(3)
       dnn = ext(10)
+      k3 = ext(14)
       k4 = ext(15)
       k5 = ext(16)
       sigmat1e = ext(17)
@@ -161,7 +138,8 @@ c
       subroutine return_a_outer(n, x, fvec, iflag, ext, lext)
       implicit none
       integer n, iflag, lext
-      double precision x(n), fvec, ext(lext)
+      double precision x(n), fvec(n), ext(lext)
+      external return_a_inner
 c     material constants, state variables, flow variables
       double precision fcpr, sr, c0, mua0, dtt, k1, k2
       double precision taut1e
@@ -170,7 +148,7 @@ c     material constants, state variables, flow variables
       double precision dlambda
 c     function-scale parameters
       double precision mt1, fa
-      double precision _x(2), _fvec(2), _wa(19)
+      double precision xi(2), fveci(2), infoi, wai(19)
 c     variable acquisition
       fcpr = ext(1)
       sr = ext(2)
@@ -185,7 +163,7 @@ c     variable acquisition
       rt = ext(23)
       dlambda = ext(31)
 c     outer-loop flow
-      mt1 = sign(taut1e)
+      mt1 =sign(1.0D+00, taut1e)
       taut1 = taut1e - dlambda*dtt*mt1
       ppt1 = ppt + dlambda*max(0.0D+00,mt1)
       pnt1 = pnt + dlambda*max(0.0D+00,-mt1)
@@ -193,12 +171,12 @@ c     inner-loop flow
       ext(26) = taut1
       ext(27) = ppt1
       ext(28) = pnt1
-      _x(1) = sigmat
-      _x(2) = rt
-      call hybrd1ext(return_a_inner, 2, _x, _fvec, 0.00001D+00, _info,
-     & _wa, 19, ext, 32)
-      sigmat1 = _x(1)
-      rt1 = _x(2)
+      xi(1) = sigmat
+      xi(2) = rt
+      call hybrdext1(return_a_inner, 2, xi, fveci, 0.00001D+00, infoi,
+     & wai, 19, ext, 32)
+      sigmat1 = xi(1)
+      rt1 = xi(2)
 c     residual
       call yield_surface_a(fcpr, sr, c0, mua0, k1, k2, sigmat1, taut1,
      & ppt1, pnt1, fa)
@@ -256,9 +234,6 @@ c
       real*8 dn, dt
       real*8 dnn, dtt
       real*8 sigmae, taue
-
-      double precision fcpr, mub, sr, hr, li, lt, alpha0, c0, mua0, mub,
-     & k1, k2, k3, k4, k5
 c
       ! et=cm(3)
       ! en=cm(4)

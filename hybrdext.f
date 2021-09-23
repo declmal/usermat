@@ -158,8 +158,8 @@ c     subprograms called
 c
 c       user-supplied ...... fcn
 c
-c       minpack-supplied ... dogleg,dpmpar,enorm,fdjac1ext,
-c                            qform,qrfac,r1mpyq,r1updt
+c       minpack-supplied ... dogleg,dpmparmp,enormmp,fdjac1ext,
+c                            qform,qrfacmp,r1mpyq,r1updt
 c
 c       fortran-supplied ... dabs,dmax1,dmin1,min0,mod
 c
@@ -173,13 +173,13 @@ c     **********
       double precision actred,delta,epsmch,fnorm,fnorm1,one,pnorm,
      *                 prered,p1,p5,p001,p0001,ratio,sum,temp,xnorm,
      *                 zero
-      double precision dpmpar,enorm
+      double precision dpmparmp,enormmp
       data one,p1,p5,p001,p0001,zero
      *     /1.0d0,1.0d-1,5.0d-1,1.0d-3,1.0d-4,0.0d0/
 c
 c     epsmch is the machine precision.
 c
-      epsmch = dpmpar(1)
+      epsmch = dpmparmp(1)
 c
       info = 0
       iflag = 0
@@ -203,7 +203,7 @@ c
       call fcn(n,x,fvec,iflag,ext,lext)
       nfev = 1
       if (iflag .lt. 0) go to 300
-      fnorm = enorm(n,fvec)
+      fnorm = enormmp(n,fvec)
 c
 c     determine the number of calls to fcn needed to compute
 c     the jacobian matrix.
@@ -233,7 +233,7 @@ c
 c
 c        compute the qr factorization of the jacobian.
 c
-         call qrfac(n,n,fjac,ldfjac,.false.,iwa,1,wa1,wa2,wa3)
+         call qrfacmp(n,n,fjac,ldfjac,.false.,iwa,1,wa1,wa2,wa3)
 c
 c        on the first iteration and if mode is 1, scale according
 c        to the norms of the columns of the initial jacobian.
@@ -252,7 +252,7 @@ c
          do 60 j = 1, n
             wa3(j) = diag(j)*x(j)
    60       continue
-         xnorm = enorm(n,wa3)
+         xnorm = enormmp(n,wa3)
          delta = factor*xnorm
          if (delta .eq. zero) delta = factor
    70    continue
@@ -327,7 +327,7 @@ c
                wa2(j) = x(j) + wa1(j)
                wa3(j) = diag(j)*wa1(j)
   200          continue
-            pnorm = enorm(n,wa3)
+            pnorm = enormmp(n,wa3)
 c
 c           on the first iteration, adjust the initial step bound.
 c
@@ -339,7 +339,7 @@ c
             call fcn(n,wa2,wa4,iflag,ext,lext)
             nfev = nfev + 1
             if (iflag .lt. 0) go to 300
-            fnorm1 = enorm(n,wa4)
+            fnorm1 = enormmp(n,wa4)
 c
 c           compute the scaled actual reduction.
 c
@@ -357,7 +357,7 @@ c
   210             continue
                wa3(i) = qtf(i) + sum
   220          continue
-            temp = enorm(n,wa3)
+            temp = enormmp(n,wa3)
             prered = zero
             if (temp .lt. fnorm) prered = one - (temp/fnorm)**2
 c
@@ -393,7 +393,7 @@ c
                wa2(j) = diag(j)*x(j)
                fvec(j) = wa4(j)
   250          continue
-            xnorm = enorm(n,wa2)
+            xnorm = enormmp(n,wa2)
             fnorm = fnorm1
             iter = iter + 1
   260       continue

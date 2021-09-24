@@ -1,9 +1,9 @@
       subroutine fdjac1ext(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,
-     *                  wa1,wa2,ext,lext)
-      integer n,ldfjac,iflag,ml,mu,lext
+     *                  wa1,wa2,cm,lcm,ext,lext)
+      integer n,ldfjac,iflag,ml,mu,lcm,lext
       double precision epsfcn
       double precision x(n),fvec(n),fjac(ldfjac,n),wa1(n),wa2(n),
-     *                 ext(lext)
+     *                 cm(lcm),ext(lext)
 
 c*********************************************************************72
 c
@@ -18,7 +18,7 @@ c
 c     the subroutine statement is
 c
 c       subroutine fdjac1ext(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,
-c                         wa1,wa2,ext,lext)
+c                         wa1,wa2,cm,lcm,ext,lext)
 c
 c     where
 c
@@ -27,9 +27,9 @@ c         calculates the functions. fcn must be declared
 c         in an external statement in the user calling
 c         program, and should be written as follows.
 c
-c         subroutine fcn(n,x,fvec,iflag,ext,lext)
-c         integer n,iflag,lext
-c         double precision x(n),fvec(n),ext(lext)
+c         subroutine fcn(n,x,fvec,iflag,cm,lcm,ext,lext)
+c         integer n,iflag,lcm,lext
+c         double precision x(n),fvec(n),cm(lcm),ext(lext)
 c         ----------
 c         calculate the functions at x and
 c         return this vector in fvec.
@@ -110,7 +110,7 @@ c
             h = eps*dabs(temp)
             if (h .eq. zero) h = eps
             x(j) = temp + h
-            call fcn(n,x,wa1,iflag,ext,lext)
+            call fcn(n,x,wa1,iflag,cm,lcm,ext,lext)
             if (iflag .lt. 0) go to 30
             x(j) = temp
             do 10 i = 1, n
@@ -130,7 +130,7 @@ c
                if (h .eq. zero) h = eps
                x(j) = wa2(j) + h
    60          continue
-            call fcn(n,x,wa1,iflag,ext,lext)
+            call fcn(n,x,wa1,iflag,cm,lcm,ext,lext)
             if (iflag .lt. 0) go to 100
             do 80 j = k, n, msum
                x(j) = wa2(j)

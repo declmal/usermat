@@ -1,6 +1,6 @@
       subroutine hybrdext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,diag,
      *                 mode,factor,nprint,info,nfev,fjac,ldfjac,r,lr,
-     *                 qtf,wa1,wa2,wa3,wa4,ext,lext)
+     *                 qtf,wa1,wa2,wa3,wa4,cm,lcm,ext,lext)
       integer n,maxfev,ml,mu,mode,nprint,info,nfev,ldfjac,lr,lext
       double precision xtol,epsfcn,factor
       double precision x(n),fvec(n),diag(n),fjac(ldfjac,n),r(lr),
@@ -21,7 +21,7 @@ c     the subroutine statement is
 c
 c       subroutine hybrdext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,
 c                        diag,mode,factor,nprint,info,nfev,fjac,
-c                        ldfjac,r,lr,qtf,wa1,wa2,wa3,wa4,ext,lext)
+c                        ldfjac,r,lr,qtf,wa1,wa2,wa3,wa4,cm,lcm,ext,lext)
 c
 c     where
 c
@@ -30,9 +30,9 @@ c         calculates the functions. fcn must be declared
 c         in an external statement in the user calling
 c         program, and should be written as follows.
 c
-c         subroutine fcn(n,x,fvec,iflag,ext,lext)
-c         integer n,iflag,lext
-c         double precision x(n),fvec(n),ext(lext)
+c         subroutine fcn(n,x,fvec,iflag,cm,lcm,ext,lext)
+c         integer n,iflag,lcm,lext
+c         double precision x(n),fvec(n),cm(lcm),ext(lext)
 c         ----------
 c         calculate the functions at x and
 c         return this vector in fvec.
@@ -150,7 +150,11 @@ c         the vector (q transpose)*fvec.
 c
 c       wa1, wa2, wa3, and wa4 are work arrays of length n.
 c
-c       ext is an array of extra parameters of fcn of length lext.
+c       cm is an array of material constant of length lcm.
+c
+c       lcm is a positive integer input variable.
+c
+c       ext is an array of extra parameters of length lext.
 c
 c       lext is a positive integer input variable.
 c
@@ -200,7 +204,7 @@ c     evaluate the function at the starting point
 c     and calculate its norm.
 c
       iflag = 1
-      call fcn(n,x,fvec,iflag,ext,lext)
+      call fcn(n,x,fvec,iflag,cm,lcm,ext,lext)
       nfev = 1
       if (iflag .lt. 0) go to 300
       fnorm = enormmp(n,fvec)
@@ -227,7 +231,7 @@ c        calculate the jacobian matrix.
 c
          iflag = 2
          call fdjac1ext(fcn,n,x,fvec,fjac,ldfjac,iflag,ml,mu,epsfcn,wa1,
-     *               wa2,ext,lext)
+     *               wa2,cm,lcm,ext,lext)
          nfev = nfev + msum
          if (iflag .lt. 0) go to 300
 c
@@ -312,7 +316,7 @@ c
             if (nprint .le. 0) go to 190
             iflag = 0
             if (mod(iter-1,nprint) .eq. 0) call
-     * fcn(n,x,fvec,iflag,ext,lext)
+     * fcn(n,x,fvec,iflag,cm,lcm,ext,lext)
             if (iflag .lt. 0) go to 300
   190       continue
 c
@@ -336,7 +340,7 @@ c
 c           evaluate the function at x + p and calculate its norm.
 c
             iflag = 1
-            call fcn(n,wa2,wa4,iflag,ext,lext)
+            call fcn(n,wa2,wa4,iflag,cm,lcm,ext,lext)
             nfev = nfev + 1
             if (iflag .lt. 0) go to 300
             fnorm1 = enormmp(n,wa4)
@@ -457,7 +461,7 @@ c     termination, either normal or user imposed.
 c
       if (iflag .lt. 0) info = iflag
       iflag = 0
-      if (nprint .gt. 0) call fcn(n,x,fvec,iflag,ext,lext)
+      if (nprint .gt. 0) call fcn(n,x,fvec,iflag,cm,lcm,ext,lext)
       return
 c
 c     last card of subroutine hybrdext.

@@ -1,7 +1,7 @@
-      subroutine hybrdext1(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
-      integer n,info,lwa,lext
+      subroutine hybrdext1(fcn,n,x,fvec,tol,info,wa,lwa,cm,lcm,ext,lext)
+      integer n,info,lwa,lcm,lext
       double precision tol
-      double precision x(n),fvec(n),wa(lwa),ext(lext)
+      double precision x(n),fvec(n),wa(lwa),cm(lcm),ext(lext)
       external fcn
 
 c*********************************************************************72
@@ -18,7 +18,7 @@ c     approximation.
 c
 c     the subroutine statement is
 c
-c       subroutine hybrdext1(fcn,n,x,fvec,tol,info,wa,lwa,ext,lext)
+c       subroutine hybrdext1(fcn,n,x,fvec,tol,info,wa,lwa,cm,lcm,ext,lext)
 c
 c     where
 c
@@ -27,9 +27,9 @@ c         calculates the functions. fcn must be declared
 c         in an external statement in the user calling
 c         program, and should be written as follows.
 c
-c         subroutine fcn(n,x,fvec,iflag,ext,lext)
-c         integer n,iflag,lext
-c         double precision x(n),fvec(n),ext(lext)
+c         subroutine fcn(n,x,fvec,iflag,cm,lcm,ext,lext)
+c         integer n,iflag,lcm,lext
+c         double precision x(n),fvec(n),cm(lcm),ext(lext)
 c         ----------
 c         calculate the functions at x and
 c         return this vector in fvec.
@@ -78,6 +78,10 @@ c
 c       lwa is a positive integer input variable not less than
 c         (n*(3*n+13))/2.
 c
+c       cm is an array of material constant of length lcm.
+c
+c       lcm is a positive integer input variable.
+c
 c       ext is an array of extra parameters of fcn of length lext.
 c
 c       lext is a positive integer input variable.
@@ -119,7 +123,7 @@ c
       call hybrdext(fcn,n,x,fvec,xtol,maxfev,ml,mu,epsfcn,wa(1),mode,
      *           factor,nprint,info,nfev,wa(index+1),n,wa(6*n+1),lr,
      *           wa(n+1),wa(2*n+1),wa(3*n+1),wa(4*n+1),wa(5*n+1),
-     *           ext,lext)
+     *           cm,lcm,ext,lext)
       if (info .eq. 5) info = 4
    20 continue
       return

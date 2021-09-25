@@ -48,7 +48,8 @@ c
       real*8 dn, dt
       real*8 dnn, dtt
       real*8 sigmae, taue
-      integer lext/18/
+      integer lext
+      parameter (lext = 18)
       double precision ext(lext)
 c
       ! et=cm(3)

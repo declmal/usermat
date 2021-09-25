@@ -445,8 +445,8 @@ c
       ! fcfail=cm(5)
 c
       do i=lft,llt
-        ext(1) = aux(i,1) + cm(12)*dx(i,1)
-        ext(2) = aux(i,2) + cm(13)*dx(i,2)
+        ext(1) = aux(i,1) + cm(12)*dx(i,3)
+        ext(2) = aux(i,2) + cm(13)*dx(i,1)
         ext(3) = aux(i,1)
         ext(4) = aux(i,2)
         ext(5) = aux(i,3)
@@ -454,8 +454,8 @@ c
         ext(7) = aux(i,5)
         ext(8) = aux(i,6)
         call murcia_return(cm, lcm, ext, lext)
-        fc(i,1) = ext(3)
-        fc(i,2) = ext(4)
+        fc(i,3) = ext(9)
+        fc(i,1) = ext(10)
         aux(i,1) = ext(9)
         aux(i,2) = ext(10)
         aux(i,3) = ext(11)

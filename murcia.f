@@ -104,13 +104,13 @@ c
       double precision x(n), fvec(n), cm(lcm), ext(lext)
       double precision ma1t, ma1t1, ddns
       call murcia_a_flow(
-     &  cm(1), cm(3), cm(14), cm(15), cm(16), ext(3), ext(4), ext(5),
+     &  cm(3), cm(5), cm(16), cm(17), cm(18), ext(3), ext(4), ext(5),
      &  ext(6), ext(7), ma1t)
       call murcia_a_flow(
-     &  cm(1), cm(3), cm(14), cm(15), cm(16), x(1), ext(10), ext(11),
+     &  cm(3), cm(5), cm(16), cm(17), cm(18), x(1), ext(10), ext(11),
      &  ext(11), ext(12), x(2), ma1t1)
-      ddns = ext(17) * ((1.0D+00-cm(17))*ma1t+cm(17)*ma1t1)
-      fvec(1) = ext(1) - cm(10)*ddns - ext(9)
+      ddns = ext(17) * ((1.0D+00-cm(19))*ma1t+cm(19)*ma1t1)
+      fvec(1) = ext(1) - cm(12)*ddns - ext(9)
       fvec(2) = ext(7) + ddns - ext(13)
       return
       end
@@ -122,7 +122,7 @@ c
       parameter (n2 = 2, lwa2 = (n2*(3*n2+13)) / 2)
       double precision x2(n2), fvec2(n2), info2, wa2(lwa2)
       double precision tol2/0.00001D+00/
-      ext(10) = ext(2) - x(1)*cm(11)*ext(15)
+      ext(10) = ext(2) - x(1)*cm(13)*ext(15)
       ext(11) = ext(5) + x(1)*max(0.0D+00,ext(15))
       ext(12) = ext(6) + x(1)*max(0.0D+00,-ext(15))
       ext(17) = x(1)
@@ -134,7 +134,7 @@ c
       ext(9) = x2(1)
       ext(13) = x2(2)
       call murcia_a_yield(
-     &  cm(1), cm(2), cm(7), cm(8), cm(12), cm(13), ext(9), ext(10),
+     &  cm(3), cm(4), cm(9), cm(10), cm(14), cm(15), ext(9), ext(10),
      &  ext(11), ext(12), fvec(1))
       return
       end
@@ -165,17 +165,17 @@ c
       integer n, iflag, lcm, lext
       double precision x(n), fvec(n), cm(lcm), ext(lext)
       double precision mb1t, mb1t1
-      ext(10) = ext(2) - x(1)*cm(11)*ext(16)
+      ext(10) = ext(2) - x(1)*cm(13)*ext(16)
       ext(14) = ext(8) + x(1)*ext(16)
       call murcia_b_flow(
-     &  cm(4), cm(5), cm(6), ext(5), ext(6), ext(8), mb1t)
+     &  cm(6), cm(7), cm(8), ext(5), ext(6), ext(8), mb1t)
       call murcia_b_flow(
-     &  cm(4), cm(5), cm(6), ext(5), ext(6), ext(14), mb1t1)
+     &  cm(6), cm(7), cm(8), ext(5), ext(6), ext(14), mb1t1)
       ext(9) = 
-     &  ext(1) - x(1)*cm(10)*((1.0D+00-cm(17))*mb1t+cm(17)*mb1t1)
+     &  ext(1) - x(1)*cm(12)*((1.0D+00-cm(19))*mb1t+cm(19)*mb1t1)
      &  *ext(16)
       call murcia_b_yield(
-     &  cm(4), cm(5), cm(6), cm(9), ext(9), ext(10), ext(5), ext(6),
+     &  cm(6), cm(7), cm(8), cm(11), ext(9), ext(10), ext(5), ext(6),
      &  ext(14), fvec(1))
       return
       end
@@ -189,7 +189,7 @@ c
       double precision tol/0.00001D+00/
       double precision alphat
       call murcia_angle(
-     &  cm(4), cm(5), cm(6), ext(5), ext(6), ext(8), alphat)
+     &  cm(6), cm(7), cm(8), ext(5), ext(6), ext(8), alphat)
       ext(16) = sign(1.0D+00, ext(2)*cos(alphat)+ext(1)*sin(alphat))
       x(1) = 0.0D+00
       call hybrdext1(
@@ -212,18 +212,18 @@ c
       double precision x(n), fvec(n), cm(lcm), ext(lext)
       double precision ma1t, ma1t1, ddns, mb1t, mb1t1
       call murcia_a_flow(
-     &  cm(1), cm(3), cm(14), cm(15), cm(16), ext(3), ext(4), ext(5),
+     &  cm(3), cm(5), cm(16), cm(17), cm(18), ext(3), ext(4), ext(5),
      &  ext(6), ext(7), ma1t)
       call murcia_a_flow(
-     &  cm(1), cm(3), cm(14), cm(15), cm(16), x(1), ext(10), ext(11),
+     &  cm(3), cm(5), cm(16), cm(17), cm(18), x(1), ext(10), ext(11),
      &  ext(11), ext(12), x(2), ma1t1)
-      ddns = ext(17) * ((1.0D+00-cm(17))*ma1t+cm(17)*ma1t1)
+      ddns = ext(17) * ((1.0D+00-cm(19))*ma1t+cm(19)*ma1t1)
       call murcia_b_flow(
-     &  cm(4), cm(5), cm(6), ext(5), ext(6), ext(8), mb1t)
+     &  cm(6), cm(7), cm(8), ext(5), ext(6), ext(8), mb1t)
       call murcia_b_flow(
-     &  cm(4), cm(5), cm(6), ext(5), ext(6), ext(14), mb1t1)
-      fvec(1) = ext(1) - cm(10)*ddns - ext(9)
-     &  - x(1)*cm(10)*((1.0D+00-cm(17))*mb1t+cm(17)*mb1t1)*ext(16)
+     &  cm(6), cm(7), cm(8), ext(5), ext(6), ext(14), mb1t1)
+      fvec(1) = ext(1) - cm(12)*ddns - ext(9)
+     &  - x(1)*cm(12)*((1.0D+00-cm(19))*mb1t+cm(19)*mb1t1)*ext(16)
       fvec(2) = ext(7) + ddns - ext(13)
       return
       end
@@ -235,7 +235,7 @@ c
       parameter (n2 = 2, lwa2 = (n2*(3*n2+13)) / 2)
       double precision x2(n2), fvec2(n2), info2, wa2(lwa2)
       double precision tol2/0.00001D+00/
-      ext(10) = ext(2) - x(1)*cm(11)*ext(15) - x(2)*cm(11)*ext(16)
+      ext(10) = ext(2) - x(1)*cm(13)*ext(15) - x(2)*cm(11)*ext(16)
       ext(11) = ext(5) + x(1)*max(0.0D+00,ext(15))
       ext(12) = ext(6) + x(1)*max(0.0D+00,-ext(15))
       ext(14) = ext(8) + x(1)*ext(16)
@@ -249,10 +249,10 @@ c
       ext(9) = x2(1)
       ext(13) = x2(2)
       call murcia_a_yield(
-     &  cm(1), cm(2), cm(7), cm(8), cm(12), cm(13), ext(9), ext(10),
+     &  cm(3), cm(4), cm(9), cm(10), cm(14), cm(15), ext(9), ext(10),
      &  ext(11), ext(12), fvec(1))
       call murcia_b_yield(
-     &  cm(4), cm(5), cm(6), cm(9), ext(9), ext(10), ext(5), ext(6),
+     &  cm(6), cm(7), cm(8), cm(11), ext(9), ext(10), ext(5), ext(6),
      &  ext(14), fvec(2))
       return
       end
@@ -267,12 +267,40 @@ c
       double precision alphat
       ext(15) = sign(1.0D+00, ext(2))
       call murcia_angle(
-     &  cm(4), cm(5), cm(6), ext(5), ext(6), ext(8), alphat)
+     &  cm(6), cm(7), cm(8), ext(5), ext(6), ext(8), alphat)
       ext(16) = sign(1.0D+00, ext(2)*cos(alphat)+ext(1)*sin(alphat))
       x(1) = 0.0D+00
       x(2) = 0.0D+00
       call hybrdext1(
      &  murcia_ab_f1, n, x, fvec, tol, info, wa, lwa, cm, lcm,
      &  ext, lext)
+      return
+      end
+c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c      return to the intersection a and b 
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+      subroutine murcia_return(cm, lcm, ext, lext)
+      integer lcm, lext
+      double precision cm(lcm), ext(lext)
+      double precision fa, fb
+      call murcia_a_yield(
+     &  cm(3), cm(4), cm(9), cm(10), cm(14), cm(15), ext(9), ext(10),
+     &  ext(11), ext(12), fa)
+      call murcia_b_yield(
+     &  cm(6), cm(7), cm(8), cm(11), ext(9), ext(10), ext(5), ext(6),
+     &  ext(14), fb)
+      if (fa.le.0.0D+00.and.fb.le.0.0D+00) then
+        ext(9) = ext(3)
+        ext(10) = ext(4)
+        ext(11) = ext(5)
+        ext(12) = ext(6)
+        ext(13) = ext(7)
+        ext(14) = ext(8)
+        return
+      endif
       return
       end

@@ -48,26 +48,37 @@ c
       real*8 dn, dt
       real*8 dnn, dtt
       real*8 sigmae, taue
+      integer lext/18/
+      double precision ext(lext)
 c
       ! et=cm(3)
       ! en=cm(4)
       ! eki=max(et,en)
       ! fcfail=cm(5)
-      dnn = cm(3)
-      dtt = cm(4)
 c
       do i=lft,llt
-        sigma = fc(i, 1)
-        dn = dx(i, 1)
-        sigmae = sigma + dnn*dn
-        tau = fc(i, 2)
-        dt = dx(i, 2)
-        taue = sigma + dtt*dt
-        ! fc(i,1)=et*dx(i,1)
-        ! fc(i,2)=et*dx(i,2)
-        ! fc(i,3)=en*dx(i,3)
-        ! ek(i)=eki
-        ! ifail(i)=fc(i,3).gt.fcfail
+        ext(1) = aux(i,1) + cm(10)*dx(i,1)
+        ext(2) = aux(i,2) + cm(11)*dx(i,2)
+        ext(3) = aux(i,1)
+        ext(4) = aux(i,2)
+        ext(5) = aux(i,3)
+        ext(6) = aux(i,4)
+        ext(7) = aux(i,5)
+        ext(8) = aux(i,6)
+        call murcia_return(cm, 19, ext, lext)
+        fc(i,1) = ext(3)
+        fc(i,2) = ext(4)
+        aux(i,1) = ext(3)
+        aux(i,2) = ext(4)
+        aux(i,3) = ext(5)
+        aux(i,4) = ext(6)
+        aux(i,5) = ext(7)
+        aux(i,6) = ext(8)
+c        fc(i,1)=et*dx(i,1)
+c        fc(i,2)=et*dx(i,2)
+c        fc(i,3)=en*dx(i,3)
+c        ek(i)=eki
+c        ifail(i)=fc(i,3).gt.fcfail
       enddo
 c
       return

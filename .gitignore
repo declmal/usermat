@@ -1,4 +1,13 @@
 build
 *.o
 *.a
+*.ipynb
 __pycache__
+fcodegen/fortran
+.ipynb_checkpoints
+*.png
+lsdyna
+minpack/f77split
+minpack/lib
+minpack/minpack_test
+minpack/minpack_test.txt

@@ -461,7 +461,8 @@ c
         aux(i,3) = ext(11)
         aux(i,4) = ext(12)
         aux(i,5) = ext(13)
-        aux(i,6) = ext(14)
+
+  
 c        fc(i,1)=et*dx(i,1)
 c        fc(i,2)=et*dx(i,2)
 c        fc(i,3)=en*dx(i,3)

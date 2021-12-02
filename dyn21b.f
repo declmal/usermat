@@ -14078,7 +14078,6 @@ c     lmc                  = length of cm
 c
       return
       end
-c     
       subroutine umat42c(idpart,params,lft,llt,fTraction,jump_u,dxdt,
      & aux,ek,ifail,dt1siz,crv,nhxbwp,cma)
 c

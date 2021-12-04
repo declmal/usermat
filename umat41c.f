@@ -41,22 +41,23 @@ c         =0 no deletion
 c     (3:48) material model constants
 c
       include 'nlqparm'
-      logical ifail
-      dimension cm(*),fc(nlq,*),dx(nlq,*),dxdt(nlq,*),
-     & aux(nlq,*),ek(*),ifail(*),dt1siz(*),crv(lq1,2,*),
-     & nhxbwp(*),cma(*)
+      dimension dt1siz(*), crv(lq1,2,*), nhxbwp(*), cma(*)
+      double precision cm(5)
+      double precision fc(nlq,3)
+      double precision dx(nlq,3)
+      double precision dxdt(nlq,3)
+      double precision aux(nlq,5)
+      double precision ek(nlq)
+      logical ifail(nlq)
 c
       et=cm(3)
       en=cm(4)
-      eki=max(et,en)
       fcfail=cm(5)
 c
       do i=lft,llt
-        fc(i,1)=et*dx(i,1)
-        fc(i,2)=et*dx(i,2)
-        fc(i,3)=en*dx(i,3)
-        ek(i)=eki
-        ifail(i)=fc(i,3).gt.fcfail
+        call umatcv_test(
+     &    et, en, fcfail, fc(i,1), fc(i,2), fc(i,3), dx(i,1), dx(i,2),
+     &    dx(i,3), ek(i), ifail(i))
       enddo
 c
       return

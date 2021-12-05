@@ -21,8 +21,8 @@ dyn21b: dyn21b.f nhisparm.inc
 	ifort -c -safe_cray_ptr -assume byterecl,buffered_io,protect_parens -warn nousage -zero -ftz -fp-model precise -mP2OPT_hpo_dist_factor=21 -diag-disable 10212,10010 -xSSE3 -align array16byte -nopad -openmp -i8 -r8  -DINTEL -DAdd_ -O2 -I. dyn21b.f
 umat41c: umat41c.f nhisparm.inc
 	ifort -c -safe_cray_ptr -assume byterecl,buffered_io,protect_parens -warn nousage -zero -ftz -fp-model precise -mP2OPT_hpo_dist_factor=21 -diag-disable 10212,10010 -xSSE3 -align array16byte -nopad -openmp -i8 -r8  -DINTEL -DAdd_ -O2 -I. umat41c.f
-murcia: murcia.c
-	gcc -c murcia.c -o murcia.o
+murcia: murcia.cc
+	g++ -std=c++2a -c murcia.cc -o murcia.o
 	ar qc libmurcia.a murcia.o
 couple2other_user: couple2other_user.f 
 	ifort -c -safe_cray_ptr -assume byterecl,buffered_io,protect_parens -warn nousage -zero -ftz -fp-model precise -mP2OPT_hpo_dist_factor=21 -diag-disable 10212,10010 -xSSE3 -align array16byte -nopad -openmp -i8 -r8  -DINTEL -DAdd_ -O2 -I. couple2other_user.f

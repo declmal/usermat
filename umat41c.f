@@ -55,9 +55,12 @@ c
       fcfail=cm(5)
 c
       do i=lft,llt
-        call umatcv_test(
-     &    et, en, fcfail, fc(i,1), fc(i,2), fc(i,3), dx(i,1), dx(i,2),
-     &    dx(i,3), ek(i), ifail(i))
+        call umatcv_murcia(
+     &    et, en, fcfail,
+     &    fc(i,1), fc(i,2), fc(i,3),
+     &    dx(i,1), dx(i,2), dx(i,3),
+     &    ek(i), ifail(i)
+     &  )
       enddo
 c
       return
